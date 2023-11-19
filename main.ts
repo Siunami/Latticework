@@ -371,61 +371,6 @@ class PlaceholderWidget extends WidgetType {
 					return;
 				}
 			}
-
-			// console.log("currLeaf");
-			// console.log(currLeaf.getDisplayText());
-			// console.log(currLeaf);
-
-			// console.log("root leaves");
-			// workspace.iterateRootLeaves((leaf: any) => {
-			// 	// console.log(leaf.view);
-			// 	console.log(leaf.getDisplayText());
-			// 	// console.log(leaf.getEphemeralState());
-			// 	console.log(leaf.getViewState());
-
-			// 	let parentSplit = leaf.parent;
-			// 	console.log(parentSplit);
-
-			// 	let children = parentSplit.children;
-
-			// 	if (parentSplit) {
-			// 		console.log(
-			// 			`Leaf with display "${leaf.getDisplayText()}" is part of a root split.`
-			// 		);
-			// 	} else {
-			// 		console.log(
-			// 			`Leaf with display "${leaf.getDisplayText()}" is not part of a recognized split.`
-			// 		);
-			// 	}
-			// });
-
-			// // console.log(workspace);
-			// // console.log(vault.getMarkdownFiles());
-			// let files = vault.getMarkdownFiles();
-			// // console.log(files);
-			// // TODO: I want to hover, show the ifo in the panel adjacent.
-			// const view = workspace.getActiveViewOfType(MarkdownView);
-			// const editor = view.editor;
-
-			// // editor.setSelection(rangeStart, rangeEnd);
-			// // editor.replaceSelection(`"${text}"`);
-
-			// // const currLeaf = workspace.getLeaf();
-
-			// // let leaf = workspace.createLeafBySplit(currLeaf);
-			// // leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
-
-			// const leaves = workspace.getLeavesOfType("markdown");
-			// console.log(leaves);
-
-			// editor.replaceRange(`%%%${text}%%%`, rangeStart, rangeEnd);
-			// editor.scrollIntoView(
-			// 	{
-			// 		from: rangeStart,
-			// 		to: rangeEnd,
-			// 	},
-			// 	true
-			// );
 		});
 
 		span.addEventListener("mouseout", () => {
@@ -463,33 +408,6 @@ class PlaceholderWidget extends WidgetType {
 					Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
 				);
 			}
-
-			// // console.log(workspace);
-			// // console.log(vault.getMarkdownFiles());
-			// let files = vault.getMarkdownFiles();
-			// // console.log(files);
-			// const view = workspace.getActiveViewOfType(MarkdownView);
-			// const editor = view.editor;
-
-			// state = state.update({
-			// 	effects: hoverEffect.of(
-			// 		JSON.stringify({
-			// 			type: "hover-off",
-			// 		})
-			// 	),
-			// }).state;
-
-			// const editor = targetLeaf.view.editor;
-			// console.log(targetLeaf);
-
-			// editor.undo();
-			// editor.scrollIntoView(
-			// 	{
-			// 		from: rangeStart,
-			// 		to: rangeEnd,
-			// 	},
-			// 	true
-			// );
 		});
 
 		span.addEventListener("click", () => {
@@ -779,30 +697,6 @@ class MyHighlightPluginSettingTab extends PluginSettingTab {
 	}
 }
 
-// Function to create and return an SVG element with a circle
-function createSvgCircle() {
-	// Create an SVG namespace, which is required for creating SVG elements
-	const SVG_NS = "http://www.w3.org/2000/svg";
-
-	// Create the SVG element
-	const svgElem = document.createElementNS(SVG_NS, "svg");
-	svgElem.setAttribute("width", "100");
-	svgElem.setAttribute("height", "100");
-	svgElem.setAttribute("viewBox", "0 0 100 100");
-
-	// Create a circle element within the SVG
-	const circleElem = document.createElementNS(SVG_NS, "circle");
-	circleElem.setAttribute("cx", "50");
-	circleElem.setAttribute("cy", "50");
-	circleElem.setAttribute("r", "40"); // Radius of the circle
-	circleElem.setAttribute("fill", "red"); // Fill color of the circle
-
-	// Append the circle to the SVG element
-	svgElem.appendChild(circleElem);
-
-	return svgElem; // Return the complete SVG element with the circle inside
-}
-
 export default class MyHighlightPlugin extends Plugin {
 	settings: MyHighlightPluginSettings;
 
@@ -938,6 +832,7 @@ export default class MyHighlightPlugin extends Plugin {
 							let index = rightAdjacentTab.findIndex(
 								(x: any) => x.state.file == file
 							);
+							console.log("index: " + index);
 							if (index != -1) {
 								// console.log("perform replace action");
 
@@ -968,7 +863,7 @@ export default class MyHighlightPlugin extends Plugin {
 						}
 
 						if (leavesByTab[currTabIdx - 1]) {
-							console.log("There exists a tab to the right");
+							console.log("There exists a tab to the left");
 							let rightAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
 								(leaf: any) => leaf.getViewState()
 							);
@@ -976,6 +871,7 @@ export default class MyHighlightPlugin extends Plugin {
 							let index = rightAdjacentTab.findIndex(
 								(x: any) => x.state.file == file
 							);
+							console.log("index: " + index);
 							if (index != -1) {
 								// console.log("perform replace action");
 
@@ -1006,6 +902,7 @@ export default class MyHighlightPlugin extends Plugin {
 						}
 
 						if (leavesByTab[currTabIdx + 1]) {
+							console.log("No tab on right but will create one");
 							let tab = leavesByTab[currTabIdx + 1][0];
 							let numberTabs = leavesByTab[currTabIdx + 1][1].length - 1;
 							let newTab: any = this.app.workspace.createLeafInParent(
@@ -1014,10 +911,11 @@ export default class MyHighlightPlugin extends Plugin {
 							);
 							let targetFile: any = this.app.vault.getAbstractFileByPath(file);
 							newTab
-								.openFile(targetFile)
+								.openFile(targetFile, { active: false })
 								.then(() => {
 									const editor = newTab.view.editor;
 									console.log(newTab);
+									console.log(editor);
 									state = state.update({
 										effects: hoverEffect.of(
 											JSON.stringify({
@@ -1028,8 +926,9 @@ export default class MyHighlightPlugin extends Plugin {
 											})
 										),
 									}).state;
-									// editor.setSelection(rangeStart, rangeEnd);
-									// editor.replaceSelection("markdownImageTag");
+									// // editor.setSelection(rangeStart, rangeEnd);
+									// // editor.replaceSelection("markdownImageTag");
+									editor.focus();
 									editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
 									editor.scrollIntoView(
 										{
@@ -1352,31 +1251,5 @@ export default class MyHighlightPlugin extends Plugin {
 		// editor.replaceSelection(.innerText);
 
 		return;
-
-		// Get the SVG content
-		const svgContent = createSvgCircle().outerHTML;
-		console.log(createSvgCircle());
-
-		// Save the SVG to a file and get the file's path
-		const svgFilePath = await this.saveSvgAsFile(
-			svgContent,
-			"unique-circle-filename"
-		);
-
-		// Convert the file path to a markdown image tag
-		const markdownImageTag = `![](${svgFilePath})`;
-
-		// Insert the markdown image tag at the current cursor position
-		editor.replaceSelection(markdownImageTag);
-
-		// const svgDataUri =
-		// 	"data:image/svg+xml," + encodeURIComponent(createSvgCircle().outerHTML);
-		// const markdownImageTag = `![](${svgDataUri})`;
-
-		// // Insert the markdown image tag at the current cursor position
-		// editor.replaceSelection(markdownImageTag);
-
-		// const highlightMarkdown = `<mark class="${this.settings.highlightClass}">${selectedText}</mark>`;
-		// editor.replaceSelection(highlightMarkdown);
 	}
 }

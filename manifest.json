@@ -1,9 +1,9 @@
 {
-	"id": "hello-world",
-	"name": "Hello World",
+	"id": "reference-plugin",
+	"name": "Reference plugin",
 	"version": "1.0.0",
 	"minAppVersion": "0.15.0",
-	"description": "This is a sample plugin for Obsidian. This plugin demonstrates some of the capabilities of the Obsidian API.",
+	"description": "Reference plugin",
 	"author": "Obsidian",
 	"authorUrl": "https://obsidian.md",
 	"fundingUrl": "https://obsidian.md/pricing",
