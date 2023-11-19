@@ -1,0 +1,25 @@
+/*
+
+This CSS file will be included with your plugin, and
+available in the app when your plugin is enabled.
+
+If your plugin does not need CSS, delete this file.
+
+*/
+
+/* my-highlight-style.css */
+.mark.my-custom-highlight {
+    background-color: yellow;
+  }
+
+img[alt="img"] {
+    max-width: 22px !important;
+}
+
+.your-custom-highlight-class {
+  background-color: yellow; /* Choose a color that stands out */
+}
+
+.future {
+  color: #00ff00;
+}
