@@ -241,6 +241,7 @@ class PlaceholderWidget extends WidgetType {
 						JSON.stringify({
 							type: "hover",
 							leafId: null,
+							originalTop: null,
 						})
 					),
 				}).state;
@@ -382,87 +383,6 @@ export const emojiListField = StateField.define<DecorationSet>({
 	},
 });
 
-/* Exmample View */
-export const VIEW_TYPE_EXAMPLE = "example-view";
-
-// A simple Javascript function that converts a line of markdown text
-// to HTML using a createEl() function, as described in the documentation.
-function markdownToHtml(containerEl: any, markdownLine: string) {
-	// Define regex patterns for markdown
-	const headingPattern = /^(#{1,6})\s(.*)/;
-	const boldPattern = /\*\*(.*?)\*\*/g;
-	const italicPattern = /\*(.*?)\*/g;
-	const linkPattern = /\[([^\[]+)\]\(([^\)]+)\)/g;
-
-	// Identify Markdown Heading and create the corresponding HTML element
-	const headingMatch = markdownLine.match(headingPattern);
-	if (headingMatch) {
-		// Heading level is determined by the number of '#' characters
-		const headingLevel = headingMatch[1].length;
-		// Add an HTML heading element with the correct level and text content
-		containerEl.createEl(`h${headingLevel}`, { text: headingMatch[2] });
-		return;
-	}
-
-	// If not a heading, create a paragraph element
-	const paragraphEl = containerEl.createEl("div");
-
-	// Replace markdown entities with HTML in paragraph content
-	markdownLine = markdownLine
-		.replace(boldPattern, "<strong>$1</strong>")
-		.replace(italicPattern, "<em>$1</em>")
-		.replace(linkPattern, '<a href="$2">$1</a>');
-
-	// Set innerHTML of paragraph element with replaced markdown content
-	paragraphEl.innerHTML = markdownLine;
-}
-
-export class ExampleView extends ItemView {
-	constructor(leaf: WorkspaceLeaf) {
-		super(leaf);
-	}
-
-	getViewType() {
-		return VIEW_TYPE_EXAMPLE;
-	}
-
-	getDisplayText() {
-		let name = state.values[3];
-		console.log(name);
-		let [text, file, from, to] = name.split("|");
-		return file;
-	}
-
-	async onOpen() {
-		console.log("Example view");
-		const { workspace, vault } = state.values[0].app;
-		let files = vault.getMarkdownFiles();
-
-		let name = state.values[3];
-		let [text, file, from, to] = name.split("|");
-		console.log(name);
-		// filter for file with name file
-		let fileObj = files.filter((f: any) => f.name == file)[0];
-		let contents = await vault.read(fileObj);
-		console.log(file.split("\n"));
-
-		const container = this.containerEl.children[1];
-		container.empty();
-		container.createEl("h1", { text: file.split(".")[0] });
-
-		let lines = contents.split("\n");
-		console.log(lines);
-		for (let line of lines) {
-			if (line.trim() == "") container.createEl("br");
-			else markdownToHtml(container, line);
-		}
-	}
-
-	async onClose() {
-		// Nothing to clean up.
-	}
-}
-
 /* Highlight plugin settings */
 
 interface MyHighlightPluginSettings {
@@ -523,10 +443,6 @@ export default class MyHighlightPlugin extends Plugin {
 			annotations: myAnnotation.of(this),
 		}).state;
 
-		this.addRibbonIcon("dice", "Activate view", () => {
-			this.activateView();
-		});
-
 		// this.registerEvent(
 		// 	this.app.workspace.on("editor-paste", async (e: ClipboardEvent) => {
 		// 		state = state.update({
@@ -542,30 +458,12 @@ export default class MyHighlightPlugin extends Plugin {
 		// 	})
 		// );
 
-		// state = state.update({ changes: { from: 0, insert: "." } }).state;
-
-		// console.log(this);
-
-		// this.registerEditorSuggest((editor: any) => {
-		// 	console.log(editor);
-		// });
-
 		this.registerEditorExtension([
 			// emptyLineGutter,
 			placeholders,
 			// emojiListField,
 			highlights,
 		]);
-
-		this.registerView(VIEW_TYPE_EXAMPLE, (leaf) => new ExampleView(leaf));
-
-		this.registerDomEvent(document, "mouseover", (evt) =>
-			this.onMouseOverLink(evt)
-		);
-
-		this.registerDomEvent(document, "click", (evt) =>
-			this.onMouseClickLink(evt)
-		);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			let span;
@@ -591,6 +489,14 @@ export default class MyHighlightPlugin extends Plugin {
 			}
 
 			if (dataString && span) {
+				const { workspace } = state.values[0].app;
+				const currLeaf = workspace.getLeaf();
+				// console.log(currLeaf)
+				// const activeLeaf = workspace.getLeafById(currLeaf.id);
+				// console.log(activeLeaf)
+				// const selection = activeLeaf.view.editor.getSelection();
+				// console.log(selection)
+
 				// Mutex, prevent concurrent access to following section of code
 				if (state.values[3] != null) return;
 				state = state.update({
@@ -604,11 +510,8 @@ export default class MyHighlightPlugin extends Plugin {
 				// data stored in span element
 				let [text, file, from, to] = dataString.split("|");
 
-				const currLeaf = this.app.workspace.getLeaf();
-
 				const rootSplit = findRootSplit(currLeaf);
 				let leavesByTab = collectLeavesByTab(rootSplit);
-				console.log(leavesByTab.map((x: any) => x[1]));
 
 				// Getting the current hovered tab
 				let workspaceTab = span.closest(".workspace-tabs");
@@ -618,7 +521,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 				let currTab = -1;
 				if (span) {
-					// THIS IS NOT STABLE
 					const viewContent = span.closest(".view-content");
 					if (!viewContent) return;
 					const viewHeaderTitle = viewContent.querySelector(".inline-title");
@@ -704,6 +606,20 @@ export default class MyHighlightPlugin extends Plugin {
 
 							targetLeaf = leavesByTab[currTabIdx + 1][1][index];
 							// this.app.workspace.setActiveLeaf(targetLeaf);
+
+							const editor = targetLeaf.view.editor;
+							/*
+							{
+								"top": 0,
+								"left": 0,
+								"clientHeight": 1311,
+								"clientWidth": 1063,
+								"height": 1311,
+								"width": 1078
+							}
+							*/
+							const originalScroll = editor.getScrollInfo();
+							const originalCursor = editor.getCursor();
 							state = state.update({
 								effects: hoverEffect.of(
 									JSON.stringify({
@@ -711,11 +627,12 @@ export default class MyHighlightPlugin extends Plugin {
 										currTabIdx: currTabIdx + 1,
 										index,
 										dataString,
+										originalTop: originalScroll.top,
+										originalCursor,
 									})
 								),
 							}).state;
 
-							const editor = targetLeaf.view.editor;
 							editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
 							editor.scrollIntoView(
 								{
@@ -724,6 +641,7 @@ export default class MyHighlightPlugin extends Plugin {
 								},
 								true
 							);
+
 							return;
 						}
 					}
@@ -743,6 +661,10 @@ export default class MyHighlightPlugin extends Plugin {
 
 							targetLeaf = leavesByTab[currTabIdx - 1][1][index];
 							// this.app.workspace.setActiveLeaf(targetLeaf);
+
+							const editor = targetLeaf.view.editor;
+							const originalScroll = editor.getScrollInfo();
+							const originalCursor = editor.getCursor();
 							state = state.update({
 								effects: hoverEffect.of(
 									JSON.stringify({
@@ -750,11 +672,12 @@ export default class MyHighlightPlugin extends Plugin {
 										currTabIdx: currTabIdx - 1,
 										index,
 										dataString,
+										originalTop: originalScroll.top,
+										originalCursor,
 									})
 								),
 							}).state;
 
-							const editor = targetLeaf.view.editor;
 							editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
 							editor.scrollIntoView(
 								{
@@ -763,6 +686,7 @@ export default class MyHighlightPlugin extends Plugin {
 								},
 								true
 							);
+
 							return;
 						}
 					}
@@ -772,7 +696,14 @@ export default class MyHighlightPlugin extends Plugin {
 				const currLeaf = this.app.workspace.getLeaf();
 				const rootSplit = findRootSplit(currLeaf);
 				const leavesByTab = collectLeavesByTab(rootSplit);
-				const { currTabIdx, index, dataString, leafId } = state.values[3];
+				const {
+					currTabIdx,
+					index,
+					dataString,
+					leafId,
+					originalTop,
+					originalCursor,
+				} = state.values[3];
 				if (dataString) {
 					let [text, file, from, to] = dataString.split("|");
 					let rangeStart = {
@@ -793,15 +724,25 @@ export default class MyHighlightPlugin extends Plugin {
 						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
 					);
 
+					console.log("originalTop: " + originalTop);
 					if (leafId) {
 						await targetLeaf.detach();
-					} else {
-						editor.scrollIntoView(
-							{
-								from: rangeStart,
-								to: rangeEnd,
-							},
-							true
+					} else if (originalTop) {
+						// console.log(editor);
+						// console.log(editor.containerEl);
+						// console.log(editor.containerEl.querySelector(".cm-scroller"));
+						console.log(
+							"starting scroll top: " +
+								editor.containerEl.querySelector(".cm-scroller").scrollTop
+						);
+						// editor.containerEl.querySelector(".cm-scroller").scrollTop =
+						// 	originalTop;
+						editor.blur();
+						editor.containerEl.querySelector(".cm-scroller").scrollTop =
+							originalTop;
+						console.log(
+							"ending scroll top: " +
+								editor.containerEl.querySelector(".cm-scroller").scrollTop
 						);
 					}
 					state = state.update({
@@ -942,101 +883,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(this.settings);
-	}
-
-	async activateView() {
-		let { workspace, vault } = this.app;
-
-		let leaf: WorkspaceLeaf | null = null;
-		let leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
-
-		if (leaves.length > 0) {
-			// A leaf with our view already exists, use that
-			leaf = leaves[0];
-		} else {
-			// Our view could not be found in the workspace, create a new leaf
-			// in the right sidebar for it
-			const currLeaf = workspace.getLeaf();
-
-			let leaf = workspace.createLeafBySplit(currLeaf);
-			await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
-			console.log(leaf);
-		}
-
-		// "Reveal" the leaf in case it is in a collapsed sidebar
-		if (leaf) workspace.revealLeaf(leaf);
-	}
-
-	async onMouseOverLink(evt: MouseEvent) {
-		const target: EventTarget | null = evt.target;
-		if (target instanceof HTMLImageElement && target.alt) {
-			// Mouse is over an image
-			const altText = target.alt;
-			// Do something with the alt text
-
-			// let bbox = target.getBoundingClientRect();
-
-			// const myElement = target.containerEl.createElement("div");
-			// myElement.textContent = "Hello, world!";
-		}
-	}
-
-	async onMouseClickLink(evt: MouseEvent) {
-		const target: EventTarget | null = evt.target;
-
-		if (target instanceof HTMLImageElement && target.alt) {
-			// console.log("CLICK: " + target.alt);
-
-			let { workspace } = this.app;
-
-			let leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
-			// console.log(leaves);
-
-			let leaf = workspace.getRightLeaf(false);
-
-			// this.app.workspace.iterateAllLeaves((leaf) => {
-			// 	console.log(leaf);
-			// 	console.log(leaf.getViewState().type);
-			// });
-			await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
-
-			const activeView = workspace.getActiveViewOfType(MarkdownView);
-
-			// console.log(activeView);
-
-			const currLeaf = workspace.getLeaf();
-
-			// console.log(currLeaf);
-
-			const newLeaf = workspace.createLeafBySplit(currLeaf, "vertical");
-			// console.log(newLeaf);
-
-			// workspace.createLeafInParent(currLeaf, 0);
-
-			// // Get the current active view
-			// const activeView = this.app.workspace.getActiveViewOfType(WorkspaceView);
-
-			// console.log(activeView);
-
-			// // If there is an active view
-			// if (activeView) {
-			// 	// Create a new leaf and split it to the right of the active view's leaf
-			// 	const newLeaf = this.app.workspace.getLeaf(activeView);
-			// 	newLeaf.split(WorkspaceSplit.Right);
-
-			// 	// Focus on the new leaf
-			// 	this.app.workspace.setActiveLeaf(newLeaf);
-			// } else {
-			// 	// Otherwise, create a new empty leaf to the right
-			// 	const newLeaf = this.app.workspace.createLeafBySplit(
-			// 		activeView,
-			// 		"horizontal"
-			// 	);
-
-			// 	// Focus on the new leaf
-			// 	this.app.workspace.setActiveLeaf(newLeaf);
-			// }
-		}
 	}
 
 	onFileOpenOrSwitch() {
