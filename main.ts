@@ -568,7 +568,6 @@ export default class MyHighlightPlugin extends Plugin {
 		);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
-			console.log(evt.target);
 			let span;
 			let dataString;
 			if (
