@@ -99,6 +99,7 @@ let hoverElement = StateField.define<object | null>({
 				if (data.type == "hover-start") {
 					return {};
 				} else if (data.type == "hover") {
+					if (value) return Object.assign(value, data);
 					return data;
 				} else if (data.type == "hover-off") {
 					return null;
@@ -155,47 +156,6 @@ function findRootSplit(split: any) {
 	return findRootSplit(split.parent);
 }
 
-// function collectLeavesByTab(split: any, result: any = {}) {
-// 	if (split.type == "tabs") {
-// 		console.log("tab");
-// 		console.log(split);
-// 		if (!(split.id in result)) {
-// 			result[split.id] = {
-// 				tab: split,
-// 				leaves: [],
-// 			};
-// 		}
-// 		collectLeavesByTab(split.children, result);
-// 	} else if (split.type == "leaf") {
-// 		const parentSplitId = split.parent.id;
-// 		result[parentSplitId]["leaves"].push(split);
-// 	}
-
-// 	if (split.children) {
-// 		for (const child of split.children) {
-// 			collectLeavesByTab(child, result);
-// 		}
-// 	}
-// 	// // Result is an object where each key is a tab, and the value is an array of leaves.
-// 	// if (split.children) {
-// 	// 	for (const child of split.children) {
-// 	// 		if ("children" in child) {
-// 	// 			// This child is a split, go deeper.
-// 	// 			collectLeavesByTab(child, result);
-// 	// 		} else {
-// 	// 			console.log(child);
-// 	// 			// This child is a leaf.
-// 	// 			const tab = child.tab.id;
-// 	// 			if (!(tab in result)) {
-// 	// 				result[tab] = [];
-// 	// 			}
-// 	// 			result[tab].push(child);
-// 	// 		}
-// 	// 	}
-// 	// }
-// 	return result;
-// }
-
 function collectLeavesByTab(split: any, result: any = []) {
 	if (split.type == "tabs") {
 		result.push([split, []]);
@@ -228,11 +188,8 @@ class PlaceholderWidget extends WidgetType {
 		const span = document.createElement("span");
 		// console.log(this);
 
-		// span.style.border = "1px solid black";
 		span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
-		// span.style.padding = "3px";
-		// span.style.width = 40 + this.name.length * 5 + "px";
 		span.setAttribute("data", this.name);
 
 		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -249,202 +206,47 @@ class PlaceholderWidget extends WidgetType {
 		svg.appendChild(path);
 		span.appendChild(svg);
 
-		span.addEventListener("click", () => {
+		span.addEventListener("click", async () => {
 			console.log("click");
-		});
-		return span;
-
-		if (!state.values[0].app) {
-			// need to create a state transaction to get the "app"
-		}
-
-		let name = this.name;
-		let [text, file, from, to] = name.split("|");
-
-		if (!text || !file || !from || !to) return span;
-		const rangeStart = {
-			line: parseInt(from.split(",")[0]),
-			ch: parseInt(from.split(",")[1]),
-		};
-		const rangeEnd = {
-			line: parseInt(to.split(",")[0]),
-			ch: parseInt(to.split(",")[1]),
-		};
-
-		let targetLeaf: any;
-
-		span.addEventListener("mouseover", () => {
-			console.log("MOUSEOVER");
 			console.log(this);
-
-			let { workspace, vault } = state.values[0].app;
-
-			const activeLeaf = workspace.getLeaf();
-
-			// I'm temporarily changing cursor focus to get the appropriate hovered leaf.
-			const view = this.view;
-			view.focus();
-
+			const { workspace } = state.values[0].app;
 			const currLeaf = workspace.getLeaf();
-			const currTab = currLeaf.parent;
-
-			const rootSplit = findRootSplit(currLeaf.parent);
+			const rootSplit = findRootSplit(currLeaf);
 			const leavesByTab = collectLeavesByTab(rootSplit);
-			const currTabIndex = leavesByTab.findIndex(
-				(x: any) => x[0].id == currTab.id
-			);
-			console.log("Current tab index:", currTabIndex);
+			const { currTabIdx, index, dataString, leafId } = state.values[3];
+			/* If temporary, then keep leaf */
+			if (dataString) {
+				let [text, file, from, to] = dataString.split("|");
+				let rangeStart = {
+					line: parseInt(from.split(",")[0]),
+					ch: parseInt(from.split(",")[1]),
+				};
+				let rangeEnd = {
+					line: parseInt(to.split(",")[0]),
+					ch: parseInt(to.split(",")[1]),
+				};
 
-			// calculations done, return focus to original leaf
-			activeLeaf.view.editor.focus();
-
-			if (leavesByTab[currTabIndex + 1] && state.values[3] == null) {
-				console.log("There exists a tab to the right");
-				let rightAdjacentTab = leavesByTab[currTabIndex + 1][1].map(
-					(leaf: any) => leaf.getViewState()
-				);
-				// console.log(rightAdjacentTab);
-				let index = rightAdjacentTab.findIndex(
-					(x: any) => x.state.file == file
-				);
-				// console.log(file);
-				// console.log(exists);
-				if (index != -1) {
-					// console.log("perform replace action");
-
-					targetLeaf = leavesByTab[currTabIndex + 1][1][index];
-					workspace.setActiveLeaf(targetLeaf);
-					state = state.update({
-						effects: hoverEffect.of(
-							JSON.stringify({
-								type: "hover",
-								currTab: currTabIndex + 1,
-								index,
-							})
-						),
-					}).state;
-
-					const editor = targetLeaf.view.editor;
-					editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-					editor.scrollIntoView(
-						{
-							from: rangeStart,
-							to: rangeEnd,
-						},
-						true
-					);
-					return;
-				}
-			}
-
-			if (leavesByTab[currTabIndex - 1] && state.values[3] == null) {
-				console.log("There exists a tab to the left");
-				let leftAdjacentTab = leavesByTab[currTabIndex - 1][1].map(
-					(leaf: any) => leaf.getViewState()
-				);
-				// console.log(leftAdjacentTab);
-				let index = leftAdjacentTab.findIndex((x: any) => x.state.file == file);
-				// console.log(file);
-				// console.log(exists);
-				if (index != -1) {
-					// console.log("perform replace action");
-					targetLeaf = leavesByTab[currTabIndex - 1][1][index];
-					workspace.setActiveLeaf(targetLeaf);
-					state = state.update({
-						effects: hoverEffect.of(
-							JSON.stringify({
-								type: "hover",
-								currTab: currTabIndex - 1,
-								index,
-							})
-						),
-					}).state;
-
-					const editor = targetLeaf.view.editor;
-					editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-					editor.scrollIntoView(
-						{
-							from: rangeStart,
-							to: rangeEnd,
-						},
-						true
-					);
-
-					return;
-				}
-			}
-		});
-
-		span.addEventListener("mouseout", () => {
-			let { workspace, vault } = state.values[0].app;
-
-			console.log("MOUSEOUT");
-			// console.log(targetLeaf);
-
-			if (state.values[3]) {
-				const currLeaf = workspace.getLeaf();
-				const currTab = currLeaf.parent;
-
-				const rootSplit = findRootSplit(currTab);
-				const leavesByTab = collectLeavesByTab(rootSplit);
-
-				let [currTabIdx, index] = state.values[3];
 				let targetLeaf = leavesByTab[currTabIdx][1][index];
 				workspace.setActiveLeaf(targetLeaf);
+				const editor = targetLeaf.view.editor;
+				editor.scrollIntoView(
+					{
+						from: rangeStart,
+						to: rangeEnd,
+					},
+					true
+				);
 				state = state.update({
 					effects: hoverEffect.of(
 						JSON.stringify({
-							type: "hover-off",
+							type: "hover",
+							leafId: null,
 						})
 					),
 				}).state;
-
-				const editor = targetLeaf.view.editor;
-
-				const selection = editor.getRange(rangeStart, rangeEnd);
-				console.log(selection);
-				console.log(rangeEnd);
-				editor.replaceRange(
-					text,
-					rangeStart,
-					Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
-				);
 			}
 		});
-
-		span.addEventListener("click", () => {
-			console.log("Clicked on placeholder: " + this.name);
-			console.log(state);
-			let { workspace, vault } = state.values[0].app;
-			// console.log(workspace);
-			// console.log(vault.getMarkdownFiles());
-			let files = vault.getMarkdownFiles();
-			// console.log(files);
-
-			if (Object.keys(state).includes("values")) {
-				const currLeaf = workspace.getLeaf();
-				let targetFile = vault.getAbstractFileByPath(file);
-				const newerLeaf = workspace.createLeafBySplit(currLeaf);
-				newerLeaf
-					.openFile(targetFile)
-					.then(() => {
-						console.log("successfully opened file");
-						const view = workspace.getActiveViewOfType(MarkdownView);
-						const editor = view.editor;
-
-						// editor.setSelection(rangeStart, rangeEnd);
-						// editor.replaceSelection("markdownImageTag");
-						editor.scrollIntoView(
-							{
-								from: rangeStart,
-								to: rangeEnd,
-							},
-							true
-						);
-					})
-					.catch((err: any) => console.log(err));
-			}
-		});
+		return span;
 	}
 }
 
@@ -725,20 +527,20 @@ export default class MyHighlightPlugin extends Plugin {
 			this.activateView();
 		});
 
-		this.registerEvent(
-			this.app.workspace.on("editor-paste", async (e: ClipboardEvent) => {
-				state = state.update({
-					annotations: myAnnotation.of(this),
-				}).state;
-				const clipboardText = await navigator.clipboard.readText();
-				console.log(clipboardText);
-				// console.log(state);
-				// let copyData = state.values[2];
-				// console.log(copyData.text);
-				// if (clipboardText == copyData.text) {
-				// }
-			})
-		);
+		// this.registerEvent(
+		// 	this.app.workspace.on("editor-paste", async (e: ClipboardEvent) => {
+		// 		state = state.update({
+		// 			annotations: myAnnotation.of(this),
+		// 		}).state;
+		// 		const clipboardText = await navigator.clipboard.readText();
+		// 		console.log(clipboardText);
+		// 		// console.log(state);
+		// 		// let copyData = state.values[2];
+		// 		// console.log(copyData.text);
+		// 		// if (clipboardText == copyData.text) {
+		// 		// }
+		// 	})
+		// );
 
 		// state = state.update({ changes: { from: 0, insert: "." } }).state;
 
@@ -766,6 +568,9 @@ export default class MyHighlightPlugin extends Plugin {
 		);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
+			console.log(evt.target);
+			let span;
+			let dataString;
 			if (
 				evt.target &&
 				(evt.target instanceof HTMLSpanElement ||
@@ -774,7 +579,8 @@ export default class MyHighlightPlugin extends Plugin {
 			) {
 				console.log("MOUSEMOVE");
 
-				let span = evt.target;
+				// If element is svg, find the containing parent span
+				span = evt.target;
 
 				while (
 					!(span instanceof HTMLSpanElement) &&
@@ -782,19 +588,98 @@ export default class MyHighlightPlugin extends Plugin {
 				) {
 					span = span.parentElement;
 				}
+				dataString = span.getAttribute("data");
+			}
 
-				let dataString = span.getAttribute("data");
+			if (dataString && span) {
+				// Mutex, prevent concurrent access to following section of code
+				if (state.values[3] != null) return;
+				state = state.update({
+					effects: hoverEffect.of(
+						JSON.stringify({
+							type: "hover-start",
+						})
+					),
+				}).state;
 
-				if (dataString) {
-					if (state.values[3] != null) return;
-					state = state.update({
-						effects: hoverEffect.of(
-							JSON.stringify({
-								type: "hover-start",
-							})
-						),
-					}).state;
-					let [text, file, from, to] = dataString.split("|");
+				// data stored in span element
+				let [text, file, from, to] = dataString.split("|");
+
+				const currLeaf = this.app.workspace.getLeaf();
+
+				const rootSplit = findRootSplit(currLeaf);
+				let leavesByTab = collectLeavesByTab(rootSplit);
+				console.log(leavesByTab.map((x: any) => x[1]));
+
+				// Getting the current hovered tab
+				let workspaceTab = span.closest(".workspace-tabs");
+				let currTabIdx = leavesByTab.findIndex((x: any) => {
+					return x[0].containerEl == workspaceTab;
+				});
+
+				let currTab = -1;
+				if (span) {
+					// THIS IS NOT STABLE
+					const viewContent = span.closest(".view-content");
+					if (!viewContent) return;
+					const viewHeaderTitle = viewContent.querySelector(".inline-title");
+					const currentFile = viewHeaderTitle?.innerHTML + ".md";
+
+					currTab = leavesByTab[currTabIdx][1].findIndex((x: any) => {
+						return x.getViewState().state.file == currentFile;
+					});
+				}
+
+				let targetLeaf: any;
+
+				// Mouseover
+				if (currTabIdx != -1 && currTab != -1) {
+					// Check adjacent tabs for file and open file if needed
+					let rightAdjacentTab: any[] = [];
+					let leftAdjacentTab: any[] = [];
+					let adjacentTabs: any[] = [];
+
+					if (leavesByTab[currTabIdx + 1]) {
+						rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map((leaf: any) =>
+							leaf.getViewState()
+						);
+						adjacentTabs = [...adjacentTabs, ...rightAdjacentTab];
+					}
+					if (leavesByTab[currTabIdx - 1]) {
+						leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map((leaf: any) =>
+							leaf.getViewState()
+						);
+						adjacentTabs = [...adjacentTabs, ...leftAdjacentTab];
+					}
+					let index = adjacentTabs.findIndex((x: any) => x.state.file == file);
+
+					let adjacentTab;
+					if (index == -1) {
+						if (leavesByTab[currTabIdx + 1])
+							adjacentTab = leavesByTab[currTabIdx + 1];
+						else if (leavesByTab[currTabIdx - 1])
+							adjacentTab = leavesByTab[currTabIdx - 1];
+
+						if (adjacentTab) {
+							let tab = adjacentTab[0];
+							let newLeaf: any = this.app.workspace.createLeafInParent(tab, 0);
+							state = state.update({
+								effects: hoverEffect.of(
+									JSON.stringify({
+										type: "hover",
+										leafId: newLeaf.id,
+									})
+								),
+							}).state;
+							let targetFile: any = this.app.vault.getAbstractFileByPath(file);
+							await newLeaf.openFile(targetFile, { active: false });
+						}
+					}
+
+					// IS THE ERROR IN NOT RELOADING THE LEAVESBYTAB ARRAY?
+					// Because after creating a new tab, the leavesByTab array is not updated.
+					// Does this break everything down the line?
+					leavesByTab = collectLeavesByTab(rootSplit);
 
 					let rangeStart = {
 						line: parseInt(from.split(",")[0]),
@@ -805,220 +690,90 @@ export default class MyHighlightPlugin extends Plugin {
 						ch: parseInt(to.split(",")[1]),
 					};
 
-					const currLeaf = this.app.workspace.getLeaf();
-
-					const rootSplit = findRootSplit(currLeaf);
-					let leavesByTab = collectLeavesByTab(rootSplit);
-					console.log(leavesByTab.map((x: any) => x[1]));
-
-					// Getting the current hovered tab
-					let workspaceTab = span.closest(".workspace-tabs");
-					let currTabIdx = leavesByTab.findIndex((x: any) => {
-						return x[0].containerEl == workspaceTab;
-					});
-					let currTab = leavesByTab[currTabIdx][1].findIndex((x: any) => {
-						return x.getViewState().state.file == file;
-					});
-
-					let targetLeaf: any;
-
-					// Mouseover
-					if (currTabIdx != -1 && currTab != -1) {
-						// state = state.update({
-						// 	effects: hoverEffect.of(
-						// 		JSON.stringify({
-						// 			type: "hover",
-						// 			currTabIdx: currTabIdx,
-						// 			index: currTab,
-						// 			dataString,
-						// 		})
-						// 	),
-						// }).state;
-						console.log("hello, only once");
-
-						let rightAdjacentTab: any[] = [];
-						let leftAdjacentTab: any[] = [];
-						let adjacentTabs: any[] = [];
-
-						if (leavesByTab[currTabIdx + 1]) {
-							rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map(
-								(leaf: any) => leaf.getViewState()
-							);
-							adjacentTabs = [...adjacentTabs, ...rightAdjacentTab];
-						}
-						if (leavesByTab[currTabIdx - 1]) {
-							leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
-								(leaf: any) => leaf.getViewState()
-							);
-							adjacentTabs = [...adjacentTabs, ...leftAdjacentTab];
-						}
-						let index = adjacentTabs.findIndex(
+					// highlight reference in the right tab
+					if (leavesByTab[currTabIdx + 1]) {
+						// console.log("There exists a tab to the right");
+						let rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map(
+							(leaf: any) => leaf.getViewState()
+						);
+						// console.log(rightAdjacentTab);
+						let index = rightAdjacentTab.findIndex(
 							(x: any) => x.state.file == file
 						);
-						console.log("index: " + index);
+						if (index != -1) {
+							// console.log("perform replace action");
 
-						let adjacentTab;
-						if (index == -1) {
-							if (leavesByTab[currTabIdx + 1])
-								adjacentTab = leavesByTab[currTabIdx + 1];
-							else if (leavesByTab[currTabIdx - 1])
-								adjacentTab = leavesByTab[currTabIdx - 1];
+							targetLeaf = leavesByTab[currTabIdx + 1][1][index];
+							// this.app.workspace.setActiveLeaf(targetLeaf);
+							state = state.update({
+								effects: hoverEffect.of(
+									JSON.stringify({
+										type: "hover",
+										currTabIdx: currTabIdx + 1,
+										index,
+										dataString,
+									})
+								),
+							}).state;
 
-							if (adjacentTab) {
-								let tab = adjacentTab[0];
-								let newTab: any = this.app.workspace.createLeafInParent(tab, 0);
-								let targetFile: any =
-									this.app.vault.getAbstractFileByPath(file);
-								await newTab.openFile(targetFile, { active: false });
-							}
+							const editor = targetLeaf.view.editor;
+							editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
+							editor.scrollIntoView(
+								{
+									from: rangeStart,
+									to: rangeEnd,
+								},
+								true
+							);
+							return;
 						}
-
-						// IS THE ERROR IN NOT RELOADING THE LEAVESBYTAB ARRAY?
-						// Because after creating a new tab, the leavesByTab array is not updated.
-						// Does this break everything down the line?
-						leavesByTab = collectLeavesByTab(rootSplit);
-						console.log("reload leaves");
-						console.log(leavesByTab.map((x: any) => x[1]));
-
-						if (leavesByTab[currTabIdx + 1]) {
-							console.log("There exists a tab to the right");
-							let rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map(
-								(leaf: any) => leaf.getViewState()
-							);
-							// console.log(rightAdjacentTab);
-							let index = rightAdjacentTab.findIndex(
-								(x: any) => x.state.file == file
-							);
-							console.log("index: " + index);
-							if (index != -1) {
-								// console.log("perform replace action");
-
-								targetLeaf = leavesByTab[currTabIdx + 1][1][index];
-								// this.app.workspace.setActiveLeaf(targetLeaf);
-								state = state.update({
-									effects: hoverEffect.of(
-										JSON.stringify({
-											type: "hover",
-											currTabIdx: currTabIdx + 1,
-											index,
-											dataString,
-										})
-									),
-								}).state;
-
-								const editor = targetLeaf.view.editor;
-								editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-								editor.scrollIntoView(
-									{
-										from: rangeStart,
-										to: rangeEnd,
-									},
-									true
-								);
-								return;
-							}
-						}
-
-						if (leavesByTab[currTabIdx - 1]) {
-							console.log("There exists a tab to the left");
-							let leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
-								(leaf: any) => leaf.getViewState()
-							);
-							// console.log(leftAdjacentTab);
-							let index = leftAdjacentTab.findIndex(
-								(x: any) => x.state.file == file
-							);
-							console.log("index: " + index);
-							if (index != -1) {
-								// console.log("perform replace action");
-
-								targetLeaf = leavesByTab[currTabIdx - 1][1][index];
-								// this.app.workspace.setActiveLeaf(targetLeaf);
-								state = state.update({
-									effects: hoverEffect.of(
-										JSON.stringify({
-											type: "hover",
-											currTabIdx: currTabIdx - 1,
-											index,
-											dataString,
-										})
-									),
-								}).state;
-
-								const editor = targetLeaf.view.editor;
-								editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-								editor.scrollIntoView(
-									{
-										from: rangeStart,
-										to: rangeEnd,
-									},
-									true
-								);
-								return;
-							}
-						}
-
-						// if (leavesByTab[currTabIdx + 1]) {
-						// 	console.log("No tab on right but will create one");
-						// 	let tab = leavesByTab[currTabIdx + 1][0];
-						// 	console.log(tab);
-						// 	let numberTabs = leavesByTab[currTabIdx + 1][1].length - 1;
-						// 	console.log(numberTabs);
-						// 	let newTab: any = this.app.workspace.createLeafInParent(tab, 0);
-						// 	console.log(newTab);
-						// 	let targetFile: any = this.app.vault.getAbstractFileByPath(file);
-						// 	console.log(targetFile);
-						// 	newTab
-						// 		.openFile(targetFile, { active: false })
-						// 		.then(() => {
-						// 			setTimeout(() => {
-						// 				const editor = newTab.view.editor;
-						// 				console.log(newTab);
-						// 				console.log(editor);
-						// 				state = state.update({
-						// 					effects: hoverEffect.of(
-						// 						JSON.stringify({
-						// 							type: "hover",
-						// 							currTabIdx: currTabIdx + 1,
-						// 							index: 0,
-						// 							dataString,
-						// 						})
-						// 					),
-						// 				}).state;
-						// 				// // editor.setSelection(rangeStart, rangeEnd);
-						// 				// // editor.replaceSelection("markdownImageTag");
-						// 				editor.focus();
-						// 				editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-						// 				editor.scrollIntoView(
-						// 					{
-						// 						from: rangeStart,
-						// 						to: rangeEnd,
-						// 					},
-						// 					true
-						// 				);
-						// 			}, 30);
-						// 		})
-						// 		.catch((err: any) => console.log(err));
-						// }
 					}
 
-					// const activeLeaf = this.app.workspace.getLeaf();
+					// highlight reference in the left tab
+					if (leavesByTab[currTabIdx - 1]) {
+						// console.log("There exists a tab to the left");
+						let leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
+							(leaf: any) => leaf.getViewState()
+						);
+						// console.log(leftAdjacentTab);
+						let index = leftAdjacentTab.findIndex(
+							(x: any) => x.state.file == file
+						);
+						if (index != -1) {
+							// console.log("perform replace action");
 
-					// console.log(activeLeaf);
+							targetLeaf = leavesByTab[currTabIdx - 1][1][index];
+							// this.app.workspace.setActiveLeaf(targetLeaf);
+							state = state.update({
+								effects: hoverEffect.of(
+									JSON.stringify({
+										type: "hover",
+										currTabIdx: currTabIdx - 1,
+										index,
+										dataString,
+									})
+								),
+							}).state;
 
-					// // I'm temporarily changing cursor focus to get the appropriate hovered leaf.
-					// const view: any = activeLeaf.view;
-					// view.editor.focus();
-
-					// const currLeaf = workspace.getLeaf();
-					// const currTab = currLeaf.parent;
+							const editor = targetLeaf.view.editor;
+							editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
+							editor.scrollIntoView(
+								{
+									from: rangeStart,
+									to: rangeEnd,
+								},
+								true
+							);
+							return;
+						}
+					}
 				}
 			} else if (state.values[3] != null) {
 				// console.log(evt);
 				const currLeaf = this.app.workspace.getLeaf();
 				const rootSplit = findRootSplit(currLeaf);
 				const leavesByTab = collectLeavesByTab(rootSplit);
-				const { currTabIdx, index, dataString } = state.values[3];
+				const { currTabIdx, index, dataString, leafId } = state.values[3];
 				if (dataString) {
 					let [text, file, from, to] = dataString.split("|");
 					let rangeStart = {
@@ -1029,8 +784,27 @@ export default class MyHighlightPlugin extends Plugin {
 						line: parseInt(to.split(",")[0]),
 						ch: parseInt(to.split(",")[1]),
 					};
+
 					let targetLeaf = leavesByTab[currTabIdx][1][index];
-					this.app.workspace.setActiveLeaf(targetLeaf);
+					// this.app.workspace.setActiveLeaf(targetLeaf);
+					const editor = targetLeaf.view.editor;
+					const selection = await editor.replaceRange(
+						text,
+						rangeStart,
+						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
+					);
+
+					if (leafId) {
+						await targetLeaf.detach();
+					} else {
+						editor.scrollIntoView(
+							{
+								from: rangeStart,
+								to: rangeEnd,
+							},
+							true
+						);
+					}
 					state = state.update({
 						effects: hoverEffect.of(
 							JSON.stringify({
@@ -1038,12 +812,6 @@ export default class MyHighlightPlugin extends Plugin {
 							})
 						),
 					}).state;
-					const editor = targetLeaf.view.editor;
-					editor.replaceRange(
-						text,
-						rangeStart,
-						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
-					);
 				}
 			}
 		});
@@ -1056,12 +824,9 @@ export default class MyHighlightPlugin extends Plugin {
 				// Make sure the user is editing a Markdown file.
 				if (view) {
 					let selection = view.editor.getSelection();
-					console.log(selection);
-
-					selection = selection.split("\n").join(" ");
+					// selection = selection.split("\n").join(" ");
 
 					if (view.file) {
-						// console.log(state);
 						state = state.update({
 							effects: copyEffect.of(
 								JSON.stringify({
@@ -1073,7 +838,6 @@ export default class MyHighlightPlugin extends Plugin {
 								})
 							),
 						}).state;
-						// console.log(state);
 
 						// Write the selected text to the clipboard
 						await navigator.clipboard.writeText(
@@ -1088,19 +852,42 @@ export default class MyHighlightPlugin extends Plugin {
 									view.editor.getCursor("to").ch
 								})))`
 						);
+					}
+				}
+			} else if (evt.key == "d" && evt.metaKey && evt.shiftKey) {
+				console.log("d");
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
-						// await navigator.clipboard.writeText(
-						// 	selection +
-						// 		` ((${selection}-*-${view.file.path}-*-${
-						// 			view.editor.getCursor("from").line +
-						// 			"," +
-						// 			view.editor.getCursor("from").ch
-						// 		}-*-${
-						// 			view.editor.getCursor("to").line +
-						// 			"," +
-						// 			view.editor.getCursor("to").ch
-						// 		}))`
-						// );
+				// Make sure the user is editing a Markdown file.
+				if (view) {
+					let selection = view.editor.getSelection();
+					// selection = selection.split("\n").join(" ");
+
+					if (view.file) {
+						state = state.update({
+							effects: copyEffect.of(
+								JSON.stringify({
+									type: "copy",
+									text: selection,
+									file: view.file.path,
+									from: view.editor.getCursor("from"),
+									to: view.editor.getCursor("to"),
+								})
+							),
+						}).state;
+
+						// Write the selected text to the clipboard
+						await navigator.clipboard.writeText(
+							`(((${selection}|${view.file.path}|${
+								view.editor.getCursor("from").line +
+								"," +
+								view.editor.getCursor("from").ch
+							}|${
+								view.editor.getCursor("to").line +
+								"," +
+								view.editor.getCursor("to").ch
+							})))`
+						);
 					}
 				}
 			}
@@ -1143,22 +930,6 @@ export default class MyHighlightPlugin extends Plugin {
 			);
 
 			menu.showAtMouseEvent(event);
-		});
-
-		// this.registerEditorSuggest()
-
-		this.addCommand({
-			id: "highlight-text",
-			name: "Highlight Selected Text",
-			hotkeys: [
-				{
-					modifiers: ["Mod", "Shift"],
-					key: "h",
-				},
-			],
-			editorCallback: (editor: Editor, view: MarkdownView) => {
-				this.highlightSelectedText(editor, view);
-			},
 		});
 
 		this.addSettingTab(new MyHighlightPluginSettingTab(this.app, this));
@@ -1209,13 +980,6 @@ export default class MyHighlightPlugin extends Plugin {
 			// const myElement = target.containerEl.createElement("div");
 			// myElement.textContent = "Hello, world!";
 		}
-
-		// if (target && target.tagName === "A") {
-		// 	// Mouse is over a link
-		// 	const href = target.getAttribute("href");
-		// 	// Do something with the href
-		// 	console.log("Mouse over link:", href);
-		// }
 	}
 
 	async onMouseClickLink(evt: MouseEvent) {
@@ -1278,34 +1042,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 	onFileOpenOrSwitch() {
 		// console.log("file open");
-		// console.log(this);
 		const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
-
-		// console.log(activeLeaf);
-		// // Check if the active leaf has a CodeMirror editor instance
-		// if (activeLeaf && activeLeaf.view instanceof Editor) {
-		// 	this.cm = activeLeaf.view.editor;
-		// 	console.log(this.cm); // The CodeMirror instance is available here
-
-		// 	// You can perform further actions with the CodeMirror instance
-		// } else {
-		// 	this.cm = null;
-		// }
-	}
-
-	async highlightSelectedText(editor: Editor, view: MarkdownView) {
-		const selectedText = editor.getSelection();
-		if (selectedText.length === 0) return;
-
-		const decoration = Decoration.replace({
-			widget: new EmojiWidget(),
-		});
-
-		console.log(new EmojiWidget());
-		console.log(decoration);
-
-		// editor.replaceSelection(.innerText);
-
-		return;
 	}
 }
