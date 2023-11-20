@@ -96,7 +96,9 @@ let hoverElement = StateField.define<object | null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				console.log(tr.effects[0].value);
-				if (data.type == "hover") {
+				if (data.type == "hover-start") {
+					return {};
+				} else if (data.type == "hover") {
 					return data;
 				} else if (data.type == "hover-off") {
 					return null;
@@ -763,13 +765,15 @@ export default class MyHighlightPlugin extends Plugin {
 			this.onMouseClickLink(evt)
 		);
 
-		this.registerDomEvent(document, "mousemove", (evt) => {
+		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (
 				evt.target &&
 				(evt.target instanceof HTMLSpanElement ||
 					evt.target instanceof SVGElement ||
 					evt.target instanceof SVGPathElement)
 			) {
+				console.log("MOUSEMOVE");
+
 				let span = evt.target;
 
 				while (
@@ -782,6 +786,14 @@ export default class MyHighlightPlugin extends Plugin {
 				let dataString = span.getAttribute("data");
 
 				if (dataString) {
+					if (state.values[3] != null) return;
+					state = state.update({
+						effects: hoverEffect.of(
+							JSON.stringify({
+								type: "hover-start",
+							})
+						),
+					}).state;
 					let [text, file, from, to] = dataString.split("|");
 
 					let rangeStart = {
@@ -796,7 +808,8 @@ export default class MyHighlightPlugin extends Plugin {
 					const currLeaf = this.app.workspace.getLeaf();
 
 					const rootSplit = findRootSplit(currLeaf);
-					const leavesByTab = collectLeavesByTab(rootSplit);
+					let leavesByTab = collectLeavesByTab(rootSplit);
+					console.log(leavesByTab.map((x: any) => x[1]));
 
 					// Getting the current hovered tab
 					let workspaceTab = span.closest(".workspace-tabs");
@@ -810,7 +823,7 @@ export default class MyHighlightPlugin extends Plugin {
 					let targetLeaf: any;
 
 					// Mouseover
-					if (currTabIdx != -1 && currTab != -1 && state.values[3] == null) {
+					if (currTabIdx != -1 && currTab != -1) {
 						// state = state.update({
 						// 	effects: hoverEffect.of(
 						// 		JSON.stringify({
@@ -822,6 +835,50 @@ export default class MyHighlightPlugin extends Plugin {
 						// 	),
 						// }).state;
 						console.log("hello, only once");
+
+						let rightAdjacentTab: any[] = [];
+						let leftAdjacentTab: any[] = [];
+						let adjacentTabs: any[] = [];
+
+						if (leavesByTab[currTabIdx + 1]) {
+							rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map(
+								(leaf: any) => leaf.getViewState()
+							);
+							adjacentTabs = [...adjacentTabs, ...rightAdjacentTab];
+						}
+						if (leavesByTab[currTabIdx - 1]) {
+							leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
+								(leaf: any) => leaf.getViewState()
+							);
+							adjacentTabs = [...adjacentTabs, ...leftAdjacentTab];
+						}
+						let index = adjacentTabs.findIndex(
+							(x: any) => x.state.file == file
+						);
+						console.log("index: " + index);
+
+						let adjacentTab;
+						if (index == -1) {
+							if (leavesByTab[currTabIdx + 1])
+								adjacentTab = leavesByTab[currTabIdx + 1];
+							else if (leavesByTab[currTabIdx - 1])
+								adjacentTab = leavesByTab[currTabIdx - 1];
+
+							if (adjacentTab) {
+								let tab = adjacentTab[0];
+								let newTab: any = this.app.workspace.createLeafInParent(tab, 0);
+								let targetFile: any =
+									this.app.vault.getAbstractFileByPath(file);
+								await newTab.openFile(targetFile, { active: false });
+							}
+						}
+
+						// IS THE ERROR IN NOT RELOADING THE LEAVESBYTAB ARRAY?
+						// Because after creating a new tab, the leavesByTab array is not updated.
+						// Does this break everything down the line?
+						leavesByTab = collectLeavesByTab(rootSplit);
+						console.log("reload leaves");
+						console.log(leavesByTab.map((x: any) => x[1]));
 
 						if (leavesByTab[currTabIdx + 1]) {
 							console.log("There exists a tab to the right");
@@ -837,7 +894,7 @@ export default class MyHighlightPlugin extends Plugin {
 								// console.log("perform replace action");
 
 								targetLeaf = leavesByTab[currTabIdx + 1][1][index];
-								this.app.workspace.setActiveLeaf(targetLeaf);
+								// this.app.workspace.setActiveLeaf(targetLeaf);
 								state = state.update({
 									effects: hoverEffect.of(
 										JSON.stringify({
@@ -864,11 +921,11 @@ export default class MyHighlightPlugin extends Plugin {
 
 						if (leavesByTab[currTabIdx - 1]) {
 							console.log("There exists a tab to the left");
-							let rightAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
+							let leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map(
 								(leaf: any) => leaf.getViewState()
 							);
-							// console.log(rightAdjacentTab);
-							let index = rightAdjacentTab.findIndex(
+							// console.log(leftAdjacentTab);
+							let index = leftAdjacentTab.findIndex(
 								(x: any) => x.state.file == file
 							);
 							console.log("index: " + index);
@@ -876,7 +933,7 @@ export default class MyHighlightPlugin extends Plugin {
 								// console.log("perform replace action");
 
 								targetLeaf = leavesByTab[currTabIdx - 1][1][index];
-								this.app.workspace.setActiveLeaf(targetLeaf);
+								// this.app.workspace.setActiveLeaf(targetLeaf);
 								state = state.update({
 									effects: hoverEffect.of(
 										JSON.stringify({
@@ -901,45 +958,48 @@ export default class MyHighlightPlugin extends Plugin {
 							}
 						}
 
-						if (leavesByTab[currTabIdx + 1]) {
-							console.log("No tab on right but will create one");
-							let tab = leavesByTab[currTabIdx + 1][0];
-							let numberTabs = leavesByTab[currTabIdx + 1][1].length - 1;
-							let newTab: any = this.app.workspace.createLeafInParent(
-								tab,
-								numberTabs
-							);
-							let targetFile: any = this.app.vault.getAbstractFileByPath(file);
-							newTab
-								.openFile(targetFile, { active: false })
-								.then(() => {
-									const editor = newTab.view.editor;
-									console.log(newTab);
-									console.log(editor);
-									state = state.update({
-										effects: hoverEffect.of(
-											JSON.stringify({
-												type: "hover",
-												currTabIdx: currTabIdx + 1,
-												index: numberTabs,
-												dataString,
-											})
-										),
-									}).state;
-									// // editor.setSelection(rangeStart, rangeEnd);
-									// // editor.replaceSelection("markdownImageTag");
-									editor.focus();
-									editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
-									editor.scrollIntoView(
-										{
-											from: rangeStart,
-											to: rangeEnd,
-										},
-										true
-									);
-								})
-								.catch((err: any) => console.log(err));
-						}
+						// if (leavesByTab[currTabIdx + 1]) {
+						// 	console.log("No tab on right but will create one");
+						// 	let tab = leavesByTab[currTabIdx + 1][0];
+						// 	console.log(tab);
+						// 	let numberTabs = leavesByTab[currTabIdx + 1][1].length - 1;
+						// 	console.log(numberTabs);
+						// 	let newTab: any = this.app.workspace.createLeafInParent(tab, 0);
+						// 	console.log(newTab);
+						// 	let targetFile: any = this.app.vault.getAbstractFileByPath(file);
+						// 	console.log(targetFile);
+						// 	newTab
+						// 		.openFile(targetFile, { active: false })
+						// 		.then(() => {
+						// 			setTimeout(() => {
+						// 				const editor = newTab.view.editor;
+						// 				console.log(newTab);
+						// 				console.log(editor);
+						// 				state = state.update({
+						// 					effects: hoverEffect.of(
+						// 						JSON.stringify({
+						// 							type: "hover",
+						// 							currTabIdx: currTabIdx + 1,
+						// 							index: 0,
+						// 							dataString,
+						// 						})
+						// 					),
+						// 				}).state;
+						// 				// // editor.setSelection(rangeStart, rangeEnd);
+						// 				// // editor.replaceSelection("markdownImageTag");
+						// 				editor.focus();
+						// 				editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
+						// 				editor.scrollIntoView(
+						// 					{
+						// 						from: rangeStart,
+						// 						to: rangeEnd,
+						// 					},
+						// 					true
+						// 				);
+						// 			}, 30);
+						// 		})
+						// 		.catch((err: any) => console.log(err));
+						// }
 					}
 
 					// const activeLeaf = this.app.workspace.getLeaf();
@@ -955,40 +1015,36 @@ export default class MyHighlightPlugin extends Plugin {
 				}
 			} else if (state.values[3] != null) {
 				// console.log(evt);
-
 				const currLeaf = this.app.workspace.getLeaf();
-
 				const rootSplit = findRootSplit(currLeaf);
 				const leavesByTab = collectLeavesByTab(rootSplit);
-
 				const { currTabIdx, index, dataString } = state.values[3];
-				let [text, file, from, to] = dataString.split("|");
-
-				let rangeStart = {
-					line: parseInt(from.split(",")[0]),
-					ch: parseInt(from.split(",")[1]),
-				};
-				let rangeEnd = {
-					line: parseInt(to.split(",")[0]),
-					ch: parseInt(to.split(",")[1]),
-				};
-
-				let targetLeaf = leavesByTab[currTabIdx][1][index];
-				this.app.workspace.setActiveLeaf(targetLeaf);
-				state = state.update({
-					effects: hoverEffect.of(
-						JSON.stringify({
-							type: "hover-off",
-						})
-					),
-				}).state;
-
-				const editor = targetLeaf.view.editor;
-				editor.replaceRange(
-					text,
-					rangeStart,
-					Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
-				);
+				if (dataString) {
+					let [text, file, from, to] = dataString.split("|");
+					let rangeStart = {
+						line: parseInt(from.split(",")[0]),
+						ch: parseInt(from.split(",")[1]),
+					};
+					let rangeEnd = {
+						line: parseInt(to.split(",")[0]),
+						ch: parseInt(to.split(",")[1]),
+					};
+					let targetLeaf = leavesByTab[currTabIdx][1][index];
+					this.app.workspace.setActiveLeaf(targetLeaf);
+					state = state.update({
+						effects: hoverEffect.of(
+							JSON.stringify({
+								type: "hover-off",
+							})
+						),
+					}).state;
+					const editor = targetLeaf.view.editor;
+					editor.replaceRange(
+						text,
+						rangeStart,
+						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
+					);
+				}
 			}
 		});
 
