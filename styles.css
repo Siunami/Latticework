@@ -23,3 +23,7 @@ img[alt="img"] {
 .future {
   color: #00ff00;
 }
+
+.markdown-source-view.mod-cm6.is-readable-line-width .cm-sizer {
+  margin-left:0px !important;
+}

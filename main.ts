@@ -575,11 +575,10 @@ export default class MyHighlightPlugin extends Plugin {
 							let targetFile: any = this.app.vault.getAbstractFileByPath(file);
 							await newLeaf.openFile(targetFile, { active: false });
 						}
+					} else {
+						
 					}
 
-					// IS THE ERROR IN NOT RELOADING THE LEAVESBYTAB ARRAY?
-					// Because after creating a new tab, the leavesByTab array is not updated.
-					// Does this break everything down the line?
 					leavesByTab = collectLeavesByTab(rootSplit);
 
 					let rangeStart = {
