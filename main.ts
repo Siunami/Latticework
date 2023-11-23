@@ -143,7 +143,7 @@ let cursorElement = StateField.define<object | null>({
 });
 
 let state: any = EditorState.create({
-	extensions: [that, links, latestCopy, hoverElement, cursorElement],
+	extensions: [that, links, hoverElement, cursorElement],
 });
 
 const myAnnotation = Annotation.define<any>();
@@ -174,6 +174,8 @@ export class EmojiWidget extends WidgetType {
 		return div;
 	}
 }
+
+/* UTILS */
 
 function findRootSplit(split: any) {
 	// If this split has no parent, it's the root.
@@ -210,25 +212,24 @@ function collectLeavesByTabHelper() {
 	return collectLeavesByTab(rootSplit);
 }
 
-// function getHoveredTab(leavesByTab, span) {
-// 	let currTab = -1;
-// 	if (span) {
-// 		const viewContent = span.closest(".view-content");
-// 		if (!viewContent) return;
-// 		const viewHeaderTitle = viewContent.querySelector(".inline-title");
-// 		const currentFile = viewHeaderTitle?.innerHTML + ".md";
-// 		currTab = leavesByTab[currTabIdx][1].findIndex((x: any) => {
-// 			return x.getViewState().state.file == currentFile;
-// 		});
-// 	}
-// }
+function getHoveredTab(leavesByTab: any[], span: HTMLSpanElement) {
+	const viewContent = span.closest(".view-content");
+	if (!viewContent) return;
+	const viewHeaderTitle = viewContent.querySelector(".inline-title");
+	const currentFile = viewHeaderTitle?.innerHTML + ".md";
+	const leaves = leavesByTab.map((el) => el[1]).flat();
+	const currTab = leaves.findIndex((x: any) => {
+		return x.getViewState().state.file == currentFile;
+	});
+	return leaves[currTab];
+}
 
 function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
 	return { line: parseInt(line), ch: parseInt(ch) };
 }
 
-function getCurrentTab(leavesByTab: any[], span: HTMLSpanElement) {
+function getCurrentTabIndex(leavesByTab: any[], span: HTMLSpanElement) {
 	let workspaceTab = span.closest(".workspace-tabs");
 	let currTabIdx = leavesByTab.findIndex((x: any) => {
 		return x[0].containerEl == workspaceTab;
@@ -258,15 +259,38 @@ function getAdjacentTabs(leavesByTab: any[], currTabIdx: number, file: string) {
 	return { adjacentTabs, index };
 }
 
+async function openFileInAdjacentTab(
+	leavesByTab: any[],
+	currTabIdx: number,
+	file: string
+) {
+	let { adjacentTabs, index } = getAdjacentTabs(leavesByTab, currTabIdx, file);
+
+	// there are no adjacent tabs
+	if (adjacentTabs.length == 0) {
+		const { workspace } = state.values[0].app;
+		const currLeaf = workspace.getLeaf();
+		let newLeaf = workspace.createLeafBySplit(currLeaf);
+		await openFileInLeaf(newLeaf, file);
+		return newLeaf;
+	} else if (index == -1) {
+		// leaf doesn't exist in either adjacent tab
+		let adjacentTab;
+		if (leavesByTab[currTabIdx + 1]) adjacentTab = leavesByTab[currTabIdx + 1];
+		else if (leavesByTab[currTabIdx - 1])
+			adjacentTab = leavesByTab[currTabIdx - 1];
+
+		if (adjacentTab) {
+			let tab = adjacentTab[0];
+			let newLeaf: any = this.app.workspace.createLeafInParent(tab, 0);
+			await openFileInLeaf(newLeaf, file);
+			return newLeaf;
+		}
+	}
+	return null;
+}
+
 async function openFileInLeaf(newLeaf: any, file: string) {
-	state = state.update({
-		effects: hoverEffect.of(
-			JSON.stringify({
-				type: "hover",
-				leafId: newLeaf.id,
-			})
-		),
-	}).state;
 	let targetFile: any = this.app.vault.getAbstractFileByPath(file);
 	await newLeaf.openFile(targetFile, { active: false });
 }
@@ -277,15 +301,11 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 	let rangeStart = parseEditorPosition(from);
 	let rangeEnd = parseEditorPosition(to);
 	const leavesByTab = collectLeavesByTabHelper();
-	// console.log("There exists a tab to the right");
 	let rightAdjacentTab = leavesByTab[tabIdx][1].map((leaf: any) =>
 		leaf.getViewState()
 	);
-	// console.log(rightAdjacentTab);
 	let index = rightAdjacentTab.findIndex((x: any) => x.state.file == file);
 	if (index != -1) {
-		// console.log("perform replace action");
-
 		let targetLeaf = leavesByTab[tabIdx][1][index];
 		// this.app.workspace.setActiveLeaf(targetLeaf);
 
@@ -302,18 +322,6 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 		*/
 		const originalScroll = editor.getScrollInfo();
 		const originalCursor = editor.getCursor();
-		state = state.update({
-			effects: hoverEffect.of(
-				JSON.stringify({
-					type: "hover",
-					tabIdx: tabIdx,
-					index,
-					dataString,
-					originalTop: originalScroll.top,
-					originalCursor,
-				})
-			),
-		}).state;
 
 		editor.replaceRange(`+++${text}+++`, rangeStart, rangeEnd);
 		editor.scrollIntoView(
@@ -323,8 +331,15 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 			},
 			true
 		);
-		return;
+		return {
+			tabIdx: tabIdx,
+			index,
+			dataString,
+			originalTop: originalScroll.top,
+			originalCursor,
+		};
 	}
+	return null;
 }
 
 async function updateClipboard(only: boolean = false) {
@@ -389,11 +404,26 @@ class PlaceholderWidget extends WidgetType {
 			console.log(this);
 			const { workspace } = state.values[0].app;
 			const leavesByTab = collectLeavesByTabHelper();
-			const { tabIdx, index, dataString, leafId } = state.values[3];
+
+			const { tabIdx, index, dataString, leafId } = state.values[2];
 			/* If temporary, then keep leaf */
 			if (dataString) {
 				let [text, file, from, to] = dataString.split("|");
 				let rangeEnd = parseEditorPosition(to);
+				/*
+					The problem here is that I don't have the position of the span element.
+					I want to set the active cursor to the end of the span
+				*/
+
+				let [text2, file2, from2, to2] = this.name.split("|");
+				const currentTab = getHoveredTab(leavesByTab, span);
+				console.log("currentTab");
+				console.log(currentTab);
+				let rangeEnd2 = parseEditorPosition(to2);
+
+				const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+				console.log(lineText);
+				// currentTab.view.editor.setCursor(rangeEnd2);
 
 				let targetLeaf = leavesByTab[tabIdx][1][index];
 				workspace.setActiveLeaf(targetLeaf);
@@ -425,6 +455,7 @@ const placeholderMatcher = new MatchDecorator({
 	// regexp: /\(\(([^|)]+)\|([^|)]+)\|([^|)]+)\|([^|)]+)\)\)/g,
 	// regexp: /\(\(([^-*]+)-\*-([^-*]+)-\*-([^-*]+)-\*-([^-*]+)\)\)/g,
 	decoration: (match, view, pos) => {
+		console.log(pos);
 		return placeholderDecoration(match, view);
 	},
 });
@@ -594,14 +625,119 @@ export default class MyHighlightPlugin extends Plugin {
 		return fileUri;
 	}
 
+	async startCursorEffect(dataString: string, span: HTMLSpanElement) {
+		// Mutex, prevent concurrent access to following section of code
+		if (state.values[3] != null) return;
+		state = state.update({
+			effects: cursorEffect.of(
+				JSON.stringify({
+					type: "cursor-start",
+				})
+			),
+		}).state;
+
+		// data stored in span element
+		let [text, file, from, to] = dataString.split("|");
+
+		let leavesByTab = collectLeavesByTabHelper();
+		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+		if (currTabIdx != -1) {
+			const newLeaf = await openFileInAdjacentTab(
+				leavesByTab,
+				currTabIdx,
+				file
+			);
+			if (newLeaf) {
+				state = state.update({
+					effects: cursorEffect.of(
+						JSON.stringify({
+							type: "cursor",
+							leafId: newLeaf.id,
+						})
+					),
+				}).state;
+			}
+
+			leavesByTab = collectLeavesByTabHelper();
+			// highlight reference in the right tab
+			if (leavesByTab[currTabIdx + 1]) {
+				const data = highlightHoveredText(dataString, currTabIdx + 1);
+				if (data) {
+					state = state.update({
+						effects: cursorEffect.of(
+							JSON.stringify(Object.assign(data, { type: "cursor" }))
+						),
+					}).state;
+				}
+				return;
+			}
+
+			// highlight reference in the left tab
+			if (leavesByTab[currTabIdx - 1]) {
+				const data = highlightHoveredText(dataString, currTabIdx - 1);
+				if (data) {
+					state = state.update({
+						effects: cursorEffect.of(
+							JSON.stringify(Object.assign(data, { type: "cursor" }))
+						),
+					}).state;
+				}
+				return;
+			}
+		}
+	}
+
+	async endCursorEffect() {
+		const leavesByTab = collectLeavesByTabHelper();
+		if (!state.values[3]) return;
+
+		const { tabIdx, index, dataString, leafId, originalTop, originalCursor } =
+			state.values[3];
+		if (dataString) {
+			let [text, file, from, to] = dataString.split("|");
+			let rangeStart = parseEditorPosition(from);
+			let rangeEnd = parseEditorPosition(to);
+
+			let targetLeaf = leavesByTab[tabIdx][1][index];
+			// this.app.workspace.setActiveLeaf(targetLeaf);
+			const editor = targetLeaf.view.editor;
+
+			editor.replaceRange(
+				text,
+				rangeStart,
+				Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
+			);
+			editor.scrollIntoView(
+				{
+					from: rangeStart,
+					to: rangeEnd,
+				},
+				true
+			);
+			// console.log(selection);
+
+			console.log("originalTop: " + originalTop);
+			if (leafId) {
+				await targetLeaf.detach();
+			}
+		}
+		// End mutex lock
+		state = state.update({
+			effects: cursorEffect.of(
+				JSON.stringify({
+					type: "cursor-off",
+				})
+			),
+		}).state;
+	}
+
 	/* 
 		dataString: text|file|from|to
-		span: html span element
-		controller: "hover" | "cursor"
+		span: html span elemen
 	*/
 	async startHoverEffect(dataString: string, span: HTMLSpanElement) {
 		// Mutex, prevent concurrent access to following section of code
-		if (state.values[3] != null) return;
+		if (state.values[2] != null) return;
 		state = state.update({
 			effects: hoverEffect.of(
 				JSON.stringify({
@@ -614,49 +750,53 @@ export default class MyHighlightPlugin extends Plugin {
 		let [text, file, from, to] = dataString.split("|");
 
 		let leavesByTab = collectLeavesByTabHelper();
-		let currTabIdx = getCurrentTab(leavesByTab, span);
+		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
 		if (currTabIdx != -1) {
 			// && currTab != -1) {
 			// Check adjacent tabs for file and open file if needed
-			let { adjacentTabs, index } = getAdjacentTabs(
+			const newLeaf = await openFileInAdjacentTab(
 				leavesByTab,
 				currTabIdx,
 				file
 			);
-
-			// there are no adjacent tabs
-			if (adjacentTabs.length == 0) {
-				const { workspace } = state.values[0].app;
-				const currLeaf = workspace.getLeaf();
-				let newLeaf = workspace.createLeafBySplit(currLeaf);
-				await openFileInLeaf(newLeaf, file);
-			} else if (index == -1) {
-				// leaf doesn't exist in either adjacent tab
-				let adjacentTab;
-				if (leavesByTab[currTabIdx + 1])
-					adjacentTab = leavesByTab[currTabIdx + 1];
-				else if (leavesByTab[currTabIdx - 1])
-					adjacentTab = leavesByTab[currTabIdx - 1];
-
-				if (adjacentTab) {
-					let tab = adjacentTab[0];
-					let newLeaf: any = this.app.workspace.createLeafInParent(tab, 0);
-					await openFileInLeaf(newLeaf, file);
-				}
+			if (newLeaf) {
+				state = state.update({
+					effects: hoverEffect.of(
+						JSON.stringify({
+							type: "hover",
+							leafId: newLeaf.id,
+						})
+					),
+				}).state;
 			}
 
 			leavesByTab = collectLeavesByTabHelper();
 
 			// highlight reference in the right tab
 			if (leavesByTab[currTabIdx + 1]) {
-				highlightHoveredText(dataString, currTabIdx + 1);
+				const data = highlightHoveredText(dataString, currTabIdx + 1);
+				if (data) {
+					state = state.update({
+						effects: hoverEffect.of(
+							JSON.stringify(Object.assign(data, { type: "hover" }))
+						),
+					}).state;
+				}
+
 				return;
 			}
 
 			// highlight reference in the left tab
 			if (leavesByTab[currTabIdx - 1]) {
-				highlightHoveredText(dataString, currTabIdx - 1);
+				const data = highlightHoveredText(dataString, currTabIdx - 1);
+				if (data) {
+					state = state.update({
+						effects: hoverEffect.of(
+							JSON.stringify(Object.assign(data, { type: "hover" }))
+						),
+					}).state;
+				}
 				return;
 			}
 		}
@@ -664,8 +804,9 @@ export default class MyHighlightPlugin extends Plugin {
 
 	async endHoverEffect() {
 		const leavesByTab = collectLeavesByTabHelper();
+		if (!state.values[2]) return;
 		const { tabIdx, index, dataString, leafId, originalTop, originalCursor } =
-			state.values[3];
+			state.values[2];
 		if (dataString) {
 			let [text, file, from, to] = dataString.split("|");
 			let rangeStart = parseEditorPosition(from);
@@ -770,7 +911,7 @@ export default class MyHighlightPlugin extends Plugin {
 
 			if (dataString && span && span instanceof HTMLSpanElement) {
 				this.startHoverEffect(dataString, span);
-			} else if (state.values[3] != null) {
+			} else if (state.values[2] != null) {
 				console.log("MOUSEOUT");
 				// console.log(evt);
 				this.endHoverEffect();
@@ -781,8 +922,7 @@ export default class MyHighlightPlugin extends Plugin {
 			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 			const cursorFrom = activeView?.editor.getCursor("from");
 			const cursorTo = activeView?.editor.getCursor("to");
-			console.log(cursorFrom);
-			console.log(cursorTo);
+
 			if (
 				cursorFrom &&
 				cursorTo &&
@@ -790,18 +930,10 @@ export default class MyHighlightPlugin extends Plugin {
 				cursorFrom.line == cursorTo.line &&
 				cursorFrom.ch - 1 >= 0
 			) {
-				console.log("cursor is on");
-				const cursorOn = activeView?.editor.getRange(
-					Object.assign(cursorFrom, { ch: cursorFrom.ch - 1 }),
-					cursorTo
-				);
-				console.log(cursorOn);
-
 				const lineText = activeView?.editor.getLine(cursorFrom.line);
 
 				// Match the regex pattern to lineText
 				const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
-				let match;
 				// from possible regex matches in lineText
 				if (lineText) {
 					const matches = [...lineText.matchAll(regex)];
@@ -810,13 +942,9 @@ export default class MyHighlightPlugin extends Plugin {
 						if (match.index) {
 							const start = match.index;
 							const end = start + match[0].length;
-							console.log(`Match found at positions ${start}-${end}`);
 							if (end == cursorTo.ch && evt.target) {
-								console.log("match");
-								console.log(match);
 								const dataString = match[1];
 								// get the html element at the match location
-								console.log(evt.target);
 								const container: any = evt.target;
 								// find html span element in target that has a data attribute equal to contents
 								let span = container.querySelector(
@@ -825,7 +953,7 @@ export default class MyHighlightPlugin extends Plugin {
 								if (span && span instanceof HTMLSpanElement) {
 									console.log("Found span element:", span);
 									// Do something with the span element
-									// this.startHoverEffect(dataString, span, "cursor");
+									this.startCursorEffect(dataString, span);
 									matched = true;
 								} else {
 									console.log("Span element not found");
@@ -835,7 +963,7 @@ export default class MyHighlightPlugin extends Plugin {
 					});
 
 					if (!matched) {
-						// this.endHoverEffect();
+						this.endCursorEffect();
 					}
 				}
 			}
