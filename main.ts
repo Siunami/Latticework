@@ -966,12 +966,15 @@ export default class MyHighlightPlugin extends Plugin {
 			const cursorFrom = activeView?.editor.getCursor("from");
 			const cursorTo = activeView?.editor.getCursor("to");
 
+			console.log(cursorFrom);
+			console.log(cursorTo);
+
 			if (
 				cursorFrom &&
 				cursorTo &&
 				cursorFrom.ch == cursorTo.ch &&
 				cursorFrom.line == cursorTo.line &&
-				cursorFrom.ch - 1 >= 0
+				cursorFrom.ch - 1 >= -1
 			) {
 				const lineText = activeView?.editor.getLine(cursorFrom.line);
 
@@ -980,9 +983,10 @@ export default class MyHighlightPlugin extends Plugin {
 				// from possible regex matches in lineText
 				if (lineText) {
 					const matches = [...lineText.matchAll(regex)];
+					console.log(matches);
 					let matched = false;
 					matches.forEach((match) => {
-						if (match.index) {
+						if (match.index?.toString()) {
 							const start = match.index;
 							const end = start + match[0].length;
 							if (end == cursorTo.ch && evt.target) {
@@ -1017,11 +1021,18 @@ export default class MyHighlightPlugin extends Plugin {
 			} else if (evt.key == "d" && evt.metaKey && evt.shiftKey) {
 				console.log("d");
 				updateClipboard(true);
+			} else if (evt.key == "z" && evt.metaKey) {
+				console.log("z");
+				console.log(evt.target);
+			} else if (evt.key == "v" && evt.metaKey) {
+				console.log("v");
+				console.log(evt.target);
 			}
 		});
 
 		this.registerEvent(
 			this.app.workspace.on("editor-change", async (editor, info) => {
+				console.log("editorChange");
 				console.log(editor);
 				console.log(info);
 			})
