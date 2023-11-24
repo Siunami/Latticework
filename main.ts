@@ -636,6 +636,16 @@ export default class MyHighlightPlugin extends Plugin {
 			),
 		}).state;
 
+		if (state.values[2] != null && state.values[2].dataString == dataString) {
+			const data = state.values[2];
+			state = state.update({
+				effects: cursorEffect.of(
+					JSON.stringify(Object.assign(data, { type: "cursor" }))
+				),
+			}).state;
+			return;
+		}
+
 		// data stored in span element
 		let [text, file, from, to] = dataString.split("|");
 
@@ -693,6 +703,18 @@ export default class MyHighlightPlugin extends Plugin {
 
 		const { tabIdx, index, dataString, leafId, originalTop, originalCursor } =
 			state.values[3];
+		if (state.values[2] != null && state.values[2].dataString == dataString) {
+			// End mutex lock
+			state = state.update({
+				effects: cursorEffect.of(
+					JSON.stringify({
+						type: "cursor-off",
+					})
+				),
+			}).state;
+			return;
+		}
+
 		if (dataString) {
 			let [text, file, from, to] = dataString.split("|");
 			let rangeStart = parseEditorPosition(from);
@@ -746,6 +768,16 @@ export default class MyHighlightPlugin extends Plugin {
 			),
 		}).state;
 
+		if (state.values[3] != null && state.values[3].dataString == dataString) {
+			const data = state.values[3];
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify(Object.assign(data, { type: "hover" }))
+				),
+			}).state;
+			return;
+		}
+
 		// data stored in span element
 		let [text, file, from, to] = dataString.split("|");
 
@@ -783,7 +815,6 @@ export default class MyHighlightPlugin extends Plugin {
 						),
 					}).state;
 				}
-
 				return;
 			}
 
@@ -807,6 +838,18 @@ export default class MyHighlightPlugin extends Plugin {
 		if (!state.values[2]) return;
 		const { tabIdx, index, dataString, leafId, originalTop, originalCursor } =
 			state.values[2];
+
+		if (state.values[3] != null && state.values[3].dataString == dataString) {
+			// End mutex lock
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-off",
+					})
+				),
+			}).state;
+			return;
+		}
 		if (dataString) {
 			let [text, file, from, to] = dataString.split("|");
 			let rangeStart = parseEditorPosition(from);
