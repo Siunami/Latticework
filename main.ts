@@ -335,6 +335,8 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 	return null;
 }
 
+// [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
+// [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE)
 async function updateClipboard(only: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
@@ -344,13 +346,39 @@ async function updateClipboard(only: boolean = false) {
 		// selection = selection.split("\n").join(" ");
 
 		if (view.file) {
-			let reference = `(((${selection}|${view.file.path}|${
-				view.editor.getCursor("from").line +
-				"," +
-				view.editor.getCursor("from").ch
-			}|${
-				view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
-			})))`;
+			// let reference = `(((${selection}|${view.file.path}|${
+			// 	view.editor.getCursor("from").line +
+			// 	"," +
+			// 	view.editor.getCursor("from").ch
+			// }|${
+			// 	view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
+			// })))`;
+
+			const text = view.data;
+			const from = view.editor.getCursor("from");
+			const to = view.editor.getCursor("to");
+
+			let rollingIndex = 0;
+			const lines = text.split("\n").map((line: string, i: number) => {
+				let data = { line, index: rollingIndex, length: line.length, i };
+				rollingIndex += line.length;
+				return data;
+			});
+
+			let startIndex = lines.filter((line: any) => line.i == from.line)[0];
+			startIndex = startIndex.index + from.ch;
+			let endIndex = lines.filter((line: any) => line.i == to.line)[0];
+			endIndex = endIndex.index + to.ch;
+			// .reduce((a: any, b: any) => a + b, 0);
+			let prefix = text.slice(
+				startIndex - 25 > 0 ? startIndex - 25 : 0,
+				startIndex + 1
+			);
+			let suffix = text.slice(endIndex, endIndex + 25);
+
+			let reference = `[↗](urn:${prefix}:${encodeURIComponent(
+				selection
+			)}:${suffix}:${view.file.path})`;
 
 			if (!only) {
 				reference = '"' + selection + '" ' + reference;
@@ -718,6 +746,7 @@ export default class MyHighlightPlugin extends Plugin {
 		return fileUri;
 	}
 
+	// [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
 	findTextPositions(
 		searchTerm: string,
 		prefix: string = "",
@@ -732,8 +761,6 @@ export default class MyHighlightPlugin extends Plugin {
 			activeLeaf.view.editor
 		) {
 			const editor = activeLeaf.view.editor;
-			const cursorFrom = editor.getCursor("from");
-			const cursorTo = editor.getCursor("to");
 
 			console.log(prefix, suffix);
 			console.log(searchTerm);
@@ -741,7 +768,8 @@ export default class MyHighlightPlugin extends Plugin {
 			// given text and search term, find all matches
 
 			let rollingIndex = 0;
-			const lines = activeLeaf.view.data.split("\n").map((line: string) => {
+			const text = activeLeaf.view.data;
+			const lines = text.split("\n").map((line: string) => {
 				let data = { line, index: rollingIndex, length: line.length };
 				rollingIndex += line.length;
 				return data;
@@ -757,10 +785,10 @@ export default class MyHighlightPlugin extends Plugin {
 					decodeURIComponent(prefix + searchTerm + suffix)
 				),
 			];
-			console.log("matches: ");
-			console.log(matches);
+			// console.log("matches: ");
+			// console.log(matches);
 			matches.forEach((match) => {
-				console.log(match.index);
+				// console.log(match.index);
 				let startIndex =
 					lines.findIndex((line: any) => line.index >= match.index) - 1;
 				let endIndex =
@@ -768,57 +796,19 @@ export default class MyHighlightPlugin extends Plugin {
 						(line: any) => line.index >= match.index + match[0].length
 					) - 1;
 				console.log(startIndex);
-				console.log(
-					editor.getRange(
-						{
-							line: startIndex,
-							ch: match.index - lines[startIndex].index - startIndex,
-						},
-						{
-							line: endIndex,
-							ch:
-								match.index +
-								match[0].length -
-								lines[endIndex].index -
-								endIndex,
-						}
-					)
+				const selection = editor.getRange(
+					{
+						line: startIndex,
+						ch: match.index - lines[startIndex].index - startIndex,
+					},
+					{
+						line: endIndex,
+						ch:
+							match.index + match[0].length - lines[endIndex].index - endIndex,
+					}
 				);
+				console.log(selection);
 			});
-
-			// console.log(editor);
-			// const query = getSearchQuery(state);
-			// const search = SearchQuery(searchTerm);
-			// console.log(query.search(searchTerm));
-
-			// The list to store the index positions of matches
-			let matchPositions: any[] = [];
-			// let cursor = editor.getSearchCursor(searchTerm, { line: 0, ch: 0 });
-
-			// console.log(cursor);
-
-			// Find all matches
-			// while (cursor.findNext()) {
-			// 	matchPositions.push({
-			// 		from: cursor.from(), // where the match starts
-			// 		to: cursor.to(), // where the match ends
-			// 		text: cursor.text.join(" "), // the matched text
-			// 	});
-			// }
-
-			// Do something with the matches, for example, log to the console
-			console.log(matchPositions);
-
-			// If you want to do something with each specific match
-			matchPositions.forEach((match) => {
-				// Do something with each match.
-				// 'match.from' and 'match.to' are objects containing the line and character index.
-				console.log(
-					`Found match at from line ${match.from.line}, ch ${match.from.ch} to line ${match.to.line}, ch ${match.to.ch}: ${match.text}`
-				);
-			});
-		} else {
-			console.error("The active view is not a markdown editor in source mode.");
 		}
 	}
 
