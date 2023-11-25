@@ -625,7 +625,7 @@ export default class MyHighlightPlugin extends Plugin {
 		return fileUri;
 	}
 
-	async startCursorEffect(dataString: string, span: HTMLSpanElement) {
+	async startCursorEffect(span: HTMLSpanElement) {
 		// Mutex, prevent concurrent access to following section of code
 		if (state.values[3] != null) return;
 		state = state.update({
@@ -635,6 +635,9 @@ export default class MyHighlightPlugin extends Plugin {
 				})
 			),
 		}).state;
+
+		const dataString = span.getAttribute("data");
+		if (!dataString) return;
 
 		if (state.values[2] != null && state.values[2].dataString == dataString) {
 			const data = state.values[2];
@@ -703,6 +706,7 @@ export default class MyHighlightPlugin extends Plugin {
 
 		const { tabIdx, index, dataString, leafId, originalTop, originalCursor } =
 			state.values[3];
+
 		if (state.values[2] != null && state.values[2].dataString == dataString) {
 			// End mutex lock
 			state = state.update({
@@ -738,7 +742,7 @@ export default class MyHighlightPlugin extends Plugin {
 			);
 			// console.log(selection);
 
-			console.log("originalTop: " + originalTop);
+			// console.log("originalTop: " + originalTop);
 			if (leafId) {
 				await targetLeaf.detach();
 			}
@@ -873,7 +877,7 @@ export default class MyHighlightPlugin extends Plugin {
 			);
 			// console.log(selection);
 
-			console.log("originalTop: " + originalTop);
+			// console.log("originalTop: " + originalTop);
 			if (leafId) {
 				await targetLeaf.detach();
 			}
@@ -939,7 +943,7 @@ export default class MyHighlightPlugin extends Plugin {
 					evt.target instanceof SVGElement ||
 					evt.target instanceof SVGPathElement)
 			) {
-				console.log("MOUSEMOVE");
+				// console.log("MOUSEMOVE");
 				// If element is svg, find the containing parent span
 				span = evt.target;
 
@@ -955,64 +959,125 @@ export default class MyHighlightPlugin extends Plugin {
 			if (dataString && span && span instanceof HTMLSpanElement) {
 				this.startHoverEffect(dataString, span);
 			} else if (state.values[2] != null) {
-				console.log("MOUSEOUT");
+				// console.log("MOUSEOUT");
 				// console.log(evt);
 				this.endHoverEffect();
 			}
 		});
 
+		this.registerDomEvent(document, "click", async (evt) => {
+			this.checkFocusCursor(evt);
+		});
+
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			const cursorFrom = activeView?.editor.getCursor("from");
-			const cursorTo = activeView?.editor.getCursor("to");
+			if (!(evt.key == "z" && evt.metaKey)) {
+				// Timeout fix: it doesn't recognize the latest paste change immediately because the paste event might not trigger the DOM change event.
+				setTimeout(() => {
+					this.checkFocusCursor(evt);
+				}, 50);
+			} else {
+				let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
-			console.log(cursorFrom);
-			console.log(cursorTo);
-
-			if (
-				cursorFrom &&
-				cursorTo &&
-				cursorFrom.ch == cursorTo.ch &&
-				cursorFrom.line == cursorTo.line &&
-				cursorFrom.ch - 1 >= -1
-			) {
-				const lineText = activeView?.editor.getLine(cursorFrom.line);
-
-				// Match the regex pattern to lineText
-				const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
-				// from possible regex matches in lineText
-				if (lineText) {
-					const matches = [...lineText.matchAll(regex)];
-					console.log(matches);
-					let matched = false;
-					matches.forEach((match) => {
-						if (match.index?.toString()) {
-							const start = match.index;
-							const end = start + match[0].length;
-							if (end == cursorTo.ch && evt.target) {
-								const dataString = match[1];
-								// get the html element at the match location
-								const container: any = evt.target;
-								// find html span element in target that has a data attribute equal to contents
-								let span = container.querySelector(
-									`span[data="${dataString}"]`
-								);
-								if (span && span instanceof HTMLSpanElement) {
-									console.log("Found span element:", span);
-									// Do something with the span element
-									this.startCursorEffect(dataString, span);
-									matched = true;
-								} else {
-									console.log("Span element not found");
-								}
-							}
-						}
-					});
-
-					if (!matched) {
-						this.endCursorEffect();
+				if (matched) {
+					if (
+						state.values[2] != null &&
+						state.values[3] != null &&
+						state.values[2].dataString == state.values[3].dataString
+					) {
+						console.log("UNDO HOVER");
+						state = state.update({
+							effects: hoverEffect.of(
+								JSON.stringify({
+									type: "hover-off",
+								})
+							),
+						}).state;
 					}
+
+					console.log("UNDO CURSOR");
+					state = state.update({
+						effects: cursorEffect.of(
+							JSON.stringify({
+								type: "cursor-off",
+							})
+						),
+					}).state;
+					const activeView =
+						this.app.workspace.getActiveViewOfType(MarkdownView);
+					activeView?.editor.undo();
 				}
+
+				// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+				// const cursorFrom = activeView?.editor.getCursor("from");
+				// const cursorTo = activeView?.editor.getCursor("to");
+
+				// if (
+				// 	cursorFrom &&
+				// 	cursorTo &&
+				// 	cursorFrom.ch == cursorTo.ch &&
+				// 	cursorFrom.line == cursorTo.line
+				// 	// &&cursorFrom.ch - 1 >= -1
+				// ) {
+				// 	const lineText = activeView?.editor.getLine(cursorFrom.line);
+				// 	// Match the regex pattern to lineText
+				// 	const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
+				// 	// from possible regex matches in lineText
+				// 	if (lineText) {
+				// 		const matches = [...lineText.matchAll(regex)];
+				// 		let matched = false;
+				// 		matches.forEach((match) => {
+				// 			// console.log(match);
+				// 			if (match.index?.toString()) {
+				// 				const start = match.index;
+				// 				const end = start + match[0].length;
+				// 				if (end == cursorTo.ch && evt.target) {
+				// 					const dataString = match[1];
+				// 					// get the html element at the match location
+				// 					const container: any = evt.target;
+				// 					// console.log(container);
+				// 					// find html span element in target that has a data attribute equal to contents
+				// 					let span = container.querySelector(
+				// 						`span[data="${dataString}"]`
+				// 					);
+				// 					if (span && span instanceof HTMLSpanElement) {
+				// 						console.log("Found span element:", span);
+				// 						// Do something with the span element
+				// 						// this.startCursorEffect(dataString, span);
+				// 						matched = true;
+				// 					} else {
+				// 						console.log("Span element not found");
+				// 					}
+				// 				}
+				// 			}
+				// 		});
+				// 		if (matched) {
+				// 			if (
+				// 				state.values[2] != null &&
+				// 				state.values[3] != null &&
+				// 				state.values[2].dataString == state.values[3].dataString
+				// 			) {
+				// 				console.log("UNDO HOVER");
+				// 				state = state.update({
+				// 					effects: hoverEffect.of(
+				// 						JSON.stringify({
+				// 							type: "hover-off",
+				// 						})
+				// 					),
+				// 				}).state;
+				// 			}
+
+				// 			console.log("UNDO CURSOR");
+				// 			state = state.update({
+				// 				effects: cursorEffect.of(
+				// 					JSON.stringify({
+				// 						type: "cursor-off",
+				// 					})
+				// 				),
+				// 			}).state;
+				// 			activeView?.editor.undo();
+				// 		}
+				// 	}
+				// }
 			}
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
@@ -1022,28 +1087,51 @@ export default class MyHighlightPlugin extends Plugin {
 				console.log("d");
 				updateClipboard(true);
 			} else if (evt.key == "z" && evt.metaKey) {
+				// When undo of something that you just pasted that you are hovering over
+				// undo the hover effect
 				console.log("z");
 				console.log(evt.target);
+				// this.endCursorEffect();
+				// this.endHoverEffect();
+				// this.checkFocusCursor(evt);
 			} else if (evt.key == "v" && evt.metaKey) {
 				console.log("v");
 				console.log(evt.target);
+				// save paste event in temporary spot, till next event
 			}
+
+			console.log(state.values[3]);
 		});
 
-		this.registerEvent(
-			this.app.workspace.on("editor-change", async (editor, info) => {
-				console.log("editorChange");
-				console.log(editor);
-				console.log(info);
-			})
-		);
+		// this.registerEvent(
+		// 	this.app.workspace.on("editor-change", (ev) => {
+		// 		console.log("editor-change");
+		// 		console.log(ev);
+		// 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		// 		const cursorFrom = activeView?.editor.getCursor("from");
+		// 		const cursorTo = activeView?.editor.getCursor("to");
+		// 		if (cursorFrom) {
+		// 			const lineText = activeView?.editor.getLine(cursorFrom.line);
+		// 			console.log(lineText);
+		// 		}
+
+		// 		// this.endCursorEffect();
+		// 		// this.endHoverEffect();
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("codemirror", (ev) => {
+		// 		console.log("codemirror");
+		// 		console.log(ev);
+		// 		// this.endCursorEffect();
+		// 		// this.endHoverEffect();
+		// 	})
+		// );
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", this.onFileOpenOrSwitch.bind(this))
 		);
-		// this.registerEvent(
-		// 	this.app.workspace.on("file-switch", this.onFileOpenOrSwitch.bind(this))
-		// );
 
 		this.registerMarkdownPostProcessor((element, context) => {
 			const codeblocks = element.findAll("code");
@@ -1058,9 +1146,79 @@ export default class MyHighlightPlugin extends Plugin {
 
 	onunload() {}
 
-	handleCursorActivity(cm: any) {
-		console.log("cursor activity");
-		console.log(cm);
+	checkCursorPositionAtDatastring(evt: Event | { target: HTMLElement }): any {
+		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+		const cursorFrom = activeView?.editor.getCursor("from");
+		const cursorTo = activeView?.editor.getCursor("to");
+
+		// console.log(cursorFrom);
+		// console.log(cursorTo);
+
+		let matched = false;
+		let matchSpan;
+		if (
+			cursorFrom &&
+			cursorTo &&
+			cursorFrom.ch == cursorTo.ch &&
+			cursorFrom.line == cursorTo.line
+			// &&cursorFrom.ch - 1 >= -1
+		) {
+			const lineText = activeView?.editor.getLine(cursorFrom.line);
+			// console.log(lineText);
+
+			// Match the regex pattern to lineText
+			const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
+			// from possible regex matches in lineText
+			if (lineText) {
+				const matches = [...lineText.matchAll(regex)];
+				matches.forEach((match) => {
+					// console.log(match);
+					if (match.index?.toString()) {
+						const start = match.index;
+						const end = start + match[0].length;
+						if (end == cursorTo.ch && evt.target) {
+							const dataString = match[1];
+							// get the html element at the match location
+							const container: any = evt.target;
+							// console.log(container);
+							// find html span element in target that has a data attribute equal to contents
+							let span = container.querySelector(`span[data="${dataString}"]`);
+							if (span && span instanceof HTMLSpanElement) {
+								console.log("Found span element:", span);
+								// Do something with the span element
+								// this.startCursorEffect(dataString, span);
+								matched = true;
+
+								console.log(dataString);
+								console.log(span);
+
+								matchSpan = span;
+								// return {
+								// 	matched,
+								// 	dataString,
+								// 	span,
+								// };
+							} else {
+								console.log("Span element not found");
+							}
+						}
+					}
+				});
+				// if (matched) return;
+			}
+		}
+		return { matched, span: matchSpan };
+		// this.endCursorEffect();
+	}
+
+	checkFocusCursor(evt: Event | { target: HTMLElement }) {
+		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
+
+		if (matched) {
+			this.startCursorEffect(span);
+		} else {
+			this.endCursorEffect();
+		}
 	}
 
 	async loadSettings() {
