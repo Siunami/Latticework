@@ -332,8 +332,20 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 	return null;
 }
 
+function encodeURIComponentString(str: string): string {
+	return encodeURIComponent(str).replace(/[:()]/g, function (c) {
+		return "%" + c.charCodeAt(0).toString(16);
+	});
+}
+
+function decodeURIComponentString(str: string) {
+	return decodeURIComponent(
+		str.replace(/%3A/g, ":").replace(/%28/g, "(").replace(/%29/g, ")")
+	);
+}
+
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
-// [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE)
+// [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:INDEX)
 async function updateClipboard(only: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
@@ -343,39 +355,58 @@ async function updateClipboard(only: boolean = false) {
 		// selection = selection.split("\n").join(" ");
 
 		if (view.file) {
-			let reference = `(((${selection}|${view.file.path}|${
+			// let reference = `(((${selection}|${view.file.path}|${
+			// 	view.editor.getCursor("from").line +
+			// 	"," +
+			// 	view.editor.getCursor("from").ch
+			// }|${
+			// 	view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
+			// })))`;
+
+			const text = view.data;
+			const from = view.editor.getCursor("from");
+			const to = view.editor.getCursor("to");
+
+			// problem, I'm not dealing with "\n" correctly. Then note slicing the right parts
+			// slow down, walk through this part, line by line. Understand it deeply.
+			let rollingIndex = 0;
+			const lines = text.split("\n").map((line: string, i: number) => {
+				let data = { line, index: rollingIndex, length: line.length, i };
+				rollingIndex += line.length;
+				return data;
+			});
+
+			let startIndex = lines.filter((line: any) => line.i == from.line)[0];
+			startIndex = startIndex.index + from.ch;
+			let endIndex = lines.filter((line: any) => line.i == to.line)[0];
+			endIndex = endIndex.index + to.ch;
+
+			console.log(startIndex);
+			console.log(endIndex);
+
+			// .reduce((a: any, b: any) => a + b, 0);
+			let prefix = text.slice(
+				startIndex - 25 > 0 ? startIndex - 25 : 0,
+				startIndex
+			);
+			let suffix = text.slice(endIndex, endIndex + 25);
+
+			console.log(prefix);
+			console.log(selection);
+
+			console.log(suffix);
+
+			let reference = `[↗](urn:${encodeURIComponentString(
+				prefix
+			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
+				suffix
+			)}:${encodeURIComponentString(view.file.path)}:${encodeURIComponentString(
 				view.editor.getCursor("from").line +
-				"," +
-				view.editor.getCursor("from").ch
-			}|${
+					"," +
+					view.editor.getCursor("from").ch
+			)}:${encodeURIComponentString(
 				view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
-			})))`;
-
-			// const text = view.data;
-			// const from = view.editor.getCursor("from");
-			// const to = view.editor.getCursor("to");
-
-			// let rollingIndex = 0;
-			// const lines = text.split("\n").map((line: string, i: number) => {
-			// 	let data = { line, index: rollingIndex, length: line.length, i };
-			// 	rollingIndex += line.length;
-			// 	return data;
-			// });
-
-			// let startIndex = lines.filter((line: any) => line.i == from.line)[0];
-			// startIndex = startIndex.index + from.ch;
-			// let endIndex = lines.filter((line: any) => line.i == to.line)[0];
-			// endIndex = endIndex.index + to.ch;
-			// // .reduce((a: any, b: any) => a + b, 0);
-			// let prefix = text.slice(
-			// 	startIndex - 25 > 0 ? startIndex - 25 : 0,
-			// 	startIndex + 1
-			// );
-			// let suffix = text.slice(endIndex, endIndex + 25);
-
-			// let reference = `[↗](urn:${prefix}:${encodeURIComponent(
-			// 	selection
-			// )}:${suffix}:${view.file.path})`;
+			)})`;
 
 			if (!only) {
 				reference = '"' + selection + '" ' + reference;
@@ -527,7 +558,7 @@ class ReferenceWidget extends WidgetType {
 
 		span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
-		span.setAttribute("class", "old-block");
+		span.setAttribute("class", "block");
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let match = regex.exec(this.name);
 		if (match) {
@@ -544,7 +575,7 @@ class ReferenceWidget extends WidgetType {
 
 		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
 		path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
-		path.setAttribute("fill", "black");
+		path.setAttribute("fill", "yellow");
 
 		svg.appendChild(path);
 		span.appendChild(svg);
@@ -772,8 +803,8 @@ export default class MyHighlightPlugin extends Plugin {
 			let rollingIndex = 0;
 			const text = activeLeaf.view.data;
 			const lines = text.split("\n").map((line: string) => {
-				let data = { line, index: rollingIndex, length: line.length };
-				rollingIndex += line.length;
+				let data = { line, index: rollingIndex, length: line.length + 2 };
+				rollingIndex += data.length;
 				return data;
 			});
 			console.log("lines: ");
@@ -781,14 +812,22 @@ export default class MyHighlightPlugin extends Plugin {
 			// console.log(cursorFrom);
 			// console.log(cursorTo);
 
-			console.log(decodeURIComponent(prefix + searchTerm + suffix));
+			const decodedPrefix = decodeURIComponentString(prefix);
+			const decodedSearchTerm = decodeURIComponentString(searchTerm);
+			const decodedSuffix = decodeURIComponentString(suffix);
+
+			console.log(activeLeaf.view.data);
+			console.log(decodedPrefix, decodedSearchTerm, decodedSuffix);
+
 			const matches = [
 				...activeLeaf.view.data.matchAll(
-					decodeURIComponent(prefix + searchTerm + suffix)
+					decodedPrefix.replace(/\)/g, "\\)") +
+						decodedSearchTerm.replace(/\)/g, "\\)") +
+						decodedSuffix.replace(/\)/g, "\\)")
 				),
 			];
-			// console.log("matches: ");
-			// console.log(matches);
+			console.log("matches: ");
+			console.log(matches);
 			matches.forEach((match) => {
 				// console.log(match.index);
 				let startIndex =
@@ -814,7 +853,7 @@ export default class MyHighlightPlugin extends Plugin {
 		}
 	}
 
-	async startEffect(span: HTMLSpanElement, type: string) {
+	async startReferenceEffect(span: HTMLSpanElement, type: string) {
 		let source = type == "hover" ? state.values[2] : state.values[3];
 		let destination = type == "hover" ? state.values[3] : state.values[2];
 		let stateMutation = type == "hover" ? hoverEffect : cursorEffect;
@@ -849,6 +888,37 @@ export default class MyHighlightPlugin extends Plugin {
 				suffix.slice(1, suffix.length)
 			);
 		}
+
+		console.log("test this thing");
+	}
+
+	async startEffect(span: HTMLSpanElement, type: string) {
+		let source = type == "hover" ? state.values[2] : state.values[3];
+		let destination = type == "hover" ? state.values[3] : state.values[2];
+		let stateMutation = type == "hover" ? hoverEffect : cursorEffect;
+
+		// Mutex, prevent concurrent access to following section of code
+		if (source != null) return;
+		state = state.update({
+			effects: stateMutation.of(
+				JSON.stringify({
+					type: `${type}-start`,
+				})
+			),
+		}).state;
+
+		const dataString = span.getAttribute("data");
+		if (!dataString) return;
+
+		if (destination != null && destination.dataString == dataString) {
+			const data = destination;
+			state = state.update({
+				effects: hoverEffect.of(JSON.stringify(Object.assign(data, { type }))),
+			}).state;
+			return;
+		}
+
+		let [text, file, from, to] = dataString.split("|");
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
@@ -1073,8 +1143,15 @@ export default class MyHighlightPlugin extends Plugin {
 				dataString = span.getAttribute("data");
 			}
 
-			if (dataString && span && span instanceof HTMLSpanElement) {
+			if (
+				dataString &&
+				span &&
+				span instanceof HTMLSpanElement &&
+				span.className.includes("old-block")
+			) {
 				this.startEffect(span, "hover");
+			} else if (dataString && span && span instanceof HTMLSpanElement) {
+				this.startReferenceEffect(span, "hover");
 			} else if (state.values[2] != null) {
 				// console.log("MOUSEOUT");
 				// console.log(evt);
