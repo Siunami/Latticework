@@ -38,9 +38,6 @@ import {
 
 import { getSearchQuery, SearchQuery, SearchCursor } from "@codemirror/search";
 
-import { syntaxTree } from "@codemirror/language";
-import { start } from "repl";
-
 /* State Fields */
 type Link = {
 	text: string;
@@ -736,6 +733,11 @@ class MyHighlightPluginSettingTab extends PluginSettingTab {
 export default class MyHighlightPlugin extends Plugin {
 	settings: MyHighlightPluginSettings;
 
+	// Need to do cleanup, any highlights that are still present
+	// Or on reload command
+
+	// need to load all pages and process any backlinks
+
 	// This function would save the SVG as a file and return the path.
 	async saveSvgAsFile(svgContent: string, filename: string): Promise<string> {
 		const fileUri = `./links/${filename}.svg`;
@@ -813,63 +815,16 @@ export default class MyHighlightPlugin extends Plugin {
 	}
 
 	async startEffect(span: HTMLSpanElement, type: string) {
-		let source = state.values[2];
-		if (type == "hover") {
-			// Mutex, prevent concurrent access to following section of code
-			if (state.values[2] != null) return;
-			state = state.update({
-				effects: hoverEffect.of(
-					JSON.stringify({
-						type: "hover-start",
-					})
-				),
-			}).state;
+		let source = type == "hover" ? state.values[2] : state.values[3];
+		let destination = type == "hover" ? state.values[3] : state.values[2];
+		let stateMutation = type == "hover" ? hoverEffect : cursorEffect;
 
-			const dataString = span.getAttribute("data");
-			if (!dataString) return;
-
-			if (state.values[3] != null && state.values[3].dataString == dataString) {
-				const data = state.values[3];
-				state = state.update({
-					effects: hoverEffect.of(
-						JSON.stringify(Object.assign(data, { type: "hover" }))
-					),
-				}).state;
-				return;
-			}
-		} else if (type == "cursor") {
-			// Mutex, prevent concurrent access to following section of code
-			if (state.values[3] != null) return;
-			state = state.update({
-				effects: cursorEffect.of(
-					JSON.stringify({
-						type: "cursor-start",
-					})
-				),
-			}).state;
-
-			const dataString = span.getAttribute("data");
-			if (!dataString) return;
-
-			if (state.values[2] != null && state.values[2].dataString == dataString) {
-				const data = state.values[2];
-				state = state.update({
-					effects: cursorEffect.of(
-						JSON.stringify(Object.assign(data, { type: "cursor" }))
-					),
-				}).state;
-				return;
-			}
-		}
-	}
-
-	async startCursorEffect(span: HTMLSpanElement) {
 		// Mutex, prevent concurrent access to following section of code
-		if (state.values[3] != null) return;
+		if (source != null) return;
 		state = state.update({
-			effects: cursorEffect.of(
+			effects: stateMutation.of(
 				JSON.stringify({
-					type: "cursor-start",
+					type: `${type}-start`,
 				})
 			),
 		}).state;
@@ -877,22 +832,30 @@ export default class MyHighlightPlugin extends Plugin {
 		const dataString = span.getAttribute("data");
 		if (!dataString) return;
 
-		if (state.values[2] != null && state.values[2].dataString == dataString) {
-			const data = state.values[2];
+		if (destination != null && destination.dataString == dataString) {
+			const data = destination;
 			state = state.update({
-				effects: cursorEffect.of(
-					JSON.stringify(Object.assign(data, { type: "cursor" }))
-				),
+				effects: hoverEffect.of(JSON.stringify(Object.assign(data, { type }))),
 			}).state;
 			return;
 		}
 
-		// data stored in span element
-		let [text, file, from, to] = dataString.split("|");
+		let [prefix, text, suffix, file] = dataString.split(":");
+		console.log(dataString);
+		if (prefix && suffix && text && file) {
+			this.findTextPositions(
+				text,
+				prefix.slice(0, prefix.length - 1),
+				suffix.slice(1, suffix.length)
+			);
+		}
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+
 		if (currTabIdx != -1) {
+			// && currTab != -1) {
+			// Check adjacent tabs for file and open file if needed
 			const newLeaf = await openFileInAdjacentTab(
 				leavesByTab,
 				currTabIdx,
@@ -900,9 +863,9 @@ export default class MyHighlightPlugin extends Plugin {
 			);
 			if (newLeaf) {
 				state = state.update({
-					effects: cursorEffect.of(
+					effects: stateMutation.of(
 						JSON.stringify({
-							type: "cursor",
+							type,
 							leafId: newLeaf.id,
 						})
 					),
@@ -910,13 +873,14 @@ export default class MyHighlightPlugin extends Plugin {
 			}
 
 			leavesByTab = collectLeavesByTabHelper();
+
 			// highlight reference in the right tab
 			if (leavesByTab[currTabIdx + 1]) {
 				const data = highlightHoveredText(dataString, currTabIdx + 1);
 				if (data) {
 					state = state.update({
-						effects: cursorEffect.of(
-							JSON.stringify(Object.assign(data, { type: "cursor" }))
+						effects: stateMutation.of(
+							JSON.stringify(Object.assign(data, { type }))
 						),
 					}).state;
 				}
@@ -928,8 +892,8 @@ export default class MyHighlightPlugin extends Plugin {
 				const data = highlightHoveredText(dataString, currTabIdx - 1);
 				if (data) {
 					state = state.update({
-						effects: cursorEffect.of(
-							JSON.stringify(Object.assign(data, { type: "cursor" }))
+						effects: stateMutation.of(
+							JSON.stringify(Object.assign(data, { type }))
 						),
 					}).state;
 				}
@@ -995,96 +959,6 @@ export default class MyHighlightPlugin extends Plugin {
 		}).state;
 	}
 
-	/* 
-		dataString: text|file|from|to
-		span: html span elemen
-	*/
-	async startHoverEffect(dataString: string, span: HTMLSpanElement) {
-		// Mutex, prevent concurrent access to following section of code
-		if (state.values[2] != null) return;
-		state = state.update({
-			effects: hoverEffect.of(
-				JSON.stringify({
-					type: "hover-start",
-				})
-			),
-		}).state;
-
-		if (state.values[3] != null && state.values[3].dataString == dataString) {
-			const data = state.values[3];
-			state = state.update({
-				effects: hoverEffect.of(
-					JSON.stringify(Object.assign(data, { type: "hover" }))
-				),
-			}).state;
-			return;
-		}
-
-		// data stored in span element
-		let [text, file, from, to] = dataString.split("|");
-		let [prefix, text2, suffix, file2] = dataString.split(":");
-		console.log(dataString);
-		if (prefix && suffix && text2 && file2) {
-			this.findTextPositions(
-				text2,
-				prefix.slice(0, prefix.length - 1),
-				suffix.slice(1, suffix.length)
-			);
-		}
-		if (!text || !file || !from || !to) return;
-
-		let leavesByTab = collectLeavesByTabHelper();
-		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
-
-		if (currTabIdx != -1) {
-			// && currTab != -1) {
-			// Check adjacent tabs for file and open file if needed
-			const newLeaf = await openFileInAdjacentTab(
-				leavesByTab,
-				currTabIdx,
-				file
-			);
-			if (newLeaf) {
-				state = state.update({
-					effects: hoverEffect.of(
-						JSON.stringify({
-							type: "hover",
-							leafId: newLeaf.id,
-						})
-					),
-				}).state;
-			}
-
-			leavesByTab = collectLeavesByTabHelper();
-
-			// highlight reference in the right tab
-			if (leavesByTab[currTabIdx + 1]) {
-				const data = highlightHoveredText(dataString, currTabIdx + 1);
-				if (data) {
-					state = state.update({
-						effects: hoverEffect.of(
-							JSON.stringify(Object.assign(data, { type: "hover" }))
-						),
-					}).state;
-				}
-				return;
-			}
-
-			// highlight reference in the left tab
-			if (leavesByTab[currTabIdx - 1]) {
-				const data = highlightHoveredText(dataString, currTabIdx - 1);
-				if (data) {
-					state = state.update({
-						effects: hoverEffect.of(
-							JSON.stringify(Object.assign(data, { type: "hover" }))
-						),
-					}).state;
-				}
-				return;
-			}
-		}
-	}
-
 	async endHoverEffect() {
 		const leavesByTab = collectLeavesByTabHelper();
 		if (!state.values[2]) return;
@@ -1118,6 +992,7 @@ export default class MyHighlightPlugin extends Plugin {
 				Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
 			);
 
+			// scroll to cursor hover if it exists
 			if (state.values[3] && state.values[3].dataString) {
 				console.log("DATASTRING");
 
@@ -1199,7 +1074,7 @@ export default class MyHighlightPlugin extends Plugin {
 			}
 
 			if (dataString && span && span instanceof HTMLSpanElement) {
-				this.startHoverEffect(dataString, span);
+				this.startEffect(span, "hover");
 			} else if (state.values[2] != null) {
 				// console.log("MOUSEOUT");
 				// console.log(evt);
@@ -1342,38 +1217,30 @@ export default class MyHighlightPlugin extends Plugin {
 							if (span && span instanceof HTMLSpanElement) {
 								console.log("Found span element:", span);
 								// Do something with the span element
-								// this.startCursorEffect(dataString, span);
 								matched = true;
 
 								console.log(dataString);
 								console.log(span);
 
 								matchSpan = span;
-								// return {
-								// 	matched,
-								// 	dataString,
-								// 	span,
-								// };
 							} else {
 								console.log("Span element not found");
 							}
 						}
 					}
 				});
-				// if (matched) return;
 			}
 		}
 		return { matched, span: matchSpan };
-		// this.endCursorEffect();
 	}
 
 	checkFocusCursor(evt: Event | { target: HTMLElement }) {
 		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
-		console.log(matched);
 		if (matched) {
 			this.endCursorEffect();
-			this.startCursorEffect(span);
+			// this.startCursorEffect(span);
+			this.startEffect(span, "cursor");
 		} else {
 			this.endCursorEffect();
 		}
