@@ -346,39 +346,39 @@ async function updateClipboard(only: boolean = false) {
 		// selection = selection.split("\n").join(" ");
 
 		if (view.file) {
-			// let reference = `(((${selection}|${view.file.path}|${
-			// 	view.editor.getCursor("from").line +
-			// 	"," +
-			// 	view.editor.getCursor("from").ch
-			// }|${
-			// 	view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
-			// })))`;
+			let reference = `(((${selection}|${view.file.path}|${
+				view.editor.getCursor("from").line +
+				"," +
+				view.editor.getCursor("from").ch
+			}|${
+				view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
+			})))`;
 
-			const text = view.data;
-			const from = view.editor.getCursor("from");
-			const to = view.editor.getCursor("to");
+			// const text = view.data;
+			// const from = view.editor.getCursor("from");
+			// const to = view.editor.getCursor("to");
 
-			let rollingIndex = 0;
-			const lines = text.split("\n").map((line: string, i: number) => {
-				let data = { line, index: rollingIndex, length: line.length, i };
-				rollingIndex += line.length;
-				return data;
-			});
+			// let rollingIndex = 0;
+			// const lines = text.split("\n").map((line: string, i: number) => {
+			// 	let data = { line, index: rollingIndex, length: line.length, i };
+			// 	rollingIndex += line.length;
+			// 	return data;
+			// });
 
-			let startIndex = lines.filter((line: any) => line.i == from.line)[0];
-			startIndex = startIndex.index + from.ch;
-			let endIndex = lines.filter((line: any) => line.i == to.line)[0];
-			endIndex = endIndex.index + to.ch;
-			// .reduce((a: any, b: any) => a + b, 0);
-			let prefix = text.slice(
-				startIndex - 25 > 0 ? startIndex - 25 : 0,
-				startIndex + 1
-			);
-			let suffix = text.slice(endIndex, endIndex + 25);
+			// let startIndex = lines.filter((line: any) => line.i == from.line)[0];
+			// startIndex = startIndex.index + from.ch;
+			// let endIndex = lines.filter((line: any) => line.i == to.line)[0];
+			// endIndex = endIndex.index + to.ch;
+			// // .reduce((a: any, b: any) => a + b, 0);
+			// let prefix = text.slice(
+			// 	startIndex - 25 > 0 ? startIndex - 25 : 0,
+			// 	startIndex + 1
+			// );
+			// let suffix = text.slice(endIndex, endIndex + 25);
 
-			let reference = `[↗](urn:${prefix}:${encodeURIComponent(
-				selection
-			)}:${suffix}:${view.file.path})`;
+			// let reference = `[↗](urn:${prefix}:${encodeURIComponent(
+			// 	selection
+			// )}:${suffix}:${view.file.path})`;
 
 			if (!only) {
 				reference = '"' + selection + '" ' + reference;
@@ -812,6 +812,57 @@ export default class MyHighlightPlugin extends Plugin {
 		}
 	}
 
+	async startEffect(span: HTMLSpanElement, type: string) {
+		let source = state.values[2];
+		if (type == "hover") {
+			// Mutex, prevent concurrent access to following section of code
+			if (state.values[2] != null) return;
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-start",
+					})
+				),
+			}).state;
+
+			const dataString = span.getAttribute("data");
+			if (!dataString) return;
+
+			if (state.values[3] != null && state.values[3].dataString == dataString) {
+				const data = state.values[3];
+				state = state.update({
+					effects: hoverEffect.of(
+						JSON.stringify(Object.assign(data, { type: "hover" }))
+					),
+				}).state;
+				return;
+			}
+		} else if (type == "cursor") {
+			// Mutex, prevent concurrent access to following section of code
+			if (state.values[3] != null) return;
+			state = state.update({
+				effects: cursorEffect.of(
+					JSON.stringify({
+						type: "cursor-start",
+					})
+				),
+			}).state;
+
+			const dataString = span.getAttribute("data");
+			if (!dataString) return;
+
+			if (state.values[2] != null && state.values[2].dataString == dataString) {
+				const data = state.values[2];
+				state = state.update({
+					effects: cursorEffect.of(
+						JSON.stringify(Object.assign(data, { type: "cursor" }))
+					),
+				}).state;
+				return;
+			}
+		}
+	}
+
 	async startCursorEffect(span: HTMLSpanElement) {
 		// Mutex, prevent concurrent access to following section of code
 		if (state.values[3] != null) return;
@@ -1051,6 +1102,7 @@ export default class MyHighlightPlugin extends Plugin {
 			}).state;
 			return;
 		}
+
 		if (dataString) {
 			let [text, file, from, to] = dataString.split("|");
 			let rangeStart = parseEditorPosition(from);
@@ -1065,44 +1117,37 @@ export default class MyHighlightPlugin extends Plugin {
 				rangeStart,
 				Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
 			);
-			editor.scrollIntoView(
-				{
-					from: rangeStart,
-					to: rangeEnd,
-				},
-				true
-			);
+
+			if (state.values[3] && state.values[3].dataString) {
+				console.log("DATASTRING");
+
+				let [text, file, from, to] = state.values[3].dataString.split("|");
+				let rangeStart = parseEditorPosition(from);
+				let rangeEnd = parseEditorPosition(to);
+
+				editor.scrollIntoView(
+					{
+						from: rangeStart,
+						to: rangeEnd,
+					},
+					true
+				);
+			} else {
+				editor.scrollIntoView(
+					{
+						from: rangeStart,
+						to: rangeEnd,
+					},
+					true
+				);
+			}
+
 			// console.log(selection);
 
 			// console.log("originalTop: " + originalTop);
 			if (leafId) {
 				await targetLeaf.detach();
 			}
-			// SCROLL TO ORIGINAL POSITION???
-
-			// else if (originalTop) {
-			// 	// console.log(editor);
-			// 	// console.log(editor.containerEl);
-			// 	// console.log(editor.containerEl.querySelector(".cm-scroller"));
-			// 	console.log(
-			// 		"starting scroll top: " +
-			// 			editor.containerEl.querySelector(".cm-scroller").scrollTop
-			// 	);
-			// 	// editor.containerEl.querySelector(".cm-scroller").scrollTop =
-			// 	// 	originalTop;
-			// 	// editor.blur();
-			// 	// if (targetLeaf.view instanceof MarkdownView) {
-			// 	// 	targetLeaf.view.applyScroll(originalTop);
-			// 	// }
-			// 	// editor.blur();
-			// 	console.log(editor.containerEl.querySelector(".cm-scroller"));
-			// 	// editor.cm.dom.querySelector(".cm-scroller").scrollTo(null, originalTop);
-			// 	console.log(editor.cm.dom);
-			// 	console.log(
-			// 		"ending scroll top: " +
-			// 			editor.containerEl.querySelector(".cm-scroller").scrollTop
-			// 	);
-			// }
 		}
 
 		// End mutex lock
@@ -1325,7 +1370,9 @@ export default class MyHighlightPlugin extends Plugin {
 	checkFocusCursor(evt: Event | { target: HTMLElement }) {
 		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
+		console.log(matched);
 		if (matched) {
+			this.endCursorEffect();
 			this.startCursorEffect(span);
 		} else {
 			this.endCursorEffect();
