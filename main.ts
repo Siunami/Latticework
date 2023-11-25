@@ -33,9 +33,13 @@ import {
 	Extension,
 	RangeSetBuilder,
 	Transaction,
+	Text,
 } from "@codemirror/state";
 
+import { getSearchQuery, SearchQuery, SearchCursor } from "@codemirror/search";
+
 import { syntaxTree } from "@codemirror/language";
+import { start } from "repl";
 
 /* State Fields */
 type Link = {
@@ -163,17 +167,6 @@ const emptyLineGutter = gutter({
 	},
 	initialSpacer: () => emptyMarker,
 });
-
-/* WIDGET */
-export class EmojiWidget extends WidgetType {
-	toDOM(view: EditorView): HTMLElement {
-		const div = document.createElement("span");
-
-		div.innerText = "👉";
-
-		return div;
-	}
-}
 
 /* UTILS */
 
@@ -383,6 +376,7 @@ class PlaceholderWidget extends WidgetType {
 
 		span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
+		span.setAttribute("class", "old-block");
 		span.setAttribute("data", this.name);
 
 		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
@@ -485,6 +479,137 @@ const placeholders = ViewPlugin.fromClass(
 	}
 );
 
+/* new placeholder */
+class ReferenceWidget extends WidgetType {
+	constructor(private name: string, private view: EditorView) {
+		super();
+	}
+
+	eq(other: ReferenceWidget) {
+		return this.name === other.name;
+	}
+
+	toDOM() {
+		// if (this.name.split("|").length != 4) {
+		// 	console.log("invalid placeholder");
+		// 	const regex = /\[↗\]\(urn:([^)]*)\)/g;
+		// 	let match = regex.exec(this.name);
+		// 	const content = match[1];
+		// 	console.log(content); // Output: 'example'
+		// 	console.log(content.split(":"));
+		// }
+		const span = document.createElement("span");
+
+		span.style.backgroundColor = "rgb(187, 215, 230)";
+		span.style.color = "black";
+		span.setAttribute("class", "old-block");
+		const regex = /\[↗\]\(urn:([^)]*)\)/g;
+		let match = regex.exec(this.name);
+		if (match) {
+			const content = match[1];
+			span.setAttribute("data", content);
+		}
+
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("width", "16");
+		svg.setAttribute("height", "16");
+		svg.setAttribute("viewBox", "0 0 16 16");
+		svg.setAttribute("fill", "none");
+		svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+		path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
+		path.setAttribute("fill", "black");
+
+		svg.appendChild(path);
+		span.appendChild(svg);
+
+		span.addEventListener("click", async () => {
+			// console.log("click");
+			// console.log(this);
+			const { workspace } = state.values[0].app;
+			const leavesByTab = collectLeavesByTabHelper();
+
+			const { tabIdx, index, dataString, leafId } = state.values[2];
+			/* If temporary, then keep leaf */
+			if (dataString) {
+				let [text, file, from, to] = dataString.split("|");
+				let rangeEnd = parseEditorPosition(to);
+				/*
+					The problem here is that I don't have the position of the span element.
+					I want to set the active cursor to the end of the span
+				*/
+
+				let [text2, file2, from2, to2] = this.name.split("|");
+				const currentTab = getHoveredTab(leavesByTab, span);
+				// console.log("currentTab");
+				// console.log(currentTab);
+				let rangeEnd2 = parseEditorPosition(to2);
+
+				const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+				// console.log(lineText);
+				// currentTab.view.editor.setCursor(rangeEnd2);
+
+				let targetLeaf = leavesByTab[tabIdx][1][index];
+				workspace.setActiveLeaf(targetLeaf);
+				const editor = targetLeaf.view.editor;
+				editor.setCursor(rangeEnd);
+				state = state.update({
+					effects: hoverEffect.of(
+						JSON.stringify({
+							type: "hover",
+							leafId: null,
+							originalTop: null,
+						})
+					),
+				}).state;
+			}
+		});
+		return span;
+	}
+}
+
+const referenceDecoration = (match: RegExpExecArray, view: EditorView) =>
+	Decoration.replace({
+		widget: new ReferenceWidget(match[0], view),
+	});
+
+const referenceMatcher = new MatchDecorator({
+	// regexp: /\(\((\w+)\)\)/g,
+	// regexp: /\[\u2197\]\(urn:[^\)]*\)/g,
+	regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
+	// regexp: /\(\(([^|)]+)\|([^|)]+)\|([^|)]+)\|([^|)]+)\)\)/g,
+	// regexp: /\(\(([^-*]+)-\*-([^-*]+)-\*-([^-*]+)-\*-([^-*]+)\)\)/g,
+	decoration: (match, view, pos) => {
+		return referenceDecoration(match, view);
+	},
+});
+
+const referenceResources = ViewPlugin.fromClass(
+	class {
+		referenceResources: DecorationSet;
+		constructor(view: EditorView) {
+			this.referenceResources = referenceMatcher.createDeco(view);
+		}
+		update(update: ViewUpdate) {
+			this.referenceResources = referenceMatcher.updateDeco(
+				update,
+				this.referenceResources
+			);
+		}
+		destroy() {
+			this.referenceResources = Decoration.none;
+		}
+	},
+	{
+		decorations: (instance) => instance.referenceResources,
+		provide: (plugin) =>
+			EditorView.atomicRanges.of((view) => {
+				return view.plugin(plugin)?.referenceResources || Decoration.none;
+			}),
+	}
+);
+
 /* highlight */
 class HighlighterWidget extends WidgetType {
 	constructor(private name: string, private view: EditorView) {
@@ -543,38 +668,6 @@ const highlights = ViewPlugin.fromClass(
 	}
 );
 
-/* Emoji plugin settings */
-export const emojiListField = StateField.define<DecorationSet>({
-	create(state): DecorationSet {
-		return Decoration.none;
-	},
-	update(oldState: DecorationSet, transaction: Transaction): DecorationSet {
-		const builder = new RangeSetBuilder<Decoration>();
-
-		syntaxTree(transaction.state).iterate({
-			enter(node) {
-				if (node.type.name.startsWith("list")) {
-					// Position of the '-' or the '*'.
-					const listCharFrom = node.from - 2;
-
-					builder.add(
-						listCharFrom,
-						listCharFrom + 1,
-						Decoration.replace({
-							widget: new EmojiWidget(),
-						})
-					);
-				}
-			},
-		});
-
-		return builder.finish();
-	},
-	provide(field: StateField<DecorationSet>): Extension {
-		return EditorView.decorations.from(field);
-	},
-});
-
 /* Highlight plugin settings */
 interface MyHighlightPluginSettings {
 	highlightClass: string;
@@ -623,6 +716,107 @@ export default class MyHighlightPlugin extends Plugin {
 		await this.app.vault.adapter.write(fileUri, svgContent);
 
 		return fileUri;
+	}
+
+	findTextPositions(
+		searchTerm: string,
+		prefix: string = "",
+		suffix: string = ""
+	) {
+		const activeLeaf: any = this.app.workspace.getLeaf();
+		if (!activeLeaf) return;
+
+		// Make sure the view is in source mode and has a CodeMirror editor instance
+		if (
+			activeLeaf.view.getViewType() === "markdown" &&
+			activeLeaf.view.editor
+		) {
+			const editor = activeLeaf.view.editor;
+			const cursorFrom = editor.getCursor("from");
+			const cursorTo = editor.getCursor("to");
+
+			console.log(prefix, suffix);
+			console.log(searchTerm);
+			// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
+			// given text and search term, find all matches
+
+			let rollingIndex = 0;
+			const lines = activeLeaf.view.data.split("\n").map((line: string) => {
+				let data = { line, index: rollingIndex, length: line.length };
+				rollingIndex += line.length;
+				return data;
+			});
+			console.log("lines: ");
+			console.log(lines);
+			// console.log(cursorFrom);
+			// console.log(cursorTo);
+
+			const matches = [
+				...activeLeaf.view.data.matchAll(prefix + searchTerm + suffix),
+			];
+			console.log("matches: ");
+			console.log(matches);
+			matches.forEach((match) => {
+				console.log(match.index);
+				let startIndex =
+					lines.findIndex((line: any) => line.index >= match.index) - 1;
+				let endIndex =
+					lines.findIndex(
+						(line: any) => line.index >= match.index + match[0].length
+					) - 1;
+				console.log(startIndex);
+				console.log(
+					editor.getRange(
+						{
+							line: startIndex,
+							ch: match.index - lines[startIndex].index - startIndex,
+						},
+						{
+							line: endIndex,
+							ch:
+								match.index +
+								match[0].length -
+								lines[endIndex].index -
+								endIndex,
+						}
+					)
+				);
+			});
+
+			// console.log(editor);
+			// const query = getSearchQuery(state);
+			// const search = SearchQuery(searchTerm);
+			// console.log(query.search(searchTerm));
+
+			// The list to store the index positions of matches
+			let matchPositions: any[] = [];
+			// let cursor = editor.getSearchCursor(searchTerm, { line: 0, ch: 0 });
+
+			// console.log(cursor);
+
+			// Find all matches
+			// while (cursor.findNext()) {
+			// 	matchPositions.push({
+			// 		from: cursor.from(), // where the match starts
+			// 		to: cursor.to(), // where the match ends
+			// 		text: cursor.text.join(" "), // the matched text
+			// 	});
+			// }
+
+			// Do something with the matches, for example, log to the console
+			console.log(matchPositions);
+
+			// If you want to do something with each specific match
+			matchPositions.forEach((match) => {
+				// Do something with each match.
+				// 'match.from' and 'match.to' are objects containing the line and character index.
+				console.log(
+					`Found match at from line ${match.from.line}, ch ${match.from.ch} to line ${match.to.line}, ch ${match.to.ch}: ${match.text}`
+				);
+			});
+		} else {
+			console.error("The active view is not a markdown editor in source mode.");
+		}
 	}
 
 	async startCursorEffect(span: HTMLSpanElement) {
@@ -784,6 +978,16 @@ export default class MyHighlightPlugin extends Plugin {
 
 		// data stored in span element
 		let [text, file, from, to] = dataString.split("|");
+		let [prefix, text2, suffix, file2] = dataString.split(":");
+		console.log(dataString);
+		if (prefix && suffix && text2 && file2) {
+			this.findTextPositions(
+				text2,
+				prefix.slice(0, prefix.length - 1),
+				suffix.slice(1, suffix.length)
+			);
+		}
+		if (!text || !file || !from || !to) return;
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
@@ -930,8 +1134,8 @@ export default class MyHighlightPlugin extends Plugin {
 		this.registerEditorExtension([
 			// emptyLineGutter,
 			placeholders,
-			// emojiListField,
 			highlights,
+			referenceResources,
 		]);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
@@ -1006,78 +1210,6 @@ export default class MyHighlightPlugin extends Plugin {
 						this.app.workspace.getActiveViewOfType(MarkdownView);
 					activeView?.editor.undo();
 				}
-
-				// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-				// const cursorFrom = activeView?.editor.getCursor("from");
-				// const cursorTo = activeView?.editor.getCursor("to");
-
-				// if (
-				// 	cursorFrom &&
-				// 	cursorTo &&
-				// 	cursorFrom.ch == cursorTo.ch &&
-				// 	cursorFrom.line == cursorTo.line
-				// 	// &&cursorFrom.ch - 1 >= -1
-				// ) {
-				// 	const lineText = activeView?.editor.getLine(cursorFrom.line);
-				// 	// Match the regex pattern to lineText
-				// 	const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
-				// 	// from possible regex matches in lineText
-				// 	if (lineText) {
-				// 		const matches = [...lineText.matchAll(regex)];
-				// 		let matched = false;
-				// 		matches.forEach((match) => {
-				// 			// console.log(match);
-				// 			if (match.index?.toString()) {
-				// 				const start = match.index;
-				// 				const end = start + match[0].length;
-				// 				if (end == cursorTo.ch && evt.target) {
-				// 					const dataString = match[1];
-				// 					// get the html element at the match location
-				// 					const container: any = evt.target;
-				// 					// console.log(container);
-				// 					// find html span element in target that has a data attribute equal to contents
-				// 					let span = container.querySelector(
-				// 						`span[data="${dataString}"]`
-				// 					);
-				// 					if (span && span instanceof HTMLSpanElement) {
-				// 						console.log("Found span element:", span);
-				// 						// Do something with the span element
-				// 						// this.startCursorEffect(dataString, span);
-				// 						matched = true;
-				// 					} else {
-				// 						console.log("Span element not found");
-				// 					}
-				// 				}
-				// 			}
-				// 		});
-				// 		if (matched) {
-				// 			if (
-				// 				state.values[2] != null &&
-				// 				state.values[3] != null &&
-				// 				state.values[2].dataString == state.values[3].dataString
-				// 			) {
-				// 				console.log("UNDO HOVER");
-				// 				state = state.update({
-				// 					effects: hoverEffect.of(
-				// 						JSON.stringify({
-				// 							type: "hover-off",
-				// 						})
-				// 					),
-				// 				}).state;
-				// 			}
-
-				// 			console.log("UNDO CURSOR");
-				// 			state = state.update({
-				// 				effects: cursorEffect.of(
-				// 					JSON.stringify({
-				// 						type: "cursor-off",
-				// 					})
-				// 				),
-				// 			}).state;
-				// 			activeView?.editor.undo();
-				// 		}
-				// 	}
-				// }
 			}
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
@@ -1086,21 +1218,7 @@ export default class MyHighlightPlugin extends Plugin {
 			} else if (evt.key == "d" && evt.metaKey && evt.shiftKey) {
 				console.log("d");
 				updateClipboard(true);
-			} else if (evt.key == "z" && evt.metaKey) {
-				// When undo of something that you just pasted that you are hovering over
-				// undo the hover effect
-				console.log("z");
-				console.log(evt.target);
-				// this.endCursorEffect();
-				// this.endHoverEffect();
-				// this.checkFocusCursor(evt);
-			} else if (evt.key == "v" && evt.metaKey) {
-				console.log("v");
-				console.log(evt.target);
-				// save paste event in temporary spot, till next event
 			}
-
-			console.log(state.values[3]);
 		});
 
 		// this.registerEvent(
