@@ -751,8 +751,11 @@ export default class MyHighlightPlugin extends Plugin {
 			// console.log(cursorFrom);
 			// console.log(cursorTo);
 
+			console.log(decodeURIComponent(prefix + searchTerm + suffix));
 			const matches = [
-				...activeLeaf.view.data.matchAll(prefix + searchTerm + suffix),
+				...activeLeaf.view.data.matchAll(
+					decodeURIComponent(prefix + searchTerm + suffix)
+				),
 			];
 			console.log("matches: ");
 			console.log(matches);
