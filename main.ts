@@ -357,7 +357,6 @@ function findTextPositions(
 					lines[endIndex].index,
 			}
 		);
-		console.log(selection);
 
 		return {
 			rangeStart: {
@@ -1278,6 +1277,64 @@ export default class MyHighlightPlugin extends Plugin {
 		}
 	}
 
+	async endReferenceCursorEffect() {
+		const leavesByTab = collectLeavesByTabHelper();
+		if (!state.values[3]) return;
+
+		const {
+			tabIdx,
+			index,
+			dataString,
+			leafId,
+			originalTop,
+			originalCursor,
+			ranges,
+		} = state.values[3];
+
+		if (state.values[2] != null && state.values[2].dataString == dataString) {
+			// End mutex lock
+			state = state.update({
+				effects: cursorEffect.of(
+					JSON.stringify({
+						type: "cursor-off",
+					})
+				),
+			}).state;
+			return;
+		}
+
+		let targetLeaf = leavesByTab[tabIdx][1][index];
+		// this.app.workspace.setActiveLeaf(targetLeaf);
+		const editor = targetLeaf.view.editor;
+		if (ranges) {
+			ranges.forEach((range: any[]) => {
+				editor.replaceRange(range[0], range[1], range[2]);
+			});
+		}
+		editor.scrollIntoView(
+			{
+				from: ranges[0][1],
+				to: ranges[ranges.length - 1][2],
+			},
+			true
+		);
+		// console.log(selection);
+
+		// console.log("originalTop: " + originalTop);
+		if (leafId) {
+			await targetLeaf.detach();
+		}
+
+		// End mutex lock
+		state = state.update({
+			effects: cursorEffect.of(
+				JSON.stringify({
+					type: "cursor-off",
+				})
+			),
+		}).state;
+	}
+
 	async endCursorEffect() {
 		const leavesByTab = collectLeavesByTabHelper();
 		if (!state.values[3]) return;
@@ -1336,7 +1393,7 @@ export default class MyHighlightPlugin extends Plugin {
 		}).state;
 	}
 
-	async endHoverReferenceEffect() {
+	async endReferenceHoverEffect() {
 		const leavesByTab = collectLeavesByTabHelper();
 		if (!state.values[2]) return;
 		const {
@@ -1561,7 +1618,6 @@ export default class MyHighlightPlugin extends Plugin {
 				dataString = span.getAttribute("data");
 			}
 
-			console.log(state.values);
 			if (
 				dataString &&
 				span &&
@@ -1581,7 +1637,7 @@ export default class MyHighlightPlugin extends Plugin {
 				this.endHoverEffect();
 			} else if (state.values[2] != null) {
 				console.log("end hover reference effect");
-				this.endHoverReferenceEffect();
+				this.endReferenceHoverEffect();
 			}
 		});
 
@@ -1652,7 +1708,13 @@ export default class MyHighlightPlugin extends Plugin {
 		this.addSettingTab(new MyHighlightPluginSettingTab(this.app, this));
 	}
 
-	onunload() {}
+	onunload() {
+		// this.endHoverEffect();
+		// this.endCursorEffect();
+		if (state.values[2] && state.values[2].ranges) {
+			this.endReferenceHoverEffect();
+		}
+	}
 
 	checkCursorPositionAtDatastring(evt: Event | { target: HTMLElement }): any {
 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -1675,7 +1737,8 @@ export default class MyHighlightPlugin extends Plugin {
 			// console.log(lineText);
 
 			// Match the regex pattern to lineText
-			const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
+			// const regex = /\(\(\(([\s\S]*?)\)\)\)/g;
+			const regex = /\[↗\]\(urn:([^)]*)\)/g;
 			// from possible regex matches in lineText
 			if (lineText) {
 				const matches = [...lineText.matchAll(regex)];
@@ -1696,9 +1759,6 @@ export default class MyHighlightPlugin extends Plugin {
 								// Do something with the span element
 								matched = true;
 
-								console.log(dataString);
-								console.log(span);
-
 								matchSpan = span;
 							} else {
 								console.log("Span element not found");
@@ -1715,11 +1775,12 @@ export default class MyHighlightPlugin extends Plugin {
 		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
 		if (matched) {
-			this.endCursorEffect();
+			this.endReferenceCursorEffect();
 			// this.startCursorEffect(span);
-			this.startEffect(span, "cursor");
+			// this.startEffect(span, "cursor");
+			this.startReferenceEffect(span, "cursor");
 		} else {
-			this.endCursorEffect();
+			this.endReferenceCursorEffect();
 		}
 	}
 
