@@ -36,7 +36,12 @@ import {
 	Text,
 } from "@codemirror/state";
 
-import { getSearchQuery, SearchQuery, SearchCursor } from "@codemirror/search";
+import {
+	getSearchQuery,
+	SearchQuery,
+	SearchCursor,
+	search,
+} from "@codemirror/search";
 
 /* State Fields */
 type Link = {
@@ -285,6 +290,253 @@ async function openFileInLeaf(newLeaf: any, file: string) {
 	await newLeaf.openFile(targetFile, { active: false });
 }
 
+function processURI(dataString: string) {
+	let [prefix, text, suffix, file, from, to] = dataString.split(":");
+	prefix = decodeURIComponentString(prefix);
+	text = decodeURIComponentString(text);
+	suffix = decodeURIComponentString(suffix);
+	file = decodeURIComponentString(file);
+	from = decodeURIComponentString(from);
+	to = decodeURIComponentString(to);
+	return [prefix, text, suffix, file, from, to];
+}
+
+function findTextPositions(
+	view: MarkdownView,
+	searchTerm: string,
+	prefix: string = "",
+	suffix: string = ""
+) {
+	const editor = view.editor;
+
+	console.log(prefix, suffix);
+	console.log(searchTerm);
+	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
+	// given text and search term, find all matches
+
+	let rollingIndex = 0;
+	const text = view.data;
+	const lines = text.split("\n").map((line: string, i: number) => {
+		let data = { line, index: rollingIndex, length: line.length + 1, i };
+		rollingIndex += data.length;
+		return data;
+	});
+	console.log("lines: ");
+	console.log(lines);
+	// console.log(cursorFrom);
+	// console.log(cursorTo);
+
+	console.log(text);
+	console.log(prefix + searchTerm + suffix);
+
+	if (text.includes(prefix + searchTerm + suffix)) {
+		console.log("found");
+		console.log(text.indexOf(prefix + searchTerm + suffix));
+		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		let startIndex =
+			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
+			1;
+		let endIndex =
+			lines.findIndex(
+				(line: any) =>
+					line.index > matchIndex + prefix.length + searchTerm.length
+			) - 1;
+		console.log(startIndex);
+
+		const selection = editor.getRange(
+			{
+				line: startIndex,
+				ch: matchIndex + prefix.length - lines[startIndex].index,
+			},
+			{
+				line: endIndex,
+				ch:
+					matchIndex +
+					prefix.length +
+					searchTerm.length -
+					lines[endIndex].index,
+			}
+		);
+		console.log(selection);
+
+		return {
+			rangeStart: {
+				line: startIndex,
+				ch: matchIndex + prefix.length - lines[startIndex].index,
+			},
+			rangeEnd: {
+				line: endIndex,
+				ch:
+					matchIndex +
+					prefix.length +
+					searchTerm.length -
+					lines[endIndex].index,
+			},
+			lines,
+		};
+	}
+	return null;
+}
+
+function highlightHoveredReference(dataString: string, tabIdx: number) {
+	console.log("GOT TO HIGHLIGHT HOVERED");
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	// let rangeStart = parseEditorPosition(from);
+	// let rangeEnd = parseEditorPosition(to);
+	const leavesByTab = collectLeavesByTabHelper();
+	let rightAdjacentTab = leavesByTab[tabIdx][1].map((leaf: any) =>
+		leaf.getViewState()
+	);
+	let index = rightAdjacentTab.findIndex((x: any) => x.state.file == file);
+	if (index != -1) {
+		let targetLeaf = leavesByTab[tabIdx][1][index];
+		// this.app.workspace.setActiveLeaf(targetLeaf);
+
+		const editor = targetLeaf.view.editor;
+		/*
+		{
+			"top": 0,
+			"left": 0,
+			"clientHeight": 1311,
+			"clientWidth": 1063,
+			"height": 1311,
+			"width": 1078
+		}
+		*/
+		// const selection = editor.getRange(rangeStart, rangeEnd);
+
+		// console.log("selection");
+		// console.log(selection);
+		// if (selection != text) {
+		// 	console.log("selection != text");
+		// 	console.log(text);
+		// 	let positions = findTextPositions(targetLeaf.view, text, prefix, suffix);
+		// 	if (positions) {
+		// 		rangeStart = positions.rangeStart;
+		// 		rangeEnd = positions.rangeEnd;
+		// 	}
+		// }
+		let positions = findTextPositions(
+			targetLeaf.view,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) return;
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
+
+		const originalScroll = editor.getScrollInfo();
+		const originalCursor = editor.getCursor();
+
+		const ranges = [];
+
+		let lines = text.split("\n");
+		let currIndex = 0;
+
+		// function shiftIfBullet(rangeStart) {}
+
+		if (rangeStart.line != rangeEnd.line) {
+			let start = rangeStart.line;
+			let end = rangeEnd.line;
+			let curr = start;
+			while (curr <= end) {
+				if (curr == start) {
+					editor.replaceRange(
+						`+++${decodeURIComponentString(lines[currIndex])}+++`,
+						rangeStart,
+						{
+							line: curr,
+							ch: editor.getLine(curr).length,
+						}
+					);
+					ranges.push([
+						lines[currIndex],
+						rangeStart,
+						{
+							line: curr,
+							ch: editor.getLine(curr).length,
+						},
+					]);
+					curr++;
+				} else if (curr == end) {
+					editor.replaceRange(
+						`+++${decodeURIComponentString(lines[currIndex])}+++`,
+						{
+							line: curr,
+							ch: 0,
+						},
+						rangeEnd
+					);
+					ranges.push([
+						lines[currIndex],
+						{
+							line: curr,
+							ch: 0,
+						},
+						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 }),
+					]);
+					curr++;
+				} else {
+					editor.replaceRange(
+						`+++${decodeURIComponentString(lines[currIndex])}+++`,
+						{
+							line: curr,
+							ch: 0,
+						},
+						{
+							line: curr,
+							ch: editor.getLine(curr).length,
+						}
+					);
+					ranges.push([
+						lines[currIndex],
+						{
+							line: curr,
+							ch: 0,
+						},
+						{
+							line: curr,
+							ch: editor.getLine(curr).length,
+						},
+					]);
+					curr++;
+				}
+				currIndex++;
+			}
+		} else {
+			editor.replaceRange(
+				`+++${decodeURIComponentString(text)}+++`,
+				rangeStart,
+				rangeEnd
+			);
+			ranges.push([
+				text,
+				rangeStart,
+				Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 }),
+			]);
+		}
+
+		editor.scrollIntoView(
+			{
+				from: rangeStart,
+				to: rangeEnd,
+			},
+			true
+		);
+		return {
+			tabIdx: tabIdx,
+			index,
+			dataString,
+			originalTop: originalScroll.top,
+			originalCursor,
+			ranges,
+		};
+	}
+	return null;
+}
+
 function highlightHoveredText(dataString: string, tabIdx: number) {
 	let [text, file, from, to] = dataString.split("|");
 
@@ -345,7 +597,7 @@ function decodeURIComponentString(str: string) {
 }
 
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
-// [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:INDEX)
+// [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
 async function updateClipboard(only: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 
@@ -371,8 +623,8 @@ async function updateClipboard(only: boolean = false) {
 			// slow down, walk through this part, line by line. Understand it deeply.
 			let rollingIndex = 0;
 			const lines = text.split("\n").map((line: string, i: number) => {
-				let data = { line, index: rollingIndex, length: line.length, i };
-				rollingIndex += line.length;
+				let data = { line, index: rollingIndex, length: line.length + 1, i };
+				rollingIndex += data.length;
 				return data;
 			});
 
@@ -589,22 +841,22 @@ class ReferenceWidget extends WidgetType {
 			const { tabIdx, index, dataString, leafId } = state.values[2];
 			/* If temporary, then keep leaf */
 			if (dataString) {
-				let [text, file, from, to] = dataString.split("|");
+				let [prefix, text, suffix, file, from, to] = processURI(dataString);
 				let rangeEnd = parseEditorPosition(to);
 				/*
 					The problem here is that I don't have the position of the span element.
 					I want to set the active cursor to the end of the span
 				*/
 
-				let [text2, file2, from2, to2] = this.name.split("|");
-				const currentTab = getHoveredTab(leavesByTab, span);
-				// console.log("currentTab");
-				// console.log(currentTab);
-				let rangeEnd2 = parseEditorPosition(to2);
+				// let [text2, file2, from2, to2] = this.name.split("|");
+				// const currentTab = getHoveredTab(leavesByTab, span);
+				// // console.log("currentTab");
+				// // console.log(currentTab);
+				// let rangeEnd2 = parseEditorPosition(to2);
 
-				const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-				// console.log(lineText);
-				// currentTab.view.editor.setCursor(rangeEnd2);
+				// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+				// // console.log(lineText);
+				// // currentTab.view.editor.setCursor(rangeEnd2);
 
 				let targetLeaf = leavesByTab[tabIdx][1][index];
 				workspace.setActiveLeaf(targetLeaf);
@@ -802,8 +1054,8 @@ export default class MyHighlightPlugin extends Plugin {
 
 			let rollingIndex = 0;
 			const text = activeLeaf.view.data;
-			const lines = text.split("\n").map((line: string) => {
-				let data = { line, index: rollingIndex, length: line.length + 2 };
+			const lines = text.split("\n").map((line: string, i: number) => {
+				let data = { line, index: rollingIndex, length: line.length + 1, i };
 				rollingIndex += data.length;
 				return data;
 			});
@@ -817,39 +1069,50 @@ export default class MyHighlightPlugin extends Plugin {
 			const decodedSuffix = decodeURIComponentString(suffix);
 
 			console.log(activeLeaf.view.data);
-			console.log(decodedPrefix, decodedSearchTerm, decodedSuffix);
+			console.log(decodedPrefix + decodedSearchTerm + decodedSuffix);
 
-			const matches = [
-				...activeLeaf.view.data.matchAll(
-					decodedPrefix.replace(/\)/g, "\\)") +
-						decodedSearchTerm.replace(/\)/g, "\\)") +
-						decodedSuffix.replace(/\)/g, "\\)")
-				),
-			];
-			console.log("matches: ");
-			console.log(matches);
-			matches.forEach((match) => {
-				// console.log(match.index);
+			if (
+				activeLeaf.view.data.includes(
+					decodedPrefix + decodedSearchTerm + decodedSuffix
+				)
+			) {
+				console.log("found");
+				console.log(
+					activeLeaf.view.data.indexOf(
+						decodedPrefix + decodedSearchTerm + decodedSuffix
+					)
+				);
+				let matchIndex = activeLeaf.view.data.indexOf(
+					decodedPrefix + decodedSearchTerm + decodedSuffix
+				);
 				let startIndex =
-					lines.findIndex((line: any) => line.index >= match.index) - 1;
+					lines.findIndex(
+						(line: any) => line.index > matchIndex + decodedPrefix.length
+					) - 1;
 				let endIndex =
 					lines.findIndex(
-						(line: any) => line.index >= match.index + match[0].length
+						(line: any) =>
+							line.index >
+							matchIndex + decodedPrefix.length + decodedSearchTerm.length
 					) - 1;
 				console.log(startIndex);
+
 				const selection = editor.getRange(
 					{
 						line: startIndex,
-						ch: match.index - lines[startIndex].index - startIndex,
+						ch: matchIndex + decodedPrefix.length - lines[startIndex].index,
 					},
 					{
 						line: endIndex,
 						ch:
-							match.index + match[0].length - lines[endIndex].index - endIndex,
+							matchIndex +
+							decodedPrefix.length +
+							decodedSearchTerm.length -
+							lines[endIndex].index,
 					}
 				);
 				console.log(selection);
-			});
+			}
 		}
 	}
 
@@ -879,17 +1142,60 @@ export default class MyHighlightPlugin extends Plugin {
 			return;
 		}
 
-		let [prefix, text, suffix, file] = dataString.split(":");
-		console.log(dataString);
-		if (prefix && suffix && text && file) {
-			this.findTextPositions(
-				text,
-				prefix.slice(0, prefix.length - 1),
-				suffix.slice(1, suffix.length)
-			);
-		}
+		let [prefix, text, suffix, file, from, to] = dataString.split(":");
 
-		console.log("test this thing");
+		console.log(decodeURIComponentString(file));
+
+		let leavesByTab = collectLeavesByTabHelper();
+		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+
+		if (currTabIdx != -1) {
+			// && currTab != -1) {
+			// Check adjacent tabs for file and open file if needed
+			const newLeaf = await openFileInAdjacentTab(
+				leavesByTab,
+				currTabIdx,
+				decodeURIComponentString(file)
+			);
+			if (newLeaf) {
+				state = state.update({
+					effects: stateMutation.of(
+						JSON.stringify({
+							type,
+							leafId: newLeaf.id,
+						})
+					),
+				}).state;
+			}
+
+			leavesByTab = collectLeavesByTabHelper();
+
+			// highlight reference in the right tab
+			if (leavesByTab[currTabIdx + 1]) {
+				const data = highlightHoveredReference(dataString, currTabIdx + 1);
+				if (data) {
+					state = state.update({
+						effects: stateMutation.of(
+							JSON.stringify(Object.assign(data, { type }))
+						),
+					}).state;
+				}
+				return;
+			}
+
+			// highlight reference in the left tab
+			if (leavesByTab[currTabIdx - 1]) {
+				const data = highlightHoveredReference(dataString, currTabIdx - 1);
+				if (data) {
+					state = state.update({
+						effects: stateMutation.of(
+							JSON.stringify(Object.assign(data, { type }))
+						),
+					}).state;
+				}
+				return;
+			}
+		}
 	}
 
 	async startEffect(span: HTMLSpanElement, type: string) {
@@ -1019,11 +1325,123 @@ export default class MyHighlightPlugin extends Plugin {
 				await targetLeaf.detach();
 			}
 		}
+
 		// End mutex lock
 		state = state.update({
 			effects: cursorEffect.of(
 				JSON.stringify({
 					type: "cursor-off",
+				})
+			),
+		}).state;
+	}
+
+	async endHoverReferenceEffect() {
+		const leavesByTab = collectLeavesByTabHelper();
+		if (!state.values[2]) return;
+		const {
+			tabIdx,
+			index,
+			dataString,
+			leafId,
+			originalTop,
+			originalCursor,
+			ranges,
+		} = state.values[2];
+
+		if (state.values[3] != null && state.values[3].dataString == dataString) {
+			// End mutex lock
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-off",
+					})
+				),
+			}).state;
+			return;
+		}
+
+		let targetLeaf = leavesByTab[tabIdx][1][index];
+		// this.app.workspace.setActiveLeaf(targetLeaf);
+		const editor = targetLeaf.view.editor;
+		if (ranges) {
+			ranges.forEach((range: any[]) => {
+				editor.replaceRange(range[0], range[1], range[2]);
+			});
+		}
+		editor.scrollIntoView(
+			{
+				from: ranges[0][1],
+				to: ranges[ranges.length - 1][2],
+			},
+			true
+		);
+
+		// if (dataString) {
+		// 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+		// 	// let rangeStart = parseEditorPosition(from);
+		// 	// let rangeEnd = parseEditorPosition(to);
+
+		// 	let targetLeaf = leavesByTab[tabIdx][1][index];
+		// 	// this.app.workspace.setActiveLeaf(targetLeaf);
+		// 	const editor = targetLeaf.view.editor;
+
+		// 	let positions = findTextPositions(
+		// 		targetLeaf.view,
+		// 		text,
+		// 		prefix.slice(0, prefix.length - 1),
+		// 		suffix.slice(1, suffix.length)
+		// 	);
+		// 	if (!positions) return;
+		// 	let rangeStart = positions.rangeStart;
+		// 	let rangeEnd = positions.rangeEnd;
+
+		// 	console.log(rangeStart);
+		// 	console.log(rangeEnd);
+
+		// 	editor.replaceRange(
+		// 		text,
+		// 		rangeStart,
+		// 		Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
+		// 	);
+
+		// 	// scroll to cursor hover if it exists
+		// 	if (state.values[3] && state.values[3].dataString) {
+		// 		console.log("DATASTRING");
+
+		// 		let [prefix, text, suffix, file, from, to] =
+		// 			state.values[3].dataString.split(":");
+		// 		let rangeStart = parseEditorPosition(from);
+		// 		let rangeEnd = parseEditorPosition(to);
+
+		// 		editor.scrollIntoView(
+		// 			{
+		// 				from: rangeStart,
+		// 				to: rangeEnd,
+		// 			},
+		// 			true
+		// 		);
+		// 	} else {
+		// 		editor.scrollIntoView(
+		// 			{
+		// 				from: rangeStart,
+		// 				to: rangeEnd,
+		// 			},
+		// 			true
+		// 		);
+		// 	}
+
+		// console.log("originalTop: " + originalTop);
+		if (leafId) {
+			await targetLeaf.detach();
+		}
+		// }
+
+		// End mutex lock
+		state = state.update({
+			effects: hoverEffect.of(
+				JSON.stringify({
+					type: "hover-off",
 				})
 			),
 		}).state;
@@ -1143,6 +1561,7 @@ export default class MyHighlightPlugin extends Plugin {
 				dataString = span.getAttribute("data");
 			}
 
+			console.log(state.values);
 			if (
 				dataString &&
 				span &&
@@ -1152,10 +1571,17 @@ export default class MyHighlightPlugin extends Plugin {
 				this.startEffect(span, "hover");
 			} else if (dataString && span && span instanceof HTMLSpanElement) {
 				this.startReferenceEffect(span, "hover");
-			} else if (state.values[2] != null) {
+			} else if (
+				state.values[2] != null &&
+				state.values[2].dataString.split("|").length == 4
+			) {
+				console.log(state.values[2]);
 				// console.log("MOUSEOUT");
 				// console.log(evt);
 				this.endHoverEffect();
+			} else if (state.values[2] != null) {
+				console.log("end hover reference effect");
+				this.endHoverReferenceEffect();
 			}
 		});
 
@@ -1210,32 +1636,6 @@ export default class MyHighlightPlugin extends Plugin {
 				updateClipboard(true);
 			}
 		});
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("editor-change", (ev) => {
-		// 		console.log("editor-change");
-		// 		console.log(ev);
-		// 		const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-		// 		const cursorFrom = activeView?.editor.getCursor("from");
-		// 		const cursorTo = activeView?.editor.getCursor("to");
-		// 		if (cursorFrom) {
-		// 			const lineText = activeView?.editor.getLine(cursorFrom.line);
-		// 			console.log(lineText);
-		// 		}
-
-		// 		// this.endCursorEffect();
-		// 		// this.endHoverEffect();
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("codemirror", (ev) => {
-		// 		console.log("codemirror");
-		// 		console.log(ev);
-		// 		// this.endCursorEffect();
-		// 		// this.endHoverEffect();
-		// 	})
-		// );
 
 		this.registerEvent(
 			this.app.workspace.on("file-open", this.onFileOpenOrSwitch.bind(this))
