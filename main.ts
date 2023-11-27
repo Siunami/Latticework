@@ -100,7 +100,8 @@ let hoverElement = StateField.define<object | null>({
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
-				console.log(tr.effects[0].value);
+				console.log("hover change");
+				console.log(data);
 				if (data.type == "hover-start") {
 					console.log(Object.assign({}, data));
 					return Object.assign({}, data);
@@ -130,6 +131,8 @@ let cursorElement = StateField.define<object | null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				// console.log(tr.effects[0].value);
+				console.log("cursor change");
+				console.log(data);
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
@@ -309,8 +312,6 @@ function findTextPositions(
 ) {
 	const editor = view.editor;
 
-	console.log(prefix, suffix);
-	console.log(searchTerm);
 	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
 	// given text and search term, find all matches
 
@@ -321,17 +322,8 @@ function findTextPositions(
 		rollingIndex += data.length;
 		return data;
 	});
-	console.log("lines: ");
-	console.log(lines);
-	// console.log(cursorFrom);
-	// console.log(cursorTo);
-
-	console.log(text);
-	console.log(prefix + searchTerm + suffix);
 
 	if (text.includes(prefix + searchTerm + suffix)) {
-		console.log("found");
-		console.log(text.indexOf(prefix + searchTerm + suffix));
 		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
 		let startIndex =
 			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
@@ -341,7 +333,6 @@ function findTextPositions(
 				(line: any) =>
 					line.index > matchIndex + prefix.length + searchTerm.length
 			) - 1;
-		console.log(startIndex);
 
 		const selection = editor.getRange(
 			{
@@ -525,7 +516,7 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 			true
 		);
 		return {
-			tabIdx: tabIdx,
+			tabIdx,
 			index,
 			dataString,
 			originalTop: originalScroll.top,
@@ -573,7 +564,7 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 			true
 		);
 		return {
-			tabIdx: tabIdx,
+			tabIdx,
 			index,
 			dataString,
 			originalTop: originalScroll.top,
@@ -632,20 +623,12 @@ async function updateClipboard(only: boolean = false) {
 			let endIndex = lines.filter((line: any) => line.i == to.line)[0];
 			endIndex = endIndex.index + to.ch;
 
-			console.log(startIndex);
-			console.log(endIndex);
-
 			// .reduce((a: any, b: any) => a + b, 0);
 			let prefix = text.slice(
 				startIndex - 25 > 0 ? startIndex - 25 : 0,
 				startIndex
 			);
 			let suffix = text.slice(endIndex, endIndex + 25);
-
-			console.log(prefix);
-			console.log(selection);
-
-			console.log(suffix);
 
 			let reference = `[↗](urn:${encodeURIComponentString(
 				prefix
@@ -1143,8 +1126,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 		let [prefix, text, suffix, file, from, to] = dataString.split(":");
 
-		console.log(decodeURIComponentString(file));
-
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
@@ -1211,6 +1192,12 @@ export default class MyHighlightPlugin extends Plugin {
 				})
 			),
 		}).state;
+
+		// if (ranges) {
+		// 	ranges.forEach((range: any[]) => {
+		// 		editor.replaceRange(range[0], range[1], range[2]);
+		// 	});
+		// }
 
 		const dataString = span.getAttribute("data");
 		if (!dataString) return;
@@ -1279,7 +1266,17 @@ export default class MyHighlightPlugin extends Plugin {
 
 	async endReferenceCursorEffect() {
 		const leavesByTab = collectLeavesByTabHelper();
-		if (!state.values[3]) return;
+		if (!state.values[3] || Object.keys(state.values[3]).length == 0) {
+			// End mutex lock
+			state = state.update({
+				effects: cursorEffect.of(
+					JSON.stringify({
+						type: "cursor-off",
+					})
+				),
+			}).state;
+			return;
+		}
 
 		const {
 			tabIdx,
@@ -1618,23 +1615,38 @@ export default class MyHighlightPlugin extends Plugin {
 				dataString = span.getAttribute("data");
 			}
 
+			// console.log(state);
+
+			// if (
+			// 	dataString &&
+			// 	span &&
+			// 	span instanceof HTMLSpanElement &&
+			// 	span.className.includes("old-block")
+			// ) {
+			// 	this.startEffect(span, "hover");
+			// } else if (dataString && span && span instanceof HTMLSpanElement && !span.className.includes("old-block")) {
+			// 	this.startReferenceEffect(span, "hover");
+			// } else if (
+			// 	state.values[2] != null &&
+			// 	state.values[2].dataString.split("|").length == 4
+			// ) {
+			// 	console.log(state.values[2]);
+			// 	// console.log("MOUSEOUT");
+			// 	// console.log(evt);
+			// 	this.endHoverEffect();
+			// } else if (state.values[2] != null) {
+			// 	console.log("end hover reference effect");
+			// 	this.endReferenceHoverEffect();
+			// }
+
 			if (
 				dataString &&
 				span &&
 				span instanceof HTMLSpanElement &&
-				span.className.includes("old-block")
+				!span.className.includes("old-block")
 			) {
-				this.startEffect(span, "hover");
-			} else if (dataString && span && span instanceof HTMLSpanElement) {
+				console.log("start hover reference effect");
 				this.startReferenceEffect(span, "hover");
-			} else if (
-				state.values[2] != null &&
-				state.values[2].dataString.split("|").length == 4
-			) {
-				console.log(state.values[2]);
-				// console.log("MOUSEOUT");
-				// console.log(evt);
-				this.endHoverEffect();
 			} else if (state.values[2] != null) {
 				console.log("end hover reference effect");
 				this.endReferenceHoverEffect();
@@ -1774,6 +1786,8 @@ export default class MyHighlightPlugin extends Plugin {
 	checkFocusCursor(evt: Event | { target: HTMLElement }) {
 		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
+		console.log(matched);
+		console.log(span);
 		if (matched) {
 			this.endReferenceCursorEffect();
 			// this.startCursorEffect(span);
