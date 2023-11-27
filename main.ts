@@ -451,29 +451,39 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 					]);
 					curr++;
 				} else if (curr == end) {
+					let listItemIndex = listItemLength(lines[currIndex]);
+					let listItemText = lines[currIndex].slice(
+						listItemIndex,
+						lines[currIndex].length
+					);
 					editor.replaceRange(
-						`+++${decodeURIComponentString(lines[currIndex])}+++`,
+						`+++${decodeURIComponentString(listItemText)}+++`,
 						{
 							line: curr,
-							ch: 0,
+							ch: listItemIndex,
 						},
 						rangeEnd
 					);
 					ranges.push([
-						lines[currIndex],
+						listItemText,
 						{
 							line: curr,
-							ch: 0,
+							ch: listItemIndex,
 						},
 						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 }),
 					]);
 					curr++;
 				} else {
+					let listItemIndex = listItemLength(lines[currIndex]);
+					let listItemText = lines[currIndex].slice(
+						listItemIndex,
+						lines[currIndex].length
+					);
 					editor.replaceRange(
-						`+++${decodeURIComponentString(lines[currIndex])}+++`,
+						`+++${decodeURIComponentString(listItemText)}+++`,
 						{
 							line: curr,
-							ch: 0,
+							ch: listItemIndex,
 						},
 						{
 							line: curr,
@@ -481,10 +491,10 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 						}
 					);
 					ranges.push([
-						lines[currIndex],
+						listItemText,
 						{
 							line: curr,
-							ch: 0,
+							ch: listItemIndex,
 						},
 						{
 							line: curr,
@@ -650,6 +660,17 @@ async function updateClipboard(only: boolean = false) {
 			await navigator.clipboard.writeText(reference);
 		}
 	}
+}
+
+function listItemLength(line: string) {
+	// Matches lines that start with a bullet (either -, *, or + followed by a space)
+	const bulletRegex = /^(\s*[-*+]\s+)/;
+
+	// Matches lines that start with a number followed by a dot and a space (like "1. ")
+	const numberRegex = /^(\s*\d+\.\s+)/;
+
+	let match = line.match(bulletRegex) || line.match(numberRegex);
+	return match ? match[0].length : 0;
 }
 
 class PlaceholderWidget extends WidgetType {
