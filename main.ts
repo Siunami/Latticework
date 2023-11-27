@@ -159,19 +159,19 @@ const myAnnotation = Annotation.define<any>();
 const hoverEffect = StateEffect.define<string>();
 const cursorEffect = StateEffect.define<string>();
 
-/* GUTTER */
-const emptyMarker = new (class extends GutterMarker {
-	toDOM() {
-		return document.createTextNode("ø");
-	}
-})();
+// /* GUTTER */
+// const emptyMarker = new (class extends GutterMarker {
+// 	toDOM() {
+// 		return document.createTextNode("ø");
+// 	}
+// })();
 
-const emptyLineGutter = gutter({
-	lineMarker(view, line) {
-		return line.from == line.to ? emptyMarker : null;
-	},
-	initialSpacer: () => emptyMarker,
-});
+// const emptyLineGutter = gutter({
+// 	lineMarker(view, line) {
+// 		return line.from == line.to ? emptyMarker : null;
+// 	},
+// 	initialSpacer: () => emptyMarker,
+// });
 
 /* UTILS */
 
@@ -1013,91 +1013,6 @@ export default class MyHighlightPlugin extends Plugin {
 		return fileUri;
 	}
 
-	// [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
-	findTextPositions(
-		searchTerm: string,
-		prefix: string = "",
-		suffix: string = ""
-	) {
-		const activeLeaf: any = this.app.workspace.getLeaf();
-		if (!activeLeaf) return;
-
-		// Make sure the view is in source mode and has a CodeMirror editor instance
-		if (
-			activeLeaf.view.getViewType() === "markdown" &&
-			activeLeaf.view.editor
-		) {
-			const editor = activeLeaf.view.editor;
-
-			console.log(prefix, suffix);
-			console.log(searchTerm);
-			// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
-			// given text and search term, find all matches
-
-			let rollingIndex = 0;
-			const text = activeLeaf.view.data;
-			const lines = text.split("\n").map((line: string, i: number) => {
-				let data = { line, index: rollingIndex, length: line.length + 1, i };
-				rollingIndex += data.length;
-				return data;
-			});
-			console.log("lines: ");
-			console.log(lines);
-			// console.log(cursorFrom);
-			// console.log(cursorTo);
-
-			const decodedPrefix = decodeURIComponentString(prefix);
-			const decodedSearchTerm = decodeURIComponentString(searchTerm);
-			const decodedSuffix = decodeURIComponentString(suffix);
-
-			console.log(activeLeaf.view.data);
-			console.log(decodedPrefix + decodedSearchTerm + decodedSuffix);
-
-			if (
-				activeLeaf.view.data.includes(
-					decodedPrefix + decodedSearchTerm + decodedSuffix
-				)
-			) {
-				console.log("found");
-				console.log(
-					activeLeaf.view.data.indexOf(
-						decodedPrefix + decodedSearchTerm + decodedSuffix
-					)
-				);
-				let matchIndex = activeLeaf.view.data.indexOf(
-					decodedPrefix + decodedSearchTerm + decodedSuffix
-				);
-				let startIndex =
-					lines.findIndex(
-						(line: any) => line.index > matchIndex + decodedPrefix.length
-					) - 1;
-				let endIndex =
-					lines.findIndex(
-						(line: any) =>
-							line.index >
-							matchIndex + decodedPrefix.length + decodedSearchTerm.length
-					) - 1;
-				console.log(startIndex);
-
-				const selection = editor.getRange(
-					{
-						line: startIndex,
-						ch: matchIndex + decodedPrefix.length - lines[startIndex].index,
-					},
-					{
-						line: endIndex,
-						ch:
-							matchIndex +
-							decodedPrefix.length +
-							decodedSearchTerm.length -
-							lines[endIndex].index,
-					}
-				);
-				console.log(selection);
-			}
-		}
-	}
-
 	async startReferenceEffect(span: HTMLSpanElement, type: string) {
 		let source = type == "hover" ? state.values[2] : state.values[3];
 		let destination = type == "hover" ? state.values[3] : state.values[2];
@@ -1431,65 +1346,9 @@ export default class MyHighlightPlugin extends Plugin {
 			true
 		);
 
-		// if (dataString) {
-		// 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-		// 	// let rangeStart = parseEditorPosition(from);
-		// 	// let rangeEnd = parseEditorPosition(to);
-
-		// 	let targetLeaf = leavesByTab[tabIdx][1][index];
-		// 	// this.app.workspace.setActiveLeaf(targetLeaf);
-		// 	const editor = targetLeaf.view.editor;
-
-		// 	let positions = findTextPositions(
-		// 		targetLeaf.view,
-		// 		text,
-		// 		prefix.slice(0, prefix.length - 1),
-		// 		suffix.slice(1, suffix.length)
-		// 	);
-		// 	if (!positions) return;
-		// 	let rangeStart = positions.rangeStart;
-		// 	let rangeEnd = positions.rangeEnd;
-
-		// 	console.log(rangeStart);
-		// 	console.log(rangeEnd);
-
-		// 	editor.replaceRange(
-		// 		text,
-		// 		rangeStart,
-		// 		Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 })
-		// 	);
-
-		// 	// scroll to cursor hover if it exists
-		// 	if (state.values[3] && state.values[3].dataString) {
-		// 		console.log("DATASTRING");
-
-		// 		let [prefix, text, suffix, file, from, to] =
-		// 			state.values[3].dataString.split(":");
-		// 		let rangeStart = parseEditorPosition(from);
-		// 		let rangeEnd = parseEditorPosition(to);
-
-		// 		editor.scrollIntoView(
-		// 			{
-		// 				from: rangeStart,
-		// 				to: rangeEnd,
-		// 			},
-		// 			true
-		// 		);
-		// 	} else {
-		// 		editor.scrollIntoView(
-		// 			{
-		// 				from: rangeStart,
-		// 				to: rangeEnd,
-		// 			},
-		// 			true
-		// 		);
-		// 	}
-
-		// console.log("originalTop: " + originalTop);
 		if (leafId) {
 			await targetLeaf.detach();
 		}
-		// }
 
 		// End mutex lock
 		state = state.update({
@@ -1581,6 +1440,29 @@ export default class MyHighlightPlugin extends Plugin {
 		await this.loadSettings();
 
 		// that = this;
+		setTimeout(() => {
+			console.log(this.app.vault.getMarkdownFiles());
+			let references: any = {};
+			this.app.vault.getMarkdownFiles().forEach(async (file) => {
+				let fileData = await this.app.vault.read(file);
+				console.log(file);
+
+				console.log(fileData);
+
+				let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
+
+				let matches = [...fileData.matchAll(regex)];
+				console.log(matches);
+				matches.forEach((match) => {
+					console.log(match);
+					console.log(processURI(match[1]));
+					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+					if (references[file2] == null) {
+						references[file2] = [];
+					}
+				});
+			});
+		}, 300);
 
 		state = state.update({
 			annotations: myAnnotation.of(this),
