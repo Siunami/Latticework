@@ -60,12 +60,24 @@ let that = StateField.define<any>({
 	},
 });
 
-let links = StateField.define<Link[]>({
+let references = StateField.define<any[]>({
 	create() {
 		return [];
 	},
 	update(value, tr) {
-		return [];
+		if (tr.effects.length > 0) {
+			try {
+				let data = JSON.parse(tr.effects[0].value);
+				if (data.type == "reference") {
+					return data;
+				}
+				return value;
+			} catch (e) {
+				console.log(e);
+				return value;
+			}
+		}
+		return value;
 	},
 });
 
@@ -79,7 +91,6 @@ let latestCopy = StateField.define<Link | null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "copy") {
-					console.log(data);
 					return data;
 				}
 				return value;
@@ -100,10 +111,7 @@ let hoverElement = StateField.define<object | null>({
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
-				console.log("hover change");
-				console.log(data);
 				if (data.type == "hover-start") {
-					console.log(Object.assign({}, data));
 					return Object.assign({}, data);
 				} else if (data.type == "hover") {
 					if (value) console.log(Object.assign(value, data));
@@ -131,8 +139,6 @@ let cursorElement = StateField.define<object | null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				// console.log(tr.effects[0].value);
-				console.log("cursor change");
-				console.log(data);
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
@@ -152,12 +158,13 @@ let cursorElement = StateField.define<object | null>({
 });
 
 let state: any = EditorState.create({
-	extensions: [that, links, hoverElement, cursorElement],
+	extensions: [that, references, hoverElement, cursorElement],
 });
 
 const myAnnotation = Annotation.define<any>();
 const hoverEffect = StateEffect.define<string>();
 const cursorEffect = StateEffect.define<string>();
+const referenceEffect = StateEffect.define<string>();
 
 // /* GUTTER */
 // const emptyMarker = new (class extends GutterMarker {
@@ -572,6 +579,69 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 		};
 	}
 	return null;
+}
+
+function addReferencesToLeaf(leaf: any) {
+	const references = state.values[1].references;
+	console.log("addReferencesToLeaf");
+	console.log(references);
+	console.log(leaf);
+	const title =
+		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
+	console.log(title);
+	const leafReferences = references.filter((x: any) => x.file == title);
+	console.log(leafReferences);
+
+	let editor = leaf.view.editor;
+	leafReferences.forEach((reference: any) => {
+		console.log(reference);
+		const { from, to } = reference;
+		const rangeStart = parseEditorPosition(from);
+		const rangeEnd = parseEditorPosition(to);
+		const pos = editor.posToOffset(rangeStart);
+		console.log(editor.posToOffset(rangeStart));
+		console.log("coords at pos");
+
+		console.log(leaf.containerEl.querySelector(".cm-line"));
+		const line = leaf.containerEl.querySelector(".cm-line");
+		const lineBbox = line.getBoundingClientRect();
+		console.log(lineBbox);
+
+		console.log(editor.cm.coordsAtPos(pos));
+		const bbox = editor.cm.coordsAtPos(pos);
+		// console.log(editor.cm.coordsForChar(pos));
+		// const bbox = editor.cm.coordsForChar(pos);
+
+		if (bbox) {
+			const span = document.createElement("span");
+			span.style.backgroundColor = "rgb(187, 215, 230)";
+			span.style.color = "black";
+			span.style.position = "absolute";
+			span.style.top = bbox.top + "px";
+			span.style.left = lineBbox.width + 50 + "px";
+			// span.setAttribute("class", "block");
+			span.setAttribute("data", JSON.stringify(reference));
+
+			const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+			svg.setAttribute("width", "16");
+			svg.setAttribute("height", "16");
+			svg.setAttribute("viewBox", "0 0 16 16");
+			svg.setAttribute("fill", "none");
+			svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+			const path = document.createElementNS(
+				"http://www.w3.org/2000/svg",
+				"path"
+			);
+			path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
+			path.setAttribute("fill", "yellow");
+
+			svg.appendChild(path);
+			span.appendChild(svg);
+
+			leaf.containerEl.appendChild(span);
+		}
+	});
 }
 
 function encodeURIComponentString(str: string): string {
@@ -1218,6 +1288,7 @@ export default class MyHighlightPlugin extends Plugin {
 		let targetLeaf = leavesByTab[tabIdx][1][index];
 		// this.app.workspace.setActiveLeaf(targetLeaf);
 		const editor = targetLeaf.view.editor;
+		console.log(ranges);
 		if (ranges) {
 			ranges.forEach((range: any[]) => {
 				editor.replaceRange(range[0], range[1], range[2]);
@@ -1234,7 +1305,9 @@ export default class MyHighlightPlugin extends Plugin {
 
 		// console.log("originalTop: " + originalTop);
 		if (leafId) {
-			await targetLeaf.detach();
+			setTimeout(async () => {
+				await targetLeaf.detach();
+			}, 100);
 		}
 
 		// End mutex lock
@@ -1347,7 +1420,9 @@ export default class MyHighlightPlugin extends Plugin {
 		);
 
 		if (leafId) {
-			await targetLeaf.detach();
+			setTimeout(async () => {
+				await targetLeaf.detach();
+			}, 100);
 		}
 
 		// End mutex lock
@@ -1422,7 +1497,9 @@ export default class MyHighlightPlugin extends Plugin {
 
 			// console.log("originalTop: " + originalTop);
 			if (leafId) {
-				await targetLeaf.detach();
+				setTimeout(async () => {
+					await targetLeaf.detach();
+				}, 100);
 			}
 		}
 
@@ -1442,7 +1519,7 @@ export default class MyHighlightPlugin extends Plugin {
 		// that = this;
 		setTimeout(() => {
 			console.log(this.app.vault.getMarkdownFiles());
-			let references: any = {};
+			let references: any = [];
 			this.app.vault.getMarkdownFiles().forEach(async (file) => {
 				let fileData = await this.app.vault.read(file);
 				console.log(file);
@@ -1457,12 +1534,37 @@ export default class MyHighlightPlugin extends Plugin {
 					console.log(match);
 					console.log(processURI(match[1]));
 					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-					if (references[file2] == null) {
-						references[file2] = [];
-					}
+					references.push({
+						prefix,
+						text,
+						suffix,
+						file: file2,
+						from,
+						to,
+						activeFile: file.path,
+						dataString: match[1],
+					});
+				});
+				console.log("references");
+				console.log(references);
+				state = state.update({
+					effects: referenceEffect.of(
+						JSON.stringify(
+							Object.assign(
+								{
+									type: "reference",
+								},
+								{ references }
+							)
+						)
+					),
+				}).state;
+				console.log("GET LEAVES");
+				this.app.workspace.getLeavesOfType("markdown").forEach((leaf) => {
+					addReferencesToLeaf(leaf);
 				});
 			});
-		}, 300);
+		}, 500);
 
 		state = state.update({
 			annotations: myAnnotation.of(this),
