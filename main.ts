@@ -278,7 +278,7 @@ async function openFileInAdjacentTab(
 		const currLeaf = workspace.getLeaf();
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
-		return newLeaf;
+		return { newLeaf, currLeaf: null };
 	} else if (index == -1) {
 		// leaf doesn't exist in either adjacent tab
 		let adjacentTab;
@@ -290,7 +290,7 @@ async function openFileInAdjacentTab(
 			let tab = adjacentTab[0];
 			let newLeaf: any = workspace.createLeafInParent(tab, 0);
 			await openFileInLeaf(newLeaf, file);
-			return newLeaf;
+			return { newLeaf, currLeaf: null };
 		}
 	} else {
 		// leaf exists in adjacent tab
@@ -306,16 +306,16 @@ async function openFileInAdjacentTab(
 			let targetLeafId = leavesByTab[currTabIdx + 1][1][fileIndex].id;
 			let targetLeaf = await workspace.getLeafById(targetLeafId);
 			await workspace.setActiveLeaf(targetLeaf);
-			return null;
+			return { currLeaf: targetLeaf, newLeaf: null };
 		} else {
 			let fileIndex = leftFiles.findIndex((x: any) => x == file);
 			let targetLeafId = leavesByTab[currTabIdx - 1][1][fileIndex].id;
 			let targetLeaf = await workspace.getLeafById(targetLeafId);
 			await workspace.setActiveLeaf(targetLeaf);
-			return null;
+			return { currLeaf: targetLeaf, newLeaf: null };
 		}
 	}
-	return null;
+	return { newLeaf: null, currLeaf: null };
 }
 
 async function openFileInLeaf(newLeaf: any, file: string) {
@@ -444,7 +444,17 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 			prefix.slice(0, prefix.length - 1),
 			suffix.slice(1, suffix.length)
 		);
-		if (!positions) return;
+		if (!positions) {
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-off",
+					})
+				),
+			}).state;
+
+			return; // returns like this just break the program, should handle more gracefully. This messes up the internal hover state
+		}
 		let rangeStart = positions.rangeStart;
 		let rangeEnd = positions.rangeEnd;
 
@@ -565,6 +575,13 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 			ranges,
 		};
 	}
+	state = state.update({
+		effects: hoverEffect.of(
+			JSON.stringify({
+				type: "hover-off",
+			})
+		),
+	}).state;
 	return null;
 }
 
@@ -612,6 +629,7 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 			originalCursor,
 		};
 	}
+
 	return null;
 }
 
@@ -1129,12 +1147,11 @@ export default class MyHighlightPlugin extends Plugin {
 		if (currTabIdx != -1) {
 			// 	// && currTab != -1) {
 			// 	// Check adjacent tabs for file and open file if needed
-			const newLeaf = await openFileInAdjacentTab(
+			const { newLeaf, currLeaf } = await openFileInAdjacentTab(
 				leavesByTab,
 				currTabIdx,
 				decodeURIComponentString(sourceFile)
 			);
-			console.log(newLeaf);
 			if (newLeaf) {
 				state = state.update({
 					effects: stateMutation.of(
@@ -1145,31 +1162,30 @@ export default class MyHighlightPlugin extends Plugin {
 					),
 				}).state;
 			}
-			// 	leavesByTab = collectLeavesByTabHelper();
-			// 	// highlight reference in the right tab
-			// 	if (leavesByTab[currTabIdx + 1]) {
-			// 		const data = highlightHoveredReference(dataString, currTabIdx + 1);
-			// 		if (data) {
-			// 			state = state.update({
-			// 				effects: stateMutation.of(
-			// 					JSON.stringify(Object.assign(data, { type: "hover" }))
-			// 				),
-			// 			}).state;
-			// 		}
-			// 		return;
-			// 	}
-			// 	// highlight reference in the left tab
-			// 	if (leavesByTab[currTabIdx - 1]) {
-			// 		const data = highlightHoveredReference(dataString, currTabIdx - 1);
-			// 		if (data) {
-			// 			state = state.update({
-			// 				effects: stateMutation.of(
-			// 					JSON.stringify(Object.assign(data, { type: "hover" }))
-			// 				),
-			// 			}).state;
-			// 		}
-			// 		return;
-			// 	}
+
+			console.log("currLeaf");
+			console.log(currLeaf);
+			if (currLeaf) {
+				let elements = [...currLeaf.containerEl.querySelectorAll("[data]")];
+				let elementIndex = [...currLeaf.containerEl.querySelectorAll("[data]")]
+					.map((el) => el.getAttribute("data"))
+					.indexOf(dataString);
+
+				// let element = currLeaf.containerEl.querySelector(
+				// 	`[data='${dataString}']`
+				// );
+				let element = elements[elementIndex];
+				console.log(element);
+				element.style.backgroundColor = "rgb(187, 215, 230)";
+				state = state.update({
+					effects: stateMutation.of(
+						JSON.stringify({
+							type: "hover",
+							hoveredLeafId: currLeaf.id,
+						})
+					),
+				}).state;
+			}
 		}
 	}
 
@@ -1189,9 +1205,16 @@ export default class MyHighlightPlugin extends Plugin {
 		}).state;
 
 		let dataString = span.getAttribute("data");
-		if (!dataString) return;
-
-		console.log(dataString);
+		if (!dataString) {
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-off",
+					})
+				),
+			}).state;
+			return;
+		}
 
 		if (destination != null && destination.dataString == dataString) {
 			const data = destination;
@@ -1211,7 +1234,7 @@ export default class MyHighlightPlugin extends Plugin {
 		if (currTabIdx != -1) {
 			// && currTab != -1) {
 			// Check adjacent tabs for file and open file if needed
-			const newLeaf = await openFileInAdjacentTab(
+			const { newLeaf } = await openFileInAdjacentTab(
 				leavesByTab,
 				currTabIdx,
 				decodeURIComponentString(file)
@@ -1408,7 +1431,7 @@ export default class MyHighlightPlugin extends Plugin {
 		if (currTabIdx != -1) {
 			// && currTab != -1) {
 			// Check adjacent tabs for file and open file if needed
-			const newLeaf = await openFileInAdjacentTab(
+			const { newLeaf } = await openFileInAdjacentTab(
 				leavesByTab,
 				currTabIdx,
 				file
@@ -1591,10 +1614,22 @@ export default class MyHighlightPlugin extends Plugin {
 			index,
 			dataString,
 			leafId,
+			hoveredLeafId,
 			originalTop,
 			originalCursor,
 			ranges,
 		} = state.values[2];
+
+		if (!dataString) {
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify({
+						type: "hover-off",
+					})
+				),
+			}).state;
+			return;
+		}
 
 		if (state.values[3] != null && state.values[3].dataString == dataString) {
 			// End mutex lock
@@ -1624,6 +1659,20 @@ export default class MyHighlightPlugin extends Plugin {
 			true
 		);
 
+		console.log("hoveredSource");
+		console.log(hoveredLeafId);
+
+		if (hoveredLeafId) {
+			let leaf: any = await this.app.workspace.getLeafById(hoveredLeafId);
+			let elements = [...leaf.containerEl.querySelectorAll("[data]")];
+			let elementIndex = [...leaf.containerEl.querySelectorAll("[data]")]
+				.map((el) => el.getAttribute("data"))
+				.indexOf(dataString);
+			let element = elements[elementIndex];
+
+			element.style.backgroundColor = "rgba(0, 0, 0, 0)";
+		}
+
 		if (leafId) {
 			setTimeout(async () => {
 				await this.app.workspace.getLeafById(leafId).detach();
@@ -1638,6 +1687,7 @@ export default class MyHighlightPlugin extends Plugin {
 				})
 			),
 		}).state;
+		console.log(state);
 	}
 
 	async endHoverEffect() {
@@ -1725,59 +1775,58 @@ export default class MyHighlightPlugin extends Plugin {
 		setTimeout(() => {
 			let references: any = [];
 			let markdownFiles = this.app.vault.getMarkdownFiles();
-			console.log(markdownFiles);
-			const files = Promise.all(
-				markdownFiles.map((file) => this.app.vault.read(file))
-			).then((files) => {
-				const zippedArray = markdownFiles.map((file, index) => ({
-					markdownFile: file,
-					fileData: files[index],
-				}));
+			Promise.all(markdownFiles.map((file) => this.app.vault.read(file))).then(
+				(files) => {
+					const zippedArray = markdownFiles.map((file, index) => ({
+						markdownFile: file,
+						fileData: files[index],
+					}));
 
-				console.log(zippedArray);
+					zippedArray.forEach((file) => {
+						let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
 
-				zippedArray.forEach((file) => {
-					let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
+						console.log(file.markdownFile);
+						let matches = [...file.fileData.matchAll(regex)];
 
-					console.log(file.markdownFile);
-					let matches = [...file.fileData.matchAll(regex)];
-
-					matches.forEach((match) => {
-						let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-						references.push({
-							prefix,
-							text,
-							suffix,
-							file: file2,
-							from,
-							to,
-							dataString: match[1],
-							sourceFile: file.markdownFile.path,
+						matches.forEach((match) => {
+							let [prefix, text, suffix, file2, from, to] = processURI(
+								match[1]
+							);
+							references.push({
+								prefix,
+								text,
+								suffix,
+								file: file2,
+								from,
+								to,
+								dataString: match[1],
+								sourceFile: file.markdownFile.path,
+							});
 						});
 					});
-				});
 
-				state = state.update({
-					effects: referenceEffect.of(
-						JSON.stringify(
-							Object.assign(
-								{
-									type: "reference",
-								},
-								{ references }
+					state = state.update({
+						effects: referenceEffect.of(
+							JSON.stringify(
+								Object.assign(
+									{
+										type: "reference",
+									},
+									{ references }
+								)
 							)
-						)
-					),
-				}).state;
-				console.log("references");
-				console.log(references);
-				const leaves = this.app.workspace.getLeavesOfType("markdown");
-				console.log("leaves");
-				console.log(leaves);
-				leaves.forEach((leaf) => {
-					this.addReferencesToLeaf(leaf);
-				});
-			});
+						),
+					}).state;
+					console.log("references");
+					console.log(references);
+					const leaves = this.app.workspace.getLeavesOfType("markdown");
+					console.log("leaves");
+					console.log(leaves);
+					leaves.forEach((leaf) => {
+						this.addReferencesToLeaf(leaf);
+					});
+				}
+			);
 
 			// this.app.vault.getMarkdownFiles().forEach(async (file) => {
 			// 	let fileData = await this.app.vault.read(file);
@@ -1874,7 +1923,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 			// console.log(span);
 
-			console.log(state.values[2]);
 			if (
 				dataString &&
 				span &&
