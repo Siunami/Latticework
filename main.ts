@@ -398,7 +398,11 @@ function findTextPositions(
 	return null;
 }
 
-function highlightHoveredReference(dataString: string, tabIdx: number) {
+function highlightHoveredReference(
+	dataString: string,
+	tabIdx: number,
+	scrollTo: boolean = true
+) {
 	console.log("GOT TO HIGHLIGHT HOVERED");
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	console.log(processURI(dataString));
@@ -559,13 +563,16 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 			]);
 		}
 
-		editor.scrollIntoView(
-			{
-				from: rangeStart,
-				to: rangeEnd,
-			},
-			true
-		);
+		if (scrollTo) {
+			editor.scrollIntoView(
+				{
+					from: rangeStart,
+					to: rangeEnd,
+				},
+				true
+			);
+		}
+
 		return {
 			tabIdx,
 			index,
@@ -1134,7 +1141,7 @@ export default class MyHighlightPlugin extends Plugin {
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 		console.log(currTabIdx);
 
-		const data = highlightHoveredReference(dataString, currTabIdx);
+		const data = highlightHoveredReference(dataString, currTabIdx, false);
 		if (data) {
 			console.log(data);
 			state = state.update({
@@ -1175,6 +1182,13 @@ export default class MyHighlightPlugin extends Plugin {
 				// 	`[data='${dataString}']`
 				// );
 				let element = elements[elementIndex];
+				let bbox = element.getBoundingClientRect();
+				console.log(element);
+				console.log(currLeaf.view.editor);
+				let scrollTop = currLeaf.view.editor.getScrollInfo().top;
+
+				currLeaf.view.editor.scrollTo(0, scrollTop + (bbox.top - 300));
+
 				console.log(element);
 				element.style.backgroundColor = "rgb(187, 215, 230)";
 				state = state.update({
@@ -1651,13 +1665,13 @@ export default class MyHighlightPlugin extends Plugin {
 				editor.replaceRange(range[0], range[1], range[2]);
 			});
 		}
-		editor.scrollIntoView(
-			{
-				from: ranges[0][1],
-				to: ranges[ranges.length - 1][2],
-			},
-			true
-		);
+		// editor.scrollIntoView(
+		// 	{
+		// 		from: ranges[0][1],
+		// 		to: ranges[ranges.length - 1][2],
+		// 	},
+		// 	true
+		// );
 
 		console.log("hoveredSource");
 		console.log(hoveredLeafId);
