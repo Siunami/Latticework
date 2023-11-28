@@ -69,7 +69,7 @@ let references = StateField.define<any[]>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "reference") {
-					return data;
+					return Object.assign(value, data.references);
 				}
 				return value;
 			} catch (e) {
@@ -261,7 +261,7 @@ function getAdjacentTabs(leavesByTab: any[], currTabIdx: number, file: string) {
 	}
 
 	let index = adjacentTabs.findIndex((x: any) => x.state.file == file);
-	return { adjacentTabs, index };
+	return { adjacentTabs, rightAdjacentTab, leftAdjacentTab, index };
 }
 
 async function openFileInAdjacentTab(
@@ -269,11 +269,12 @@ async function openFileInAdjacentTab(
 	currTabIdx: number,
 	file: string
 ) {
-	let { adjacentTabs, index } = getAdjacentTabs(leavesByTab, currTabIdx, file);
+	let { adjacentTabs, rightAdjacentTab, leftAdjacentTab, index } =
+		getAdjacentTabs(leavesByTab, currTabIdx, file);
+	const { workspace } = state.values[0].app;
 
 	// there are no adjacent tabs
 	if (adjacentTabs.length == 0) {
-		const { workspace } = state.values[0].app;
 		const currLeaf = workspace.getLeaf();
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
@@ -287,9 +288,31 @@ async function openFileInAdjacentTab(
 
 		if (adjacentTab) {
 			let tab = adjacentTab[0];
-			let newLeaf: any = this.app.workspace.createLeafInParent(tab, 0);
+			let newLeaf: any = workspace.createLeafInParent(tab, 0);
 			await openFileInLeaf(newLeaf, file);
 			return newLeaf;
+		}
+	} else {
+		// leaf exists in adjacent tab
+		let leftFiles = leftAdjacentTab.map((leaf: any) => {
+			return leaf.state.file;
+		});
+		let rightFiles = rightAdjacentTab.map((leaf: any) => {
+			return leaf.state.file;
+		});
+
+		if (rightFiles.includes(file)) {
+			let fileIndex = rightFiles.findIndex((x: any) => x == file);
+			let targetLeafId = leavesByTab[currTabIdx + 1][1][fileIndex].id;
+			let targetLeaf = await workspace.getLeafById(targetLeafId);
+			await workspace.setActiveLeaf(targetLeaf);
+			return null;
+		} else {
+			let fileIndex = leftFiles.findIndex((x: any) => x == file);
+			let targetLeafId = leavesByTab[currTabIdx - 1][1][fileIndex].id;
+			let targetLeaf = await workspace.getLeafById(targetLeafId);
+			await workspace.setActiveLeaf(targetLeaf);
+			return null;
 		}
 	}
 	return null;
@@ -378,7 +401,7 @@ function findTextPositions(
 function highlightHoveredReference(dataString: string, tabIdx: number) {
 	console.log("GOT TO HIGHLIGHT HOVERED");
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-
+	console.log(processURI(dataString));
 	// let rangeStart = parseEditorPosition(from);
 	// let rangeEnd = parseEditorPosition(to);
 	const leavesByTab = collectLeavesByTabHelper();
@@ -388,7 +411,8 @@ function highlightHoveredReference(dataString: string, tabIdx: number) {
 	let index = rightAdjacentTab.findIndex((x: any) => x.state.file == file);
 	if (index != -1) {
 		let targetLeaf = leavesByTab[tabIdx][1][index];
-		// this.app.workspace.setActiveLeaf(targetLeaf);
+
+		this.app.workspace.setActiveLeaf(targetLeaf);
 
 		const editor = targetLeaf.view.editor;
 		/*
@@ -591,69 +615,6 @@ function highlightHoveredText(dataString: string, tabIdx: number) {
 	return null;
 }
 
-function addReferencesToLeaf(leaf: any) {
-	const references = state.values[1].references;
-	console.log("addReferencesToLeaf");
-	console.log(references);
-	console.log(leaf);
-	const title =
-		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
-	console.log(title);
-	const leafReferences = references.filter((x: any) => x.file == title);
-	console.log(leafReferences);
-
-	let editor = leaf.view.editor;
-	leafReferences.forEach((reference: any) => {
-		console.log(reference);
-		const { from, to } = reference;
-		const rangeStart = parseEditorPosition(from);
-		const rangeEnd = parseEditorPosition(to);
-		const pos = editor.posToOffset(rangeStart);
-		console.log(editor.posToOffset(rangeStart));
-		console.log("coords at pos");
-
-		console.log(leaf.containerEl.querySelector(".cm-line"));
-		const line = leaf.containerEl.querySelector(".cm-line");
-		const lineBbox = line.getBoundingClientRect();
-		console.log(lineBbox);
-
-		console.log(editor.cm.coordsAtPos(pos));
-		const bbox = editor.cm.coordsAtPos(pos);
-		// console.log(editor.cm.coordsForChar(pos));
-		// const bbox = editor.cm.coordsForChar(pos);
-
-		if (bbox) {
-			const span = document.createElement("span");
-			span.style.backgroundColor = "rgb(187, 215, 230)";
-			span.style.color = "black";
-			span.style.position = "absolute";
-			span.style.top = bbox.top + "px";
-			span.style.left = lineBbox.width + 50 + "px";
-			// span.setAttribute("class", "block");
-			span.setAttribute("data", JSON.stringify(reference));
-
-			const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-			svg.setAttribute("width", "16");
-			svg.setAttribute("height", "16");
-			svg.setAttribute("viewBox", "0 0 16 16");
-			svg.setAttribute("fill", "none");
-			svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-			const path = document.createElementNS(
-				"http://www.w3.org/2000/svg",
-				"path"
-			);
-			path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
-			path.setAttribute("fill", "yellow");
-
-			svg.appendChild(path);
-			span.appendChild(svg);
-
-			leaf.containerEl.appendChild(span);
-		}
-	});
-}
-
 function encodeURIComponentString(str: string): string {
 	return encodeURIComponent(str).replace(/[:()]/g, function (c) {
 		return "%" + c.charCodeAt(0).toString(16);
@@ -755,7 +716,7 @@ class PlaceholderWidget extends WidgetType {
 	toDOM() {
 		const span = document.createElement("span");
 
-		span.style.backgroundColor = "rgb(187, 215, 230)";
+		// span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
 		span.setAttribute("class", "old-block");
 		span.setAttribute("data", this.name);
@@ -881,7 +842,7 @@ class ReferenceWidget extends WidgetType {
 		// }
 		const span = document.createElement("span");
 
-		span.style.backgroundColor = "rgb(187, 215, 230)";
+		// span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
 		span.setAttribute("class", "block");
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
@@ -904,6 +865,14 @@ class ReferenceWidget extends WidgetType {
 
 		svg.appendChild(path);
 		span.appendChild(svg);
+
+		span.addEventListener("mouseenter", async () => {
+			span.style.backgroundColor = "rgb(187, 215, 230)";
+		});
+
+		span.addEventListener("mouseleave", async () => {
+			span.style.backgroundColor = "rgba(0, 0, 0, 0)";
+		});
 
 		span.addEventListener("click", async () => {
 			// console.log("click");
@@ -1104,6 +1073,106 @@ export default class MyHighlightPlugin extends Plugin {
 		return fileUri;
 	}
 
+	async startBacklinkEffect(span: HTMLSpanElement) {
+		let source = state.values[2];
+		let destination = state.values[3];
+		let stateMutation = hoverEffect;
+
+		console.log(source);
+		// Mutex, prevent concurrent access to following section of code
+		if (source != null) return;
+		state = state.update({
+			effects: stateMutation.of(
+				JSON.stringify({
+					type: `hover-start`,
+				})
+			),
+		}).state;
+
+		let dataString;
+		let reference: any = span.getAttribute("reference");
+		if (reference) {
+			dataString = JSON.parse(reference).dataString;
+			reference = JSON.parse(reference);
+		}
+		console.log(dataString);
+		console.log(reference);
+		if (!dataString || !reference) return;
+
+		if (destination != null && destination.dataString == dataString) {
+			const data = destination;
+			state = state.update({
+				effects: hoverEffect.of(
+					JSON.stringify(Object.assign(data, { type: "hover" }))
+				),
+			}).state;
+			return;
+		}
+
+		let [prefix, text, suffix, file, from, to] = dataString.split(":");
+		let sourceFile = reference.sourceFile;
+
+		let leavesByTab = collectLeavesByTabHelper();
+		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+		console.log(currTabIdx);
+
+		const data = highlightHoveredReference(dataString, currTabIdx);
+		if (data) {
+			console.log(data);
+			state = state.update({
+				effects: stateMutation.of(
+					JSON.stringify(Object.assign(data, { type: "hover" }))
+				),
+			}).state;
+		}
+
+		if (currTabIdx != -1) {
+			// 	// && currTab != -1) {
+			// 	// Check adjacent tabs for file and open file if needed
+			const newLeaf = await openFileInAdjacentTab(
+				leavesByTab,
+				currTabIdx,
+				decodeURIComponentString(sourceFile)
+			);
+			console.log(newLeaf);
+			if (newLeaf) {
+				state = state.update({
+					effects: stateMutation.of(
+						JSON.stringify({
+							type: "hover",
+							leafId: newLeaf.id,
+						})
+					),
+				}).state;
+			}
+			// 	leavesByTab = collectLeavesByTabHelper();
+			// 	// highlight reference in the right tab
+			// 	if (leavesByTab[currTabIdx + 1]) {
+			// 		const data = highlightHoveredReference(dataString, currTabIdx + 1);
+			// 		if (data) {
+			// 			state = state.update({
+			// 				effects: stateMutation.of(
+			// 					JSON.stringify(Object.assign(data, { type: "hover" }))
+			// 				),
+			// 			}).state;
+			// 		}
+			// 		return;
+			// 	}
+			// 	// highlight reference in the left tab
+			// 	if (leavesByTab[currTabIdx - 1]) {
+			// 		const data = highlightHoveredReference(dataString, currTabIdx - 1);
+			// 		if (data) {
+			// 			state = state.update({
+			// 				effects: stateMutation.of(
+			// 					JSON.stringify(Object.assign(data, { type: "hover" }))
+			// 				),
+			// 			}).state;
+			// 		}
+			// 		return;
+			// 	}
+		}
+	}
+
 	async startReferenceEffect(span: HTMLSpanElement, type: string) {
 		let source = type == "hover" ? state.values[2] : state.values[3];
 		let destination = type == "hover" ? state.values[3] : state.values[2];
@@ -1119,8 +1188,10 @@ export default class MyHighlightPlugin extends Plugin {
 			),
 		}).state;
 
-		const dataString = span.getAttribute("data");
+		let dataString = span.getAttribute("data");
 		if (!dataString) return;
+
+		console.log(dataString);
 
 		if (destination != null && destination.dataString == dataString) {
 			const data = destination;
@@ -1134,6 +1205,8 @@ export default class MyHighlightPlugin extends Plugin {
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+
+		console.log(currTabIdx);
 
 		if (currTabIdx != -1) {
 			// && currTab != -1) {
@@ -1182,6 +1255,117 @@ export default class MyHighlightPlugin extends Plugin {
 				return;
 			}
 		}
+	}
+
+	addReferencesToLeaf(leaf: any) {
+		const references = state.values[1];
+		console.log("addReferencesToLeaf");
+		console.log(references);
+
+		const title =
+			leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
+		const leafReferences = references.filter((x: any) => x.file == title);
+
+		let editor = leaf.view.editor;
+		leafReferences.forEach((reference: any) => {
+			const { from, to } = reference;
+			const rangeStart = parseEditorPosition(from);
+			const rangeEnd = parseEditorPosition(to);
+			const pos = editor.posToOffset(rangeStart);
+
+			const title = leaf.containerEl.querySelector(".inline-title");
+			const titleBbox = title.getBoundingClientRect();
+			const line = leaf.containerEl.querySelector(".cm-line");
+			const lineBbox = line.getBoundingClientRect();
+			const bbox = editor.cm.coordsAtPos(pos);
+
+			if (bbox) {
+				const span = document.createElement("span");
+				// span.style.backgroundColor = "rgb(187, 215, 230)";
+				span.style.color = "black";
+				span.style.position = "absolute";
+				span.style.top = bbox.top - titleBbox.top + 20 + "px";
+				// span.style.top = 0 + "px";
+				span.style.left = lineBbox.width + 50 + "px";
+				// span.style.left = 0 + "px";
+				// span.setAttribute("class", "block");
+				span.setAttribute("reference", JSON.stringify(reference));
+
+				span.addEventListener("mouseenter", async () => {
+					span.style.backgroundColor = "rgb(187, 215, 230)";
+					// this.startReferenceEffect(span, "cursor");
+				});
+
+				span.addEventListener("mouseleave", async () => {
+					span.style.backgroundColor = "rgba(0, 0, 0, 0)";
+					// this.endCursorEffect();
+				});
+
+				const svg = document.createElementNS(
+					"http://www.w3.org/2000/svg",
+					"svg"
+				);
+				svg.setAttribute("width", "16");
+				svg.setAttribute("height", "16");
+				svg.setAttribute("viewBox", "0 0 16 16");
+				svg.setAttribute("fill", "none");
+				svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+
+				const path = document.createElementNS(
+					"http://www.w3.org/2000/svg",
+					"path"
+				);
+				path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
+				path.setAttribute("fill", "yellow");
+
+				svg.appendChild(path);
+				span.appendChild(svg);
+
+				span.addEventListener("click", async () => {
+					console.log("click");
+					console.log(reference.text);
+					const { workspace } = state.values[0].app;
+					const leavesByTab = collectLeavesByTabHelper();
+
+					const { tabIdx, index, dataString, leafId } = state.values[2];
+					/* If temporary, then keep leaf */
+					if (dataString) {
+						let [prefix, text, suffix, file, from, to] = processURI(dataString);
+						let rangeEnd = parseEditorPosition(to);
+						/*
+							The problem here is that I don't have the position of the span element.
+							I want to set the active cursor to the end of the span
+						*/
+
+						// let [text2, file2, from2, to2] = this.name.split("|");
+						// const currentTab = getHoveredTab(leavesByTab, span);
+						// // console.log("currentTab");
+						// // console.log(currentTab);
+						// let rangeEnd2 = parseEditorPosition(to2);
+
+						// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+						// // console.log(lineText);
+						// // currentTab.view.editor.setCursor(rangeEnd2);
+
+						let targetLeaf = leavesByTab[tabIdx][1][index];
+						workspace.setActiveLeaf(targetLeaf);
+						const editor = targetLeaf.view.editor;
+						editor.setCursor(rangeEnd);
+						state = state.update({
+							effects: hoverEffect.of(
+								JSON.stringify({
+									type: "hover",
+									leafId: null,
+									originalTop: null,
+								})
+							),
+						}).state;
+					}
+				});
+
+				editor.containerEl.querySelector(".cm-scroller").appendChild(span);
+			}
+		});
 	}
 
 	async startEffect(span: HTMLSpanElement, type: string) {
@@ -1442,7 +1626,7 @@ export default class MyHighlightPlugin extends Plugin {
 
 		if (leafId) {
 			setTimeout(async () => {
-				await targetLeaf.detach();
+				await this.app.workspace.getLeafById(leafId).detach();
 			}, 100);
 		}
 
@@ -1539,35 +1723,40 @@ export default class MyHighlightPlugin extends Plugin {
 
 		// that = this;
 		setTimeout(() => {
-			console.log(this.app.vault.getMarkdownFiles());
 			let references: any = [];
-			this.app.vault.getMarkdownFiles().forEach(async (file) => {
-				let fileData = await this.app.vault.read(file);
-				console.log(file);
+			let markdownFiles = this.app.vault.getMarkdownFiles();
+			console.log(markdownFiles);
+			const files = Promise.all(
+				markdownFiles.map((file) => this.app.vault.read(file))
+			).then((files) => {
+				const zippedArray = markdownFiles.map((file, index) => ({
+					markdownFile: file,
+					fileData: files[index],
+				}));
 
-				console.log(fileData);
+				console.log(zippedArray);
 
-				let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
+				zippedArray.forEach((file) => {
+					let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
 
-				let matches = [...fileData.matchAll(regex)];
-				console.log(matches);
-				matches.forEach((match) => {
-					console.log(match);
-					console.log(processURI(match[1]));
-					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-					references.push({
-						prefix,
-						text,
-						suffix,
-						file: file2,
-						from,
-						to,
-						activeFile: file.path,
-						dataString: match[1],
+					console.log(file.markdownFile);
+					let matches = [...file.fileData.matchAll(regex)];
+
+					matches.forEach((match) => {
+						let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+						references.push({
+							prefix,
+							text,
+							suffix,
+							file: file2,
+							from,
+							to,
+							dataString: match[1],
+							sourceFile: file.markdownFile.path,
+						});
 					});
 				});
-				console.log("references");
-				console.log(references);
+
 				state = state.update({
 					effects: referenceEffect.of(
 						JSON.stringify(
@@ -1580,12 +1769,51 @@ export default class MyHighlightPlugin extends Plugin {
 						)
 					),
 				}).state;
-				console.log("GET LEAVES");
-				this.app.workspace.getLeavesOfType("markdown").forEach((leaf) => {
-					addReferencesToLeaf(leaf);
+				console.log("references");
+				console.log(references);
+				const leaves = this.app.workspace.getLeavesOfType("markdown");
+				console.log("leaves");
+				console.log(leaves);
+				leaves.forEach((leaf) => {
+					this.addReferencesToLeaf(leaf);
 				});
 			});
-		}, 500);
+
+			// this.app.vault.getMarkdownFiles().forEach(async (file) => {
+			// 	let fileData = await this.app.vault.read(file);
+
+			// 	let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
+
+			// 	let matches = [...fileData.matchAll(regex)];
+			// 	matches.forEach((match) => {
+			// 		let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+			// 		references.push({
+			// 			prefix,
+			// 			text,
+			// 			suffix,
+			// 			file: file2,
+			// 			from,
+			// 			to,
+			// 			activeFile: file.path,
+			// 			dataString: match[1],
+			// 		});
+			// 	});
+			// 	console.log("references");
+			// 	console.log(references);
+			// 	state = state.update({
+			// 		effects: referenceEffect.of(
+			// 			JSON.stringify(
+			// 				Object.assign(
+			// 					{
+			// 						type: "reference",
+			// 					},
+			// 					{ references }
+			// 				)
+			// 			)
+			// 		),
+			// 	}).state;
+			// });
+		}, 1000);
 
 		state = state.update({
 			annotations: myAnnotation.of(this),
@@ -1644,6 +1872,9 @@ export default class MyHighlightPlugin extends Plugin {
 			// 	this.endReferenceHoverEffect();
 			// }
 
+			// console.log(span);
+
+			console.log(state.values[2]);
 			if (
 				dataString &&
 				span &&
@@ -1652,6 +1883,13 @@ export default class MyHighlightPlugin extends Plugin {
 			) {
 				console.log("start hover reference effect");
 				this.startReferenceEffect(span, "hover");
+			} else if (
+				span &&
+				span instanceof HTMLSpanElement &&
+				span.getAttribute("reference")
+			) {
+				console.log("start reference reference effect");
+				this.startBacklinkEffect(span);
 			} else if (state.values[2] != null) {
 				console.log("end hover reference effect");
 				this.endReferenceHoverEffect();
@@ -1792,7 +2030,6 @@ export default class MyHighlightPlugin extends Plugin {
 		let { matched, span } = this.checkCursorPositionAtDatastring(evt);
 
 		console.log(matched);
-		console.log(span);
 		if (matched) {
 			this.endReferenceCursorEffect();
 			// this.startCursorEffect(span);
