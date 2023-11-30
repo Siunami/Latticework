@@ -161,7 +161,7 @@ let state: any = EditorState.create({
 	extensions: [that, references, hoverElement, cursorElement],
 });
 
-const myAnnotation = Annotation.define<any>();
+const thatAnnotation = Annotation.define<any>();
 const hoverEffect = StateEffect.define<string>();
 const cursorEffect = StateEffect.define<string>();
 const referenceEffect = StateEffect.define<string>();
@@ -417,6 +417,28 @@ function highlightHoveredReference(
 		let targetLeaf = leavesByTab[tabIdx][1][index];
 
 		this.app.workspace.setActiveLeaf(targetLeaf);
+
+		// let elements = [...targetLeaf.containerEl.querySelectorAll("[reference]")];
+		// let elementIndex = elements
+		// 	.map((el) => JSON.parse(el.getAttribute("reference")).dataString)
+		// 	.indexOf(dataString);
+
+		// console.log(elements);
+		// let element = elements[elementIndex];
+		// // let bbox = element.getBoundingClientRect();
+		// // console.log(element);
+		// // console.log(targetLeaf.view.editor);
+		// // let scrollTop = targetLeaf.view.editor.getScrollInfo().top;
+
+		// element.style.backgroundColor = "rgb(187, 215, 230)";
+		// state = state.update({
+		// 	effects: hoverEffect.of(
+		// 		JSON.stringify({
+		// 			type: "hover",
+		// 			referenceLeafId: targetLeaf.id,
+		// 		})
+		// 	),
+		// }).state;
 
 		const editor = targetLeaf.view.editor;
 		/*
@@ -1629,6 +1651,7 @@ export default class MyHighlightPlugin extends Plugin {
 			dataString,
 			leafId,
 			hoveredLeafId,
+			referenceLeafId,
 			originalTop,
 			originalCursor,
 			ranges,
@@ -1672,6 +1695,19 @@ export default class MyHighlightPlugin extends Plugin {
 		// 	},
 		// 	true
 		// );
+
+		// if (referenceLeafId) {
+		// 	let leaf: any = await this.app.workspace.getLeafById(referenceLeafId);
+		// 	let elements = [...leaf.containerEl.querySelectorAll("[reference]")];
+		// 	let elementIndex = elements
+		// 		.map((el) => JSON.parse(el.getAttribute("reference")).dataString)
+		// 		.indexOf(dataString);
+
+		// 	console.log(elements);
+		// 	let element = elements[elementIndex];
+
+		// 	element.style.backgroundColor = "rgba(0, 0, 0, 0)";
+		// }
 
 		console.log("hoveredSource");
 		console.log(hoveredLeafId);
@@ -1841,45 +1877,10 @@ export default class MyHighlightPlugin extends Plugin {
 					});
 				}
 			);
-
-			// this.app.vault.getMarkdownFiles().forEach(async (file) => {
-			// 	let fileData = await this.app.vault.read(file);
-
-			// 	let regex = /\[\u2197\]\(urn:([^)]*)\)/g;
-
-			// 	let matches = [...fileData.matchAll(regex)];
-			// 	matches.forEach((match) => {
-			// 		let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-			// 		references.push({
-			// 			prefix,
-			// 			text,
-			// 			suffix,
-			// 			file: file2,
-			// 			from,
-			// 			to,
-			// 			activeFile: file.path,
-			// 			dataString: match[1],
-			// 		});
-			// 	});
-			// 	console.log("references");
-			// 	console.log(references);
-			// 	state = state.update({
-			// 		effects: referenceEffect.of(
-			// 			JSON.stringify(
-			// 				Object.assign(
-			// 					{
-			// 						type: "reference",
-			// 					},
-			// 					{ references }
-			// 				)
-			// 			)
-			// 		),
-			// 	}).state;
-			// });
 		}, 1000);
 
 		state = state.update({
-			annotations: myAnnotation.of(this),
+			annotations: thatAnnotation.of(this),
 		}).state;
 
 		this.registerEditorExtension([
