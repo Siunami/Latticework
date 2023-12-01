@@ -8,6 +8,7 @@ import {
 	getReferenceMarks,
 	getThat,
 	getReferences,
+	removeReferenceMark,
 } from "./state";
 import {
 	processURI,
@@ -46,21 +47,17 @@ export function createReferenceIcon(): HTMLSpanElement {
 	return span;
 }
 
-export function updateReferenceMarkPositions(
+export function updateReferenceMarkPosition(
 	leaf: any,
 	editor: any,
 	leafReferences: any
 ) {
-	console.log("update!");
-	console.log(leaf);
-
 	const title = leaf.containerEl.querySelector(".inline-title");
 	const titleBbox = title.getBoundingClientRect();
 	const line = leaf.containerEl.querySelector(".cm-line");
 	const lineBbox = line.getBoundingClientRect();
 
 	let references = getReferenceMarks();
-	console.log(references);
 
 	leafReferences.forEach((reference: any) => {
 		const { from, to } = reference;
@@ -70,8 +67,6 @@ export function updateReferenceMarkPositions(
 
 		const bbox = editor.cm.coordsAtPos(pos);
 
-		console.log("update leaf: " + leaf.id);
-		console.log(references.filter((x: any) => x.id == leaf.id));
 		let filteredReferences = references.filter((x: any) => x.id == leaf.id);
 		let exists = filteredReferences
 			.map((x: any) => x.reference)
@@ -85,6 +80,30 @@ export function updateReferenceMarkPositions(
 	});
 }
 
+export function updateAllVisibleReferenceMarkPositions(
+	references: any = getReferences()
+) {
+	const { workspace } = getThat().app;
+	const leaves = workspace.getLeavesOfType("markdown");
+	const visibleLeaves = leaves.filter((leaf: any) =>
+		leaf.tabHeaderEl.className.includes("is-active")
+	);
+
+	visibleLeaves.forEach((visibleLeaf: any) => {
+		const title =
+			visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
+			".md";
+		const visibleLeafReferences = references.filter(
+			(x: any) => x.file == title
+		);
+		updateReferenceMarkPosition(
+			visibleLeaf,
+			visibleLeaf.view.editor,
+			visibleLeafReferences
+		);
+	});
+}
+
 export function createReferenceMarkPositions(
 	leaf: any,
 	editor: any,
@@ -95,10 +114,22 @@ export function createReferenceMarkPositions(
 	const line = leaf.containerEl.querySelector(".cm-line");
 	const lineBbox = line.getBoundingClientRect();
 
-	console.log(leaf);
-	// let editor = leaf.view.editor;
+	let referenceMarks = getReferenceMarks().filter((x: any) => x.id == leaf.id);
+
+	referenceMarks.forEach((referenceMark: any) => {
+		let exists = leafReferences
+			.map((x: any) => x.reference)
+			.indexOf(referenceMark.reference);
+		if (exists == -1) {
+			removeReferenceMark(referenceMark.reference);
+			referenceMark.element.remove();
+		}
+	});
+
 	leafReferences.forEach((reference: any) => {
-		console.log(reference);
+		if (referenceMarks.map((x: any) => x.reference).indexOf(reference) != -1) {
+			return;
+		}
 		const { from, to } = reference;
 		const rangeStart = parseEditorPosition(from);
 		const rangeEnd = parseEditorPosition(to);
@@ -109,7 +140,6 @@ export function createReferenceMarkPositions(
 		if (bbox) {
 			let span = createReferenceIcon();
 			updateReferenceMarks(span, reference, leaf.id);
-			// const span = document.createElement("span");
 			span.style.color = "black";
 			span.style.position = "absolute";
 			span.style.top = bbox.top - titleBbox.top + 20 + "px";
@@ -169,89 +199,65 @@ export function createReferenceMarkPositions(
 	});
 }
 
-function addReferencesToLeaf(leaf: any) {
+export function addReferencesToLeaf(leaf: any) {
 	const references = getReferences();
-	console.log("REFERENCES");
-	console.log(references);
-
 	const title =
 		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
 	const leafReferences = references.filter((x: any) => x.file == title);
-
-	console.log(leaf);
-	console.log(leafReferences);
-
 	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
 
 	createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
-	console.log("create leaf: " + leaf.id);
+	updateAllVisibleReferenceMarkPositions(references);
 	let resizeObserver = new ResizeObserver(() => {
-		console.log("Resize event!");
-		const leaves = state.values[0].app.workspace.getLeavesOfType("markdown");
-		console.log(leaves);
-		const visibleLeaves = leaves.filter((leaf: any) =>
-			leaf.tabHeaderEl.className.includes("is-active")
-		);
-		console.log(visibleLeaves);
-
-		visibleLeaves.forEach((visibleLeaf: any) => {
-			const title =
-				visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
-				".md";
-			console.log(title);
-			const visibleLeafReferences = references.filter(
-				(x: any) => x.file == title
-			);
-			console.log(visibleLeafReferences);
-			console.log(visibleLeaf.view.editor);
-			updateReferenceMarkPositions(
-				visibleLeaf,
-				visibleLeaf.view.editor,
-				visibleLeafReferences
-			);
-		});
+		updateAllVisibleReferenceMarkPositions(references);
 	});
 
 	resizeObserver.observe(workspaceTabs);
 }
 
+let debounceTimer: NodeJS.Timeout;
 export function generateReferences() {
-	let references: any = [];
-	let markdownFiles = this.app.vault.getMarkdownFiles();
-	// console.log(markdownFiles);
-	Promise.all(
-		markdownFiles.map((file: TFile) => this.app.vault.read(file))
-	).then((files) => {
-		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
-			markdownFile: file,
-			fileData: files[index],
-		}));
+	clearTimeout(debounceTimer);
+	debounceTimer = setTimeout(() => {
+		console.log("GENERATE REFERENCES");
+		let references: any = [];
+		let markdownFiles = this.app.vault.getMarkdownFiles();
+		// console.log(markdownFiles);
+		Promise.all(
+			markdownFiles.map((file: TFile) => this.app.vault.read(file))
+		).then((files) => {
+			const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
+				markdownFile: file,
+				fileData: files[index],
+			}));
 
-		zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-			let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
-			matches.forEach((match) => {
-				let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-				references.push({
-					prefix,
-					text,
-					suffix,
-					file: file2,
-					from,
-					to,
-					dataString: match[1],
-					sourceFile: file.markdownFile.path,
+			zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
+				let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
+				matches.forEach((match) => {
+					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+					references.push({
+						prefix,
+						text,
+						suffix,
+						file: file2,
+						from,
+						to,
+						dataString: match[1],
+						sourceFile: file.markdownFile.path,
+					});
 				});
 			});
-		});
 
-		updateReference({ references });
-		const leaves = this.app.workspace.getLeavesOfType("markdown");
+			console.log(references);
+			updateReference({ references });
+			console.log(getReferences());
+			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
-		leaves.forEach((leaf: WorkspaceLeaf) => {
-			console.log(leaf);
-			addReferencesToLeaf(leaf);
+			leaves.forEach((leaf: WorkspaceLeaf) => {
+				addReferencesToLeaf(leaf);
+			});
 		});
-	});
+	}, 300);
 }
 
 export async function openReference() {

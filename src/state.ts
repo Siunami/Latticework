@@ -32,8 +32,15 @@ export let references = StateField.define<any[]>({
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
+				console.log(data);
 				if (data.type == "reference") {
 					return data.references;
+					// let set = new Set(
+					// 	[...value, ...data.references].map((item) => JSON.stringify(item))
+					// );
+					// let uniqueArr = Array.from(set, (item) => JSON.parse(item));
+					// // return [...new Set([...value, ...data.references])];
+					// return uniqueArr;
 				}
 				return value;
 			} catch (e) {
@@ -117,6 +124,17 @@ export let referenceMarks = StateField.define<any[]>({
 				},
 			];
 			return combinedArray;
+		} else if (
+			tr["annotations"].length == 2 &&
+			tr["annotations"][0].value.type == "removeReferenceMark"
+		) {
+			let index = value
+				.map((x: any) => x.reference)
+				.indexOf(tr["annotations"][0].value.reference);
+			if (index != -1) {
+				value.splice(index, 1);
+				return value;
+			}
 		}
 		return value;
 	},
@@ -200,4 +218,18 @@ export function updateReferenceMarks(
 			id,
 		}),
 	}).state;
+}
+
+export function removeReferenceMark(reference: object) {
+	let marks = state.field(referenceMarks);
+	let index = marks.map((x: any) => x.reference).indexOf(reference);
+	if (index != -1) {
+		marks.splice(index, 1);
+		state = state.update({
+			annotations: referenceMarksAnnotation.of({
+				type: "removeReferenceMark",
+				reference,
+			}),
+		}).state;
+	}
 }

@@ -23,7 +23,7 @@ import {
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
-import { generateReferences } from "./references";
+import { generateReferences, addReferencesToLeaf } from "./references";
 import { checkCursorPositionAtDatastring } from "./utils";
 
 export default class ReferencePlugin extends Plugin {
@@ -82,6 +82,13 @@ export default class ReferencePlugin extends Plugin {
 			this.app.workspace.on("active-leaf-change", (ev) => {
 				console.log("active-leaf-changed:");
 				console.log(ev);
+				// This should create referenceMarkers if they don't exist and update
+				// else update only
+				try {
+					addReferencesToLeaf(ev);
+				} catch (e) {
+					console.log(e);
+				}
 			})
 		);
 

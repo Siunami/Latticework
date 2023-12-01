@@ -10,7 +10,11 @@ import {
 	GutterMarker,
 } from "@codemirror/view";
 
-import { openReference, createReferenceIcon } from "../references";
+import {
+	openReference,
+	createReferenceIcon,
+	generateReferences,
+} from "../references";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
@@ -23,6 +27,9 @@ class ReferenceWidget extends WidgetType {
 	}
 
 	toDOM() {
+		console.log(this.view);
+		console.log("new reference");
+
 		// if (this.name.split("|").length != 4) {
 		// 	console.log("invalid placeholder");
 		// 	const regex = /\[↗\]\(urn:([^)]*)\)/g;
@@ -56,10 +63,17 @@ class ReferenceWidget extends WidgetType {
 	}
 }
 
-const referenceDecoration = (match: RegExpExecArray, view: EditorView) =>
-	Decoration.replace({
+const referenceDecoration = (match: RegExpExecArray, view: EditorView) => {
+	let decoration = Decoration.replace({
 		widget: new ReferenceWidget(match[0], view),
 	});
+	setTimeout(() => {
+		console.log("reference decoration");
+		generateReferences();
+	}, 1000);
+
+	return decoration;
+};
 
 const referenceMatcher = new MatchDecorator({
 	regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
