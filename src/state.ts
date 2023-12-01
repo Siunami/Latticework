@@ -14,7 +14,13 @@ export let that = StateField.define<any>({
 		return null;
 	},
 	update(value, tr: any) {
-		return tr["annotations"].length == 2 ? tr["annotations"][0].value : value;
+		if (
+			tr["annotations"].length == 2 &&
+			tr["annotations"][0].value.type == "that"
+		) {
+			return tr["annotations"][0].value.that;
+		}
+		return value;
 	},
 });
 
@@ -27,7 +33,7 @@ export let references = StateField.define<any[]>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "reference") {
-					return Object.assign(value, data.references);
+					return data.references;
 				}
 				return value;
 			} catch (e) {
@@ -93,19 +99,54 @@ export let cursorElement = StateField.define<object | null>({
 	},
 });
 
+export let referenceMarks = StateField.define<any[]>({
+	create() {
+		return [];
+	},
+	update(value, tr: any) {
+		if (
+			tr["annotations"].length == 2 &&
+			tr["annotations"][0].value.type == "referenceMark"
+		) {
+			const combinedArray = [
+				...value,
+				{
+					element: tr["annotations"][0].value.element,
+					reference: tr["annotations"][0].value.reference,
+					id: tr["annotations"][0].value.id,
+				},
+			];
+			return combinedArray;
+		}
+		return value;
+	},
+});
+
 export const thatAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
 export const cursorEffect = StateEffect.define<string>();
 export const referenceEffect = StateEffect.define<string>();
+export const referenceMarksAnnotation = Annotation.define<any>();
 
 export let state: any = EditorState.create({
-	extensions: [that, references, hoverElement, cursorElement],
+	extensions: [that, references, hoverElement, cursorElement, referenceMarks],
 });
+
+export function getThat() {
+	return state.field(that);
+}
 
 export function updateThat(that: any) {
 	state = state.update({
-		annotations: thatAnnotation.of(that),
+		annotations: thatAnnotation.of({
+			type: "that",
+			that,
+		}),
 	}).state;
+}
+
+export function getHover() {
+	return state.field(hoverElement);
 }
 
 export function updateHover(value: object) {
@@ -116,6 +157,10 @@ export function updateHover(value: object) {
 	}).state;
 }
 
+export function getCursor() {
+	return state.field(cursorElement);
+}
+
 export function updateCursor(value: object) {
 	state = state.update({
 		effects: cursorEffect.of(
@@ -124,10 +169,35 @@ export function updateCursor(value: object) {
 	}).state;
 }
 
+export function getReferences() {
+	return state.field(references);
+}
+
 export function updateReference(value: object) {
 	state = state.update({
 		effects: referenceEffect.of(
 			JSON.stringify(Object.assign(value, { type: "reference" }))
 		),
+	}).state;
+}
+
+export function getReferenceMarks() {
+	return state.field(referenceMarks);
+}
+
+// Need to check before adding to array if reference exists already
+// Just compare "reference" data object in the span
+export function updateReferenceMarks(
+	value: object,
+	reference: object,
+	id: string
+) {
+	state = state.update({
+		annotations: referenceMarksAnnotation.of({
+			type: "referenceMark",
+			element: value,
+			reference,
+			id,
+		}),
 	}).state;
 }

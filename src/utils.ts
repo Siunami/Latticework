@@ -1,3 +1,6 @@
+import { MarkdownView } from "obsidian";
+import { REFERENCE_REGEX } from "./constants";
+
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
 	return { line: parseInt(line), ch: parseInt(ch) };
@@ -58,4 +61,58 @@ export function getAdjacentTabs(
 
 	let index = adjacentTabs.findIndex((x: any) => x.state.file == file);
 	return { adjacentTabs, rightAdjacentTab, leftAdjacentTab, index };
+}
+
+export function checkCursorPositionAtDatastring(
+	evt: Event | { target: HTMLElement }
+): any {
+	const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+	const cursorFrom = activeView?.editor.getCursor("from");
+	const cursorTo = activeView?.editor.getCursor("to");
+
+	// console.log(cursorFrom);
+	// console.log(cursorTo);
+
+	let matched = false;
+	let matchSpan;
+	if (
+		cursorFrom &&
+		cursorTo &&
+		cursorFrom.ch == cursorTo.ch &&
+		cursorFrom.line == cursorTo.line
+		// &&cursorFrom.ch - 1 >= -1
+	) {
+		const lineText = activeView?.editor.getLine(cursorFrom.line);
+		// console.log(lineText);
+
+		// from possible regex matches in lineText
+		if (lineText) {
+			const matches = [...lineText.matchAll(REFERENCE_REGEX)];
+			matches.forEach((match) => {
+				// console.log(match);
+				if (match.index?.toString()) {
+					const start = match.index;
+					const end = start + match[0].length;
+					if (end == cursorTo.ch && evt.target) {
+						const dataString = match[1];
+						// get the html element at the match location
+						const container: any = evt.target;
+						// console.log(container);
+						// find html span element in target that has a data attribute equal to contents
+						let span = container.querySelector(`span[data="${dataString}"]`);
+						if (span && span instanceof HTMLSpanElement) {
+							console.log("Found span element:", span);
+							// Do something with the span element
+							matched = true;
+
+							matchSpan = span;
+						} else {
+							console.log("Span element not found");
+						}
+					}
+				}
+			});
+		}
+	}
+	return { matched, span: matchSpan };
 }

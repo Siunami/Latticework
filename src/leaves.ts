@@ -1,4 +1,4 @@
-import { state } from "../state";
+import { state } from "./state";
 
 function findRootSplit(split: any) {
 	// If this split has no parent, it's the root.

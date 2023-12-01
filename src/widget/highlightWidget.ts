@@ -37,10 +37,7 @@ const highlighterDecoration = (match: RegExpExecArray, view: EditorView) =>
 	});
 
 const highlightMatcher = new MatchDecorator({
-	// regexp: /\(\((\w+)\)\)/g,
 	regexp: /\+\+\+(.*?)\+\+\+/g,
-	// regexp: /\(\(([^|)]+)\|([^|)]+)\|([^|)]+)\|([^|)]+)\)\)/g,
-	// regexp: /\(\(([^-*]+)-\*-([^-*]+)-\*-([^-*]+)-\*-([^-*]+)\)\)/g,
 	decoration: (match, view, pos) => {
 		return highlighterDecoration(match, view);
 	},

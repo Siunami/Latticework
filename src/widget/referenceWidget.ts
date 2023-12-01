@@ -10,7 +10,7 @@ import {
 	GutterMarker,
 } from "@codemirror/view";
 
-import { openReference } from "../references";
+import { openReference, createReferenceIcon } from "../references";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
@@ -31,7 +31,7 @@ class ReferenceWidget extends WidgetType {
 		// 	console.log(content); // Output: 'example'
 		// 	console.log(content.split(":"));
 		// }
-		const span = document.createElement("span");
+		const span = createReferenceIcon();
 
 		// span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
@@ -42,20 +42,6 @@ class ReferenceWidget extends WidgetType {
 			const content = match[1];
 			span.setAttribute("data", content);
 		}
-
-		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-		svg.setAttribute("width", "16");
-		svg.setAttribute("height", "16");
-		svg.setAttribute("viewBox", "0 0 16 16");
-		svg.setAttribute("fill", "none");
-		svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-
-		const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-		path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
-		path.setAttribute("fill", "yellow");
-
-		svg.appendChild(path);
-		span.appendChild(svg);
 
 		span.addEventListener("mouseenter", async () => {
 			span.style.backgroundColor = "rgb(187, 215, 230)";
@@ -76,11 +62,7 @@ const referenceDecoration = (match: RegExpExecArray, view: EditorView) =>
 	});
 
 const referenceMatcher = new MatchDecorator({
-	// regexp: /\(\((\w+)\)\)/g,
-	// regexp: /\[\u2197\]\(urn:[^\)]*\)/g,
 	regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
-	// regexp: /\(\(([^|)]+)\|([^|)]+)\|([^|)]+)\|([^|)]+)\)\)/g,
-	// regexp: /\(\(([^-*]+)-\*-([^-*]+)-\*-([^-*]+)-\*-([^-*]+)\)\)/g,
 	decoration: (match, view, pos) => {
 		return referenceDecoration(match, view);
 	},
