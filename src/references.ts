@@ -7,6 +7,7 @@ import {
 	updateReferenceMarks,
 	getReferenceMarks,
 	getThat,
+	getReferences,
 } from "./state";
 import {
 	processURI,
@@ -71,15 +72,15 @@ export function updateReferenceMarkPositions(
 
 		console.log("update leaf: " + leaf.id);
 		console.log(references.filter((x: any) => x.id == leaf.id));
-		let exists = references
-			.filter((x: any) => x.id == leaf.id)
+		let filteredReferences = references.filter((x: any) => x.id == leaf.id);
+		let exists = filteredReferences
 			.map((x: any) => x.reference)
 			.indexOf(reference);
-		console.log(exists);
 		if (exists != -1) {
-			references[exists].element.style.top =
+			filteredReferences[exists].element.style.top =
 				bbox.top - titleBbox.top + 20 + "px";
-			references[exists].element.style.left = lineBbox.width + 50 + "px";
+			filteredReferences[exists].element.style.left =
+				lineBbox.width + 40 + "px";
 		}
 	});
 }
@@ -112,7 +113,7 @@ export function createReferenceMarkPositions(
 			span.style.color = "black";
 			span.style.position = "absolute";
 			span.style.top = bbox.top - titleBbox.top + 20 + "px";
-			span.style.left = lineBbox.width + 50 + "px";
+			span.style.left = lineBbox.width + 40 + "px";
 			span.setAttribute("reference", JSON.stringify(reference));
 
 			// span.addEventListener("mouseenter", async () => {
@@ -169,18 +170,23 @@ export function createReferenceMarkPositions(
 }
 
 function addReferencesToLeaf(leaf: any) {
-	const references = state.values[1];
+	const references = getReferences();
+	console.log("REFERENCES");
+	console.log(references);
 
 	const title =
 		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
 	const leafReferences = references.filter((x: any) => x.file == title);
+
+	console.log(leaf);
+	console.log(leafReferences);
 
 	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
 
 	createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
 	console.log("create leaf: " + leaf.id);
 	let resizeObserver = new ResizeObserver(() => {
-		console.log("resize leaf: " + leaf.id);
+		console.log("Resize event!");
 		const leaves = state.values[0].app.workspace.getLeavesOfType("markdown");
 		console.log(leaves);
 		const visibleLeaves = leaves.filter((leaf: any) =>
@@ -188,12 +194,21 @@ function addReferencesToLeaf(leaf: any) {
 		);
 		console.log(visibleLeaves);
 
-		visibleLeaves.forEach((leaf: any) => {
-			console.log(leaf);
+		visibleLeaves.forEach((visibleLeaf: any) => {
 			const title =
-				leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
-			const leafReferences = references.filter((x: any) => x.file == title);
-			updateReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
+				visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
+				".md";
+			console.log(title);
+			const visibleLeafReferences = references.filter(
+				(x: any) => x.file == title
+			);
+			console.log(visibleLeafReferences);
+			console.log(visibleLeaf.view.editor);
+			updateReferenceMarkPositions(
+				visibleLeaf,
+				visibleLeaf.view.editor,
+				visibleLeafReferences
+			);
 		});
 	});
 
