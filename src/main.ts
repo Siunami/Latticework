@@ -23,7 +23,11 @@ import {
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
-import { generateReferences, addReferencesToLeaf } from "./references";
+import {
+	generateReferences,
+	addReferencesToLeaf,
+	updateAllVisibleReferenceMarkPositions,
+} from "./references";
 import { checkCursorPositionAtDatastring } from "./utils";
 
 export default class ReferencePlugin extends Plugin {
@@ -46,7 +50,7 @@ export default class ReferencePlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("window-open", (ev) => {
 				console.log("window opened:");
-				console.log(ev);
+				// console.log(ev);
 			})
 		);
 
@@ -59,18 +63,14 @@ export default class ReferencePlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("file-open", (ev) => {
 				console.log("file opened:");
-				console.log(ev);
-				console.log(getReferences());
+				// console.log(ev);
+				// console.log(getReferences());
 
 				let currentLeaf: any = this.app.workspace.getLeaf();
 
 				// check it references have already been created, else create references
 			})
 		);
-
-		window.addEventListener("resize", () => {
-			console.log("window resize");
-		});
 
 		this.registerEvent(
 			this.app.workspace.on("layout-change", () => {
@@ -84,8 +84,14 @@ export default class ReferencePlugin extends Plugin {
 				console.log(ev);
 				// This should create referenceMarkers if they don't exist and update
 				// else update only
+
+				console.log(this.app.workspace.getActiveViewOfType(MarkdownView));
 				try {
-					addReferencesToLeaf(ev);
+					const activeView =
+						this.app.workspace.getActiveViewOfType(MarkdownView);
+					if (activeView?.leaf != null) {
+						addReferencesToLeaf(activeView.leaf);
+					}
 				} catch (e) {
 					console.log(e);
 				}
@@ -152,6 +158,15 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
+			console.log(evt);
+			console.log(this.app.workspace.getActiveViewOfType(MarkdownView)?.editor);
+			updateAllVisibleReferenceMarkPositions();
+
+			// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+			// if (activeView?.leaf != null) {
+			// 	// addReferencesToLeaf(activeView.leaf);
+			// }
+
 			if (evt.key == "z" && evt.metaKey) {
 				let { matched, span } = checkCursorPositionAtDatastring(evt);
 				console.log(matched);

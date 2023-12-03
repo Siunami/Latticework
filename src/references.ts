@@ -1,4 +1,11 @@
-import { App, PluginSettingTab, Setting, TFile, WorkspaceLeaf } from "obsidian";
+import {
+	App,
+	PluginSettingTab,
+	Setting,
+	TFile,
+	WorkspaceLeaf,
+	MarkdownView,
+} from "obsidian";
 
 import {
 	state,
@@ -17,6 +24,96 @@ import {
 } from "./utils";
 import { REFERENCE_REGEX } from "./constants";
 import { collectLeavesByTabHelper } from "./leaves";
+import { SearchCursor } from "@codemirror/search"; // Import the SearchCursor class
+import { Text } from "@codemirror/state";
+
+function findTextPositions(
+	view: MarkdownView,
+	searchTerm: string,
+	prefix: string = "",
+	suffix: string = ""
+) {
+	const editor = view.editor;
+
+	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
+	// given text and search term, find all matches
+
+	let rollingIndex = 0;
+	const text = view.data;
+	const lines = text.split("\n").map((line: string, i: number) => {
+		let data = { line, index: rollingIndex, length: line.length + 1, i };
+		rollingIndex += data.length;
+		return data;
+	});
+
+	if (text.includes(prefix + searchTerm + suffix)) {
+		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		let startIndex =
+			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
+			1;
+		let endIndex =
+			lines.findIndex(
+				(line: any) =>
+					line.index > matchIndex + prefix.length + searchTerm.length
+			) - 1;
+
+		const selection = editor.getRange(
+			{
+				line: startIndex,
+				ch: matchIndex + prefix.length - lines[startIndex].index,
+			},
+			{
+				line: endIndex,
+				ch:
+					matchIndex +
+					prefix.length +
+					searchTerm.length -
+					lines[endIndex].index,
+			}
+		);
+
+		return {
+			rangeStart: {
+				line: startIndex,
+				ch: matchIndex + prefix.length - lines[startIndex].index,
+			},
+			rangeEnd: {
+				line: endIndex,
+				ch:
+					matchIndex +
+					prefix.length +
+					searchTerm.length -
+					lines[endIndex].index,
+			},
+			lines,
+		};
+	}
+	return {
+		rangeStart: null,
+		rangeEnd: null,
+		lines,
+	};
+}
+
+function findNewRange(
+	leaf: any,
+	text: string
+): { from: number; to: number } | null {
+	// const cursor = editor.getSearchCursor(text);
+	// const cursor = new SearchCursor(Text.of(leaf.view.data), "a");
+	console.log(leaf.view.data);
+	console.log(text);
+	// console.log(leaf.view.editor.cm.getSearchCursor(text));
+	// console.log(leaf.view.editor.cm);
+	const cursor = new SearchCursor(Text.of(leaf.view.data), text);
+
+	console.log(cursor);
+	if (cursor.next()) {
+		return cursor.value;
+	} else {
+		return null;
+	}
+}
 
 export function createReferenceIcon(): HTMLSpanElement {
 	const span = document.createElement("span");
@@ -60,10 +157,22 @@ export function updateReferenceMarkPosition(
 	let references = getReferenceMarks();
 
 	leafReferences.forEach((reference: any) => {
-		const { from, to } = reference;
-		const rangeStart = parseEditorPosition(from);
-		const rangeEnd = parseEditorPosition(to);
+		const { from, to, text } = reference;
+
+		const positions = findTextPositions(leaf.view, text);
+
+		let rangeStart = parseEditorPosition(from);
+		let rangeEnd = parseEditorPosition(to);
+		let rangeText = editor.getRange(rangeStart, rangeEnd);
+
 		const pos = editor.posToOffset(rangeStart);
+
+		if (rangeText != text) {
+			if (positions?.rangeStart && positions?.rangeEnd) {
+				rangeStart = positions?.rangeStart;
+				rangeEnd = positions?.rangeEnd;
+			}
+		}
 
 		const bbox = editor.cm.coordsAtPos(pos);
 
@@ -71,7 +180,7 @@ export function updateReferenceMarkPosition(
 		let exists = filteredReferences
 			.map((x: any) => x.reference)
 			.indexOf(reference);
-		if (exists != -1) {
+		if (exists != -1 && bbox) {
 			filteredReferences[exists].element.style.top =
 				bbox.top - titleBbox.top + 20 + "px";
 			filteredReferences[exists].element.style.left =
@@ -104,99 +213,127 @@ export function updateAllVisibleReferenceMarkPositions(
 	});
 }
 
-export function createReferenceMarkPositions(
-	leaf: any,
-	editor: any,
-	leafReferences: any
+export function createReferenceMark(
+	reference: any,
+	leaf: any = this.app.workspace.getLeaf(),
+	editor: any = this.app.workspace.getLeaf().view.editor
 ) {
 	const title = leaf.containerEl.querySelector(".inline-title");
 	const titleBbox = title.getBoundingClientRect();
 	const line = leaf.containerEl.querySelector(".cm-line");
 	const lineBbox = line.getBoundingClientRect();
 
-	let referenceMarks = getReferenceMarks().filter((x: any) => x.id == leaf.id);
+	console.log(reference);
+	const { from, to } = reference;
+	const rangeStart = parseEditorPosition(from);
+	const rangeEnd = parseEditorPosition(to);
 
-	referenceMarks.forEach((referenceMark: any) => {
-		let exists = leafReferences
-			.map((x: any) => x.reference)
-			.indexOf(referenceMark.reference);
-		if (exists == -1) {
-			removeReferenceMark(referenceMark.reference);
-			referenceMark.element.remove();
-		}
-	});
+	const text = editor.getRange(rangeStart, rangeEnd);
+	console.log(text);
+	// if (reference.text != text) {
+	// 	// need to find the text
+	// 	console.log("text not equal");
+	// 	console.log(text);
 
-	leafReferences.forEach((reference: any) => {
-		if (referenceMarks.map((x: any) => x.reference).indexOf(reference) != -1) {
-			return;
-		}
-		const { from, to } = reference;
-		const rangeStart = parseEditorPosition(from);
-		const rangeEnd = parseEditorPosition(to);
-		const pos = editor.posToOffset(rangeStart);
+	// 	return;
+	// }
 
-		const bbox = editor.cm.coordsAtPos(pos);
+	const pos = editor.posToOffset(rangeStart);
+	const bbox = editor.cm.coordsAtPos(pos);
 
-		if (bbox) {
-			let span = createReferenceIcon();
-			updateReferenceMarks(span, reference, leaf.id);
-			span.style.color = "black";
-			span.style.position = "absolute";
-			span.style.top = bbox.top - titleBbox.top + 20 + "px";
-			span.style.left = lineBbox.width + 40 + "px";
-			span.setAttribute("reference", JSON.stringify(reference));
+	if (bbox) {
+		let span = createReferenceIcon();
+		updateReferenceMarks(span, reference, leaf.id);
+		span.style.color = "black";
+		span.style.position = "absolute";
+		span.style.top = bbox.top - titleBbox.top + 20 + "px";
+		span.style.left = lineBbox.width + 40 + "px";
+		span.setAttribute("reference", JSON.stringify(reference));
 
-			// span.addEventListener("mouseenter", async () => {
-			// 	span.style.backgroundColor = "rgb(187, 215, 230)";
-			// 	// this.startReferenceEffect(span, "cursor");
-			// });
+		// span.addEventListener("mouseenter", async () => {
+		// 	span.style.backgroundColor = "rgb(187, 215, 230)";
+		// 	// this.startReferenceEffect(span, "cursor");
+		// });
 
-			// span.addEventListener("mouseleave", async () => {
-			// 	span.style.backgroundColor = "rgba(0, 0, 0, 0)";
-			// 	// this.endCursorEffect();
-			// });
+		// span.addEventListener("mouseleave", async () => {
+		// 	span.style.backgroundColor = "rgba(0, 0, 0, 0)";
+		// 	// this.endCursorEffect();
+		// });
 
-			span.addEventListener("click", async () => {
-				console.log("click");
-				console.log(reference.text);
-				const { workspace } = state.values[0].app;
-				const leavesByTab = collectLeavesByTabHelper();
+		span.addEventListener("click", async () => {
+			console.log("click");
+			console.log(reference.text);
+			const { workspace } = state.values[0].app;
+			const leavesByTab = collectLeavesByTabHelper();
 
-				const { tabIdx, index, dataString, leafId } = state.values[2];
-				/* If temporary, then keep leaf */
-				if (dataString) {
-					let [prefix, text, suffix, file, from, to] = processURI(dataString);
-					let rangeEnd = parseEditorPosition(to);
-					/*
+			const { tabIdx, index, dataString, leafId } = state.values[2];
+			/* If temporary, then keep leaf */
+			if (dataString) {
+				let [prefix, text, suffix, file, from, to] = processURI(dataString);
+				let rangeEnd = parseEditorPosition(to);
+				/*
                         The problem here is that I don't have the position of the span element.
                         I want to set the active cursor to the end of the span
                     */
 
-					// let [text2, file2, from2, to2] = this.name.split("|");
-					// const currentTab = getHoveredTab(leavesByTab, span);
-					// // console.log("currentTab");
-					// // console.log(currentTab);
-					// let rangeEnd2 = parseEditorPosition(to2);
+				// let [text2, file2, from2, to2] = this.name.split("|");
+				// const currentTab = getHoveredTab(leavesByTab, span);
+				// // console.log("currentTab");
+				// // console.log(currentTab);
+				// let rangeEnd2 = parseEditorPosition(to2);
 
-					// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-					// // console.log(lineText);
-					// // currentTab.view.editor.setCursor(rangeEnd2);
+				// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+				// // console.log(lineText);
+				// // currentTab.view.editor.setCursor(rangeEnd2);
 
-					let targetLeaf = leavesByTab[tabIdx][1][index];
-					workspace.setActiveLeaf(targetLeaf);
-					const editor = targetLeaf.view.editor;
-					editor.setCursor(rangeEnd);
+				let targetLeaf = leavesByTab[tabIdx][1][index];
+				workspace.setActiveLeaf(targetLeaf);
+				const editor = targetLeaf.view.editor;
+				editor.setCursor(rangeEnd);
 
-					updateHover({
-						leafId: null,
-						originalTop: null,
-					});
-				}
-			});
+				updateHover({
+					leafId: null,
+					originalTop: null,
+				});
+			}
+		});
 
-			editor.containerEl.querySelector(".cm-scroller").appendChild(span);
+		editor.containerEl.querySelector(".cm-scroller").appendChild(span);
+	}
+}
+
+export function createReferenceMarkPositions(
+	leaf: any,
+	editor: any,
+	leafReferences: any
+) {
+	let referenceMarks = getReferenceMarks().filter((x: any) => x.id == leaf.id);
+
+	leafReferences.forEach((reference: any) => {
+		if (
+			referenceMarks
+				.map((x: any) => JSON.stringify(x.reference))
+				.indexOf(JSON.stringify(reference)) != -1
+		) {
+			return;
 		}
+
+		createReferenceMark(reference, leaf, editor);
 	});
+
+	// console.log(leafReferences);
+	// referenceMarks.forEach((referenceMark: any) => {
+	// 	console.log("referenceMark");
+	// 	console.log(referenceMark);
+	// 	let exists = leafReferences
+	// 		.map((x: any) => JSON.stringify(x.reference))
+	// 		.indexOf(JSON.stringify(referenceMark.reference));
+	// 	console.log(exists);
+	// 	if (exists == -1) {
+	// 		removeReferenceMark(referenceMark.reference);
+	// 		referenceMark.element.remove();
+	// 	}
+	// });
 }
 
 export function addReferencesToLeaf(leaf: any) {
@@ -205,6 +342,16 @@ export function addReferencesToLeaf(leaf: any) {
 		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
 	const leafReferences = references.filter((x: any) => x.file == title);
 	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
+
+	// console.log(leaf.view.editor.containerEl.querySelector(".cm-scroller"));
+
+	leaf.view.editor.containerEl
+		.querySelector(".cm-scroller")
+		.addEventListener("scroll", () => {
+			console.log("scroll");
+			createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
+			updateAllVisibleReferenceMarkPositions(references);
+		});
 
 	createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
 	updateAllVisibleReferenceMarkPositions(references);
@@ -248,16 +395,14 @@ export function generateReferences() {
 				});
 			});
 
-			console.log(references);
 			updateReference({ references });
-			console.log(getReferences());
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			leaves.forEach((leaf: WorkspaceLeaf) => {
 				addReferencesToLeaf(leaf);
 			});
 		});
-	}, 300);
+	}, 100);
 }
 
 export async function openReference() {

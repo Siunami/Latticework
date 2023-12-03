@@ -32,15 +32,14 @@ export let references = StateField.define<any[]>({
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
-				console.log(data);
 				if (data.type == "reference") {
-					return data.references;
-					// let set = new Set(
-					// 	[...value, ...data.references].map((item) => JSON.stringify(item))
-					// );
-					// let uniqueArr = Array.from(set, (item) => JSON.parse(item));
-					// // return [...new Set([...value, ...data.references])];
-					// return uniqueArr;
+					// return data.references;
+					let set = new Set(
+						[...value, ...data.references].map((item) => JSON.stringify(item))
+					);
+					let uniqueArr = Array.from(set, (item) => JSON.parse(item));
+					// return [...new Set([...value, ...data.references])];
+					return uniqueArr;
 				}
 				return value;
 			} catch (e) {
