@@ -22,85 +22,8 @@ import {
 	parseEditorPosition,
 	encodeURIComponentString,
 } from "./utils";
-import { REFERENCE_REGEX } from "./constants";
+import { REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
-import { SearchCursor } from "@codemirror/search"; // Import the SearchCursor class
-import { Text } from "@codemirror/state";
-
-function findTextPositions(
-	view: MarkdownView,
-	searchTerm: string,
-	prefix: string = "",
-	suffix: string = ""
-) {
-	const editor = view.editor;
-
-	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
-	// given text and search term, find all matches
-
-	let rollingIndex = 0;
-	const text = view.data;
-	const lines = text.split("\n").map((line: string, i: number) => {
-		let data = { line, index: rollingIndex, length: line.length + 1, i };
-		rollingIndex += data.length;
-		return data;
-	});
-
-	if (text.includes(prefix + searchTerm + suffix)) {
-		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
-		let startIndex =
-			lines.findIndex(
-				(line: any) => line.index + line.length > matchIndex + prefix.length
-			) - 1;
-
-		let endIndex =
-			lines.findIndex(
-				(line: any) =>
-					line.index + line.length >
-					matchIndex + prefix.length + searchTerm.length
-			) - 1;
-		if (startIndex == -2) {
-			startIndex = lines.length - 1;
-			endIndex = lines.length - 1;
-		}
-
-		return {
-			rangeStart: {
-				line: startIndex,
-				ch: matchIndex + prefix.length - lines[startIndex].index,
-			},
-			rangeEnd: {
-				line: endIndex,
-				ch:
-					matchIndex +
-					prefix.length +
-					searchTerm.length -
-					lines[endIndex].index,
-			},
-			lines,
-		};
-	}
-	return {
-		rangeStart: null,
-		rangeEnd: null,
-		lines,
-	};
-}
-
-function findNewRange(
-	leaf: any,
-	text: string
-): { from: number; to: number } | null {
-	// const cursor = editor.getSearchCursor(text);
-	// const cursor = new SearchCursor(Text.of(leaf.view.data), "a");
-	const cursor = new SearchCursor(Text.of(leaf.view.data), text);
-
-	if (cursor.next()) {
-		return cursor.value;
-	} else {
-		return null;
-	}
-}
 
 export function createReferenceIcon(): {
 	span: HTMLSpanElement;
@@ -120,13 +43,13 @@ export function createReferenceIcon(): {
 	svg.style.backgroundColor = "white";
 	svg.style.cursor = "pointer";
 
-	span.addEventListener("mouseenter", async () => {
-		svg.style.backgroundColor = "rgb(187, 215, 230)";
-	});
+	// span.addEventListener("mouseenter", async () => {
+	// 	svg.style.backgroundColor = SVG_HOVER_COLOR;
+	// });
 
-	span.addEventListener("mouseleave", async () => {
-		svg.style.backgroundColor = "white";
-	});
+	// span.addEventListener("mouseleave", async () => {
+	// 	svg.style.backgroundColor = "white";
+	// });
 
 	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 	line.setAttribute("x1", "6");
@@ -217,7 +140,7 @@ export function updateReferenceMarkPosition(
 			.indexOf(reference);
 		if (exists != -1 && bbox) {
 			filteredReferences[exists].element.style.top =
-				bbox.top - titleBbox.top + 20 + "px";
+				bbox.top - titleBbox.top + 32 + "px";
 			filteredReferences[exists].element.style.left =
 				lineBbox.width + 40 + "px";
 		}
@@ -273,14 +196,6 @@ export function createReferenceMark(
 		span.style.top = bbox.top - titleBbox.top + 20 + "px";
 		span.style.left = lineBbox.width + 40 + "px";
 		span.setAttribute("reference", JSON.stringify(reference));
-
-		span.addEventListener("mouseenter", async () => {
-			svg.setAttribute("fill", "rgb(187, 215, 230)");
-		});
-
-		span.addEventListener("mouseleave", async () => {
-			svg.setAttribute("fill", "none");
-		});
 
 		span.addEventListener("click", async () => {
 			const { workspace } = state.values[0].app;

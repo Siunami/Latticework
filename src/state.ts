@@ -24,6 +24,26 @@ export let that = StateField.define<any>({
 	},
 });
 
+export let hoveredCursor = StateField.define<any>({
+	create() {
+		return null;
+	},
+	update(value, tr: any) {
+		if (
+			tr["annotations"].length == 2 &&
+			tr["annotations"][0].value.type == "hoveredCursor"
+		) {
+			return tr["annotations"][0].value.cursor;
+		} else if (
+			tr["annotations"].length == 2 &&
+			tr["annotations"][0].value.type == "removeHoveredCursor"
+		) {
+			return null;
+		}
+		return value;
+	},
+});
+
 export let references = StateField.define<any[]>({
 	create() {
 		return [];
@@ -38,7 +58,6 @@ export let references = StateField.define<any[]>({
 						[...value, ...data.references].map((item) => JSON.stringify(item))
 					);
 					let uniqueArr = Array.from(set, (item) => JSON.parse(item));
-					// return [...new Set([...value, ...data.references])];
 					return uniqueArr;
 				}
 				return value;
@@ -85,7 +104,6 @@ export let cursorElement = StateField.define<object | null>({
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
-				// console.log(tr.effects[0].value);
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
@@ -139,13 +157,21 @@ export let referenceMarks = StateField.define<any[]>({
 });
 
 export const thatAnnotation = Annotation.define<any>();
+export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
 export const cursorEffect = StateEffect.define<string>();
 export const referenceEffect = StateEffect.define<string>();
 export const referenceMarksAnnotation = Annotation.define<any>();
 
 export let state: any = EditorState.create({
-	extensions: [that, references, hoverElement, cursorElement, referenceMarks],
+	extensions: [
+		that,
+		hoveredCursor,
+		references,
+		hoverElement,
+		cursorElement,
+		referenceMarks,
+	],
 });
 
 export function getThat() {
@@ -157,6 +183,27 @@ export function updateThat(that: any) {
 		annotations: thatAnnotation.of({
 			type: "that",
 			that,
+		}),
+	}).state;
+}
+
+export function getHoveredCursor() {
+	return state.field(hoveredCursor);
+}
+
+export function updateHoveredCursor(cursor: HTMLOrSVGElement) {
+	state = state.update({
+		annotations: hoveredCursorAnnotation.of({
+			type: "hoveredCursor",
+			cursor,
+		}),
+	}).state;
+}
+
+export function removeHoveredCursor() {
+	state = state.update({
+		annotations: hoveredCursorAnnotation.of({
+			type: "removeHoveredCursor",
 		}),
 	}).state;
 }

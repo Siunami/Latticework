@@ -32,11 +32,9 @@ class ReferenceWidget extends WidgetType {
 	toDOM() {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
-		console.log(content);
 
 		let workspaceTabs = this.view.contentDOM.closest(".workspace-tabs");
 
-		console.log(workspaceTabs);
 		if (workspaceTabs && content) {
 			let title =
 				workspaceTabs.querySelector(".view-header-title")?.innerHTML + ".md";

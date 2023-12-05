@@ -1,7 +1,11 @@
 import { MarkdownView } from "obsidian";
-import { REFERENCE_REGEX, ACTION_TYPE } from "./constants";
+import { REFERENCE_REGEX, ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 import { startReferenceEffect, endReferenceCursorEffect } from "./events";
-import { getCursor } from "./state";
+import {
+	getHoveredCursor,
+	updateHoveredCursor,
+	removeHoveredCursor,
+} from "./state";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -121,7 +125,6 @@ export function checkCursorPositionAtDatastring(
 						const dataString = match[1];
 						// get the html element at the match location
 						const container: any = evt.target;
-						// console.log(container);
 						// find html span element in target that has a data attribute equal to contents
 						let span = container.querySelector(`span[data="${dataString}"]`);
 						if (span && span instanceof HTMLSpanElement) {
@@ -141,19 +144,31 @@ export function checkCursorPositionAtDatastring(
 	return { matched, span: matchSpan };
 }
 
+// Remove an existing higlighted reference
+function handleHoveredCursor() {
+	if (getHoveredCursor()) {
+		getHoveredCursor().style.backgroundColor = "white";
+		removeHoveredCursor();
+	}
+}
+
 export function checkFocusCursor(evt: Event | { target: HTMLElement }) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
-		if (getCursor() != null) {
-			endReferenceCursorEffect();
-			setTimeout(() => {
-				if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
-			}, 100);
-		} else {
-			startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		const svgElement = span.querySelector("svg");
+		if (svgElement) {
+			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+			handleHoveredCursor();
+			updateHoveredCursor(svgElement);
 		}
+
+		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
+		setTimeout(() => {
+			if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		}, 125); // so wait 125ms before opening new peek tab
 	} else {
 		endReferenceCursorEffect();
+		handleHoveredCursor();
 	}
 }

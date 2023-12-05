@@ -9,6 +9,7 @@ import {
 	gutter,
 	GutterMarker,
 } from "@codemirror/view";
+import { SVG_HOVER_COLOR } from "../constants";
 
 /* highlight */
 class HighlighterWidget extends WidgetType {
@@ -22,9 +23,8 @@ class HighlighterWidget extends WidgetType {
 
 	toDOM() {
 		const span = document.createElement("fragment");
-		// console.log(this);
 		span.textContent = this.name;
-		span.style.backgroundColor = "rgb(187, 215, 230)";
+		span.style.backgroundColor = SVG_HOVER_COLOR;
 		span.style.color = "black";
 
 		return span;

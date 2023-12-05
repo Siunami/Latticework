@@ -21,18 +21,14 @@ import {
 } from "./utils";
 
 function highlightHoveredReference(dataString: string, tabIdx: number) {
-	console.log("GOT TO HIGHLIGHT HOVERED");
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
-	// let rangeStart = parseEditorPosition(from);
-	// let rangeEnd = parseEditorPosition(to);
 	const leavesByTab = collectLeavesByTabHelper();
 	let index = leavesByTab[tabIdx][1]
 		.map((leaf: any) => leaf.getViewState())
 		.findIndex((x: any) => x.state.file == file);
 	if (index != -1) {
 		let targetLeaf = leavesByTab[tabIdx][1][index];
-		// this.app.workspace.setActiveLeaf(targetLeaf);
 
 		const editor = targetLeaf.view.editor;
 		/*
@@ -190,58 +186,26 @@ export async function startReferenceEffect(
 	updateState({
 		type: `${type}-start`,
 	});
-	// type
-	// 	? updateCursor({
-	// 			type: `${type}-start`,
-	// 	  })
-	// 	: updateHover({
-	// 			type: `${type}-start`,
-	// 	  });
-	// state = state.update({
-	// 	effects: stateMutation.of(
-	// 		JSON.stringify({
-	// 			type: `${type}-start`,
-	// 		})
-	// 	),
-	// }).state;
 
 	const dataString = span.getAttribute("data");
 	if (!dataString) return;
 
 	if (destination != null && destination.dataString == dataString) {
-		// const data = destination;
 		updateHover(destination);
-		// state = state.update({
-		// 	effects: hoverEffect.of(JSON.stringify(Object.assign(data, { type }))),
-		// }).state;
 		return;
 	}
-	// else {
-	// 	resetState();
-	// }
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
 	let leavesByTab = collectLeavesByTabHelper();
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
-	console.log(currTabIdx);
-
 	if (currTabIdx != -1) {
 		// && currTab != -1) {
 		// // Check adjacent tabs for file and open file if needed
 		const newLeaf = await openFileInAdjacentTab(leavesByTab, currTabIdx, file);
 
-		console.log(newLeaf);
 		if (newLeaf) {
-			// state = state.update({
-			// 	effects: stateMutation.of(
-			// 		JSON.stringify({
-			// 			type,
-			// 			leafId: newLeaf.id,
-			// 		})
-			// 	),
-			// }).state;
 			updateState({
 				leafId: newLeaf.id,
 			});
@@ -253,11 +217,6 @@ export async function startReferenceEffect(
 		if (leavesByTab[currTabIdx + 1]) {
 			const data = highlightHoveredReference(dataString, currTabIdx + 1);
 			if (data) {
-				// state = state.update({
-				// 	effects: stateMutation.of(
-				// 		JSON.stringify(Object.assign(data, { type }))
-				// 	),
-				// }).state;
 				updateState(data);
 			}
 			return;
@@ -267,11 +226,6 @@ export async function startReferenceEffect(
 		if (leavesByTab[currTabIdx - 1]) {
 			const data = highlightHoveredReference(dataString, currTabIdx - 1);
 			if (data) {
-				// state = state.update({
-				// 	effects: stateMutation.of(
-				// 		JSON.stringify(Object.assign(data, { type }))
-				// 	),
-				// }).state;
 				updateState(data);
 			}
 			return;
@@ -283,13 +237,6 @@ export async function endReferenceCursorEffect() {
 	const leavesByTab = collectLeavesByTabHelper();
 	if (!getCursor() || Object.keys(getCursor()).length == 0) {
 		// End mutex lock
-		// state = state.update({
-		// 	effects: cursorEffect.of(
-		// 		JSON.stringify({
-		// 			type: "cursor-off",
-		// 		})
-		// 	),
-		// }).state;
 		resetCursor();
 		return;
 	}
@@ -306,13 +253,6 @@ export async function endReferenceCursorEffect() {
 
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
-		// state = state.update({
-		// 	effects: cursorEffect.of(
-		// 		JSON.stringify({
-		// 			type: "cursor-off",
-		// 		})
-		// 	),
-		// }).state;
 		resetCursor();
 		return;
 	}
@@ -341,9 +281,7 @@ export async function endReferenceCursorEffect() {
 		},
 		true
 	);
-	// console.log(selection);
 
-	// console.log("originalTop: " + originalTop);
 	if (leafId) {
 		setTimeout(() => {
 			targetLeaf.detach();
@@ -351,12 +289,5 @@ export async function endReferenceCursorEffect() {
 	}
 
 	// End mutex lock
-	// state = state.update({
-	// 	effects: cursorEffect.of(
-	// 		JSON.stringify({
-	// 			type: "cursor-off",
-	// 		})
-	// 	),
-	// }).state;
 	resetCursor();
 }

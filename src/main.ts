@@ -12,7 +12,6 @@ import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
-		console.log("test");
 		// that = this;
 		setTimeout(() => {
 			generateReferences();
@@ -66,19 +65,24 @@ export default class ReferencePlugin extends Plugin {
 					span = span.parentElement;
 				}
 			}
-			if (dataString && span && span instanceof HTMLSpanElement) {
+
+			if (
+				span &&
+				span instanceof HTMLSpanElement &&
+				span.getAttribute("data")
+			) {
 				console.log("start hover reference effect");
-				// this.startReferenceEffect(span, "hover");
+				// startReferenceEffect(span, "hover");
 			} else if (
 				span &&
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
-				console.log("start reference reference effect");
+				console.log("start backlink effect");
 				// this.startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
-				// this.endReferenceHoverEffect();
+				// endReferenceHoverEffect();
 			}
 		});
 
