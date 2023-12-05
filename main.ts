@@ -685,7 +685,7 @@ class PlaceholderWidget extends WidgetType {
 	toDOM() {
 		const span = document.createElement("span");
 
-		span.style.backgroundColor = "rgb(187, 215, 230)";
+		// span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
 		span.setAttribute("class", "old-block");
 		span.setAttribute("data", this.name);
@@ -811,7 +811,7 @@ class ReferenceWidget extends WidgetType {
 		// }
 		const span = document.createElement("span");
 
-		span.style.backgroundColor = "rgb(187, 215, 230)";
+		// span.style.backgroundColor = "rgb(187, 215, 230)";
 		span.style.color = "black";
 		span.setAttribute("class", "block");
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
