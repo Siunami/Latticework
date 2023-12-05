@@ -158,8 +158,8 @@ export function checkFocusCursor(evt: Event | { target: HTMLElement }) {
 	if (matched && span) {
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
-			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
 			handleHoveredCursor();
+			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
 			updateHoveredCursor(svgElement);
 		}
 

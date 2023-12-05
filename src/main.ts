@@ -103,6 +103,7 @@ export default class ReferencePlugin extends Plugin {
 				let { matched, span } = checkCursorPositionAtDatastring(evt);
 				console.log(matched);
 				console.log(span);
+				// undo needs to undo any potential references created
 
 				// if (matched) {
 				// 	if (
