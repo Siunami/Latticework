@@ -184,6 +184,7 @@ export function createReferenceMark(
 	const { from, to } = reference;
 	const rangeStart = parseEditorPosition(from);
 	const rangeEnd = parseEditorPosition(to);
+	console.log(rangeStart);
 
 	const pos = editor.posToOffset(rangeStart);
 	const bbox = editor.cm.coordsAtPos(pos);
@@ -272,8 +273,10 @@ export function createReferenceMarkPositions(
 
 export function addReferencesToLeaf(leaf: any) {
 	const references = getReferences();
-	const title =
-		leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
+	console.log(leaf.view.file);
+	// const title =
+	// 	leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
+	const title = leaf.view.file.name;
 	const leafReferences = references.filter((x: any) => x.file == title);
 	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
 

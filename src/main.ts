@@ -1,6 +1,6 @@
 import { Plugin, MarkdownView } from "obsidian";
 
-import { updateThat, state, getHover } from "./state";
+import { updateThat, state, getHover, getReferences } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -9,6 +9,35 @@ import {
 	updateReferenceMarkPositions,
 } from "./references";
 import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
+import { gutter, GutterMarker } from "@codemirror/view";
+import { createReferenceIcon } from "./references";
+import { SVG_HOVER_COLOR } from "./constants";
+
+const emptyMarker = new (class extends GutterMarker {
+	toDOM() {
+		let { span, svg } = createReferenceIcon();
+		span.addEventListener("mouseenter", (ev) => {
+			svg.style.backgroundColor = SVG_HOVER_COLOR;
+		});
+
+		span.addEventListener("mouseleave", (ev) => {
+			svg.style.backgroundColor = "white";
+		});
+
+		return span;
+	}
+})();
+
+const emptyLineGutter = gutter({
+	lineMarker(view, line) {
+		console.log(view);
+		console.log(line);
+		console.log(getReferences());
+
+		return line.from == line.to ? emptyMarker : null;
+	},
+	initialSpacer: () => emptyMarker,
+});
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -20,7 +49,7 @@ export default class ReferencePlugin extends Plugin {
 		updateThat(this);
 
 		this.registerEditorExtension([
-			// emptyLineGutter,
+			emptyLineGutter,
 			// placeholders,
 			highlights,
 			referenceResources,
@@ -85,6 +114,8 @@ export default class ReferencePlugin extends Plugin {
 				// endReferenceHoverEffect();
 			}
 		});
+
+		// on selection changes, event over click and keydown
 
 		this.registerDomEvent(document, "click", async (evt) => {
 			checkFocusCursor(evt);
