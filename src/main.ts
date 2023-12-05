@@ -9,34 +9,20 @@ import {
 	updateReferenceMarkPositions,
 } from "./references";
 import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
-import { gutter, GutterMarker } from "@codemirror/view";
-import { createReferenceIcon } from "./references";
+import { StateField } from "@codemirror/state";
+import { createReferenceIcon, recomputeReferencesForPage } from "./references";
 import { SVG_HOVER_COLOR } from "./constants";
 
-const emptyMarker = new (class extends GutterMarker {
-	toDOM() {
-		let { span, svg } = createReferenceIcon();
-		span.addEventListener("mouseenter", (ev) => {
-			svg.style.backgroundColor = SVG_HOVER_COLOR;
-		});
-
-		span.addEventListener("mouseleave", (ev) => {
-			svg.style.backgroundColor = "white";
-		});
-
-		return span;
-	}
-})();
-
-const emptyLineGutter = gutter({
-	lineMarker(view, line) {
-		console.log(view);
-		console.log(line);
-		console.log(getReferences());
-
-		return line.from == line.to ? emptyMarker : null;
+export let editorChange = StateField.define<any>({
+	create() {
+		return null;
 	},
-	initialSpacer: () => emptyMarker,
+	update(value, tr: any) {
+		// console.log("editorChange");
+		// console.log(tr);
+		recomputeReferencesForPage();
+		return value;
+	},
 });
 
 export default class ReferencePlugin extends Plugin {
@@ -49,8 +35,9 @@ export default class ReferencePlugin extends Plugin {
 		updateThat(this);
 
 		this.registerEditorExtension([
-			emptyLineGutter,
+			// emptyLineGutter,
 			// placeholders,
+			editorChange,
 			highlights,
 			referenceResources,
 		]);
@@ -122,7 +109,7 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			updateReferenceMarkPositions();
+			updateReferenceMarkPositions(getReferences());
 			checkFocusCursor(evt);
 
 			// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);

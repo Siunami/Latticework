@@ -8,6 +8,7 @@ import {
 	Transaction,
 	Text,
 } from "@codemirror/state";
+import { Backlink } from "./references";
 
 export let that = StateField.define<any>({
 	create() {
@@ -49,14 +50,23 @@ export let references = StateField.define<any[]>({
 		return [];
 	},
 	update(value, tr) {
+		console.log(tr);
+		/*
+			I  want to get the current activeLeaf and recompute the references
+			merge this into the references field
+		*/
+
 		if (tr.effects.length > 0) {
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "reference") {
 					// return data.references;
+
+					// existing value, new values, merging them, temporarily converting them into a string
 					let set = new Set(
 						[...value, ...data.references].map((item) => JSON.stringify(item))
 					);
+
 					let uniqueArr = Array.from(set, (item) => JSON.parse(item));
 					return uniqueArr;
 				}
@@ -122,40 +132,6 @@ export let cursorElement = StateField.define<object | null>({
 	},
 });
 
-export let referenceMarks = StateField.define<any[]>({
-	create() {
-		return [];
-	},
-	update(value, tr: any) {
-		if (
-			tr["annotations"].length == 2 &&
-			tr["annotations"][0].value.type == "referenceMark"
-		) {
-			const combinedArray = [
-				...value,
-				{
-					element: tr["annotations"][0].value.element,
-					reference: tr["annotations"][0].value.reference,
-					id: tr["annotations"][0].value.id,
-				},
-			];
-			return combinedArray;
-		} else if (
-			tr["annotations"].length == 2 &&
-			tr["annotations"][0].value.type == "removeReferenceMark"
-		) {
-			let index = value
-				.map((x: any) => x.reference)
-				.indexOf(tr["annotations"][0].value.reference);
-			if (index != -1) {
-				value.splice(index, 1);
-				return value;
-			}
-		}
-		return value;
-	},
-});
-
 export const thatAnnotation = Annotation.define<any>();
 export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
@@ -164,14 +140,7 @@ export const referenceEffect = StateEffect.define<string>();
 export const referenceMarksAnnotation = Annotation.define<any>();
 
 export let state: any = EditorState.create({
-	extensions: [
-		that,
-		hoveredCursor,
-		references,
-		hoverElement,
-		cursorElement,
-		referenceMarks,
-	],
+	extensions: [that, hoveredCursor, references, hoverElement, cursorElement],
 });
 
 export function getThat() {
@@ -252,18 +221,19 @@ export function resetCursor() {
 	}).state;
 }
 
-export function getReferences() {
+export function getReferences(): Backlink[] {
 	return state.field(references);
 }
 
-export function updateReference(value: object) {
+// NOTE: I have no idea what this is doing.
+export function updateReference(value: any) {
 	state = state.update({
 		effects: referenceEffect.of(
 			JSON.stringify(Object.assign(value, { type: "reference" }))
 		),
 	}).state;
 }
-
+/*
 export function getReferenceMarks() {
 	return state.field(referenceMarks);
 }
@@ -298,3 +268,4 @@ export function removeReferenceMark(reference: object) {
 		}).state;
 	}
 }
+*/

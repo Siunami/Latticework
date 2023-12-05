@@ -24,7 +24,16 @@ export function decodeURIComponentString(str: string) {
 	);
 }
 
-export function processURI(dataString: string) {
+export function processURI(
+	dataString: string
+): [
+	prefix: string,
+	text: string,
+	suffix: string,
+	file: string,
+	from: number,
+	to: number
+] {
 	let [prefix, text, suffix, file, from, to] = dataString.split(":");
 	prefix = decodeURIComponentString(prefix);
 	text = decodeURIComponentString(text);
@@ -32,7 +41,16 @@ export function processURI(dataString: string) {
 	file = decodeURIComponentString(file);
 	from = decodeURIComponentString(from);
 	to = decodeURIComponentString(to);
-	return [prefix, text, suffix, file, from, to];
+	return [prefix, text, suffix, file, parseInt(from), parseInt(to)];
+}
+
+export function getPrefixAndSuffix(document: string, from: number, to: number) {
+	let prefix = document
+		.slice(from - 25 > 0 ? from - 25 : 0, from)
+		.split("\n")
+		.slice(-1)[0];
+	let suffix = document.slice(to, to + 25).split("\n")[0];
+	return { prefix, suffix };
 }
 
 export function findTextPositions(

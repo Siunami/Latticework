@@ -1,28 +1,16 @@
-import {
-	App,
-	PluginSettingTab,
-	Setting,
-	TFile,
-	WorkspaceLeaf,
-	MarkdownView,
-} from "obsidian";
+import { Editor, TFile, WorkspaceLeaf, MarkdownView } from "obsidian";
+import { EditorView } from "@codemirror/view";
+import { v5 as uuidv5 } from "uuid";
 
 import {
 	state,
 	updateHover,
-	updateReference,
-	updateReferenceMarks,
-	getReferenceMarks,
 	getThat,
 	getReferences,
-	removeReferenceMark,
+	updateReference,
 } from "./state";
-import {
-	processURI,
-	parseEditorPosition,
-	encodeURIComponentString,
-} from "./utils";
-import { REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
+import { processURI, getPrefixAndSuffix } from "./utils";
+import { REFERENCE_REGEX } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 
 export function createReferenceIcon(): {
@@ -85,34 +73,72 @@ export function createReferenceIcon(): {
 	return { span, svg };
 }
 
+function getCodeMirrorEditorView(editor: Editor): EditorView {
+	// @ts-ignore this type is missing... but the Obsidian docs tell us to do it this way??
+	return editor.cm as EditorView;
+}
+
+function getContainerElement(
+	editorOrLeaf: Editor | WorkspaceLeaf
+): HTMLElement {
+	// @ts-ignore TODO: find a better way to access this... EXTREMELY SKETCHY
+	return editorOrLeaf.containerEl;
+}
+
+function getReferenceMarkID(backlink: Backlink): string {
+	const jsonString = JSON.stringify(backlink);
+	const id = uuidv5(jsonString, "fb813ebb-1b53-4306-aa9c-655627447f0b");
+	return `backlink-${id}`;
+}
+
+function getReferenceMarkContainer(editor: Editor): HTMLElement {
+	const containerEl: HTMLElement = getContainerElement(editor);
+	const referenceMarkContainerID = "referenceMarkContainer";
+	const container = containerEl.querySelector(`#${referenceMarkContainerID}`);
+	if (container) {
+		return container as HTMLElement;
+	} else {
+		const newContainer = document.createElement("div");
+		newContainer.id = referenceMarkContainerID;
+		containerEl.querySelector(".cm-scroller")!.appendChild(newContainer);
+		return newContainer;
+	}
+}
+
+function getReferenceMarks(editor: Editor): HTMLElement[] {
+	const container = getReferenceMarkContainer(editor);
+	const elements: HTMLElement[] = [];
+	for (let i = 0; i < container.children.length; i++) {
+		elements.push(container.children.item(i) as HTMLElement);
+	}
+	return elements;
+}
+
 export function updateReferenceMarkPosition(
-	leaf: any,
-	editor: any,
-	leafReferences: any
+	leaf: WorkspaceLeaf,
+	backlinksToLeaf: Backlink[]
 ) {
-	const title = leaf.containerEl.querySelector(".inline-title");
+	const title = getContainerElement(leaf).querySelector(".inline-title");
+	if (!title) {
+		throw new Error("Missing title");
+	}
 	const titleBbox = title.getBoundingClientRect();
-	const line = leaf.containerEl.querySelector(".cm-line");
+	const line = getContainerElement(leaf).querySelector(".cm-line");
+	if (!line) {
+		throw new Error("Document has no lines");
+	}
 	const lineBbox = line.getBoundingClientRect();
 
-	let references = getReferenceMarks();
-	let filteredReferences = references.filter((x: any) => x.id == leaf.id);
-
-	leafReferences.forEach((reference: any) => {
-		const { from, to, text } = reference;
-
-		let rangeStart = parseEditorPosition(from);
-		let rangeEnd = parseEditorPosition(to);
-		let rangeText = editor.getRange(rangeStart, rangeEnd);
-
-		const pos = editor.posToOffset(rangeStart);
-
+	const editor = getMarkdownView(leaf).editor;
+	const referenceContainer = getReferenceMarkContainer(editor);
+	backlinksToLeaf.forEach((backlink) => {
+		const { from } = backlink.referencedLocation;
 		/* 
 		When the range in the reference text doesn't match,
 		This means that the text has updated
 		Find the new range position if possible
 		Otherwise (future) remove the reference mark
-		*/
+		
 		// console.log("test");
 		// if (rangeText != text) {
 		// 	const positions = findTextPositions(leaf.view, text);
@@ -132,175 +158,219 @@ export function updateReferenceMarkPosition(
 		// 	// 	}
 		// 	// }
 		// }
+		*/
+		const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
+		let referenceMarker = referenceContainer.querySelector(
+			`#${getReferenceMarkID(backlink)}`
+		) as HTMLElement | null;
 
-		const bbox = editor.cm.coordsAtPos(pos);
+		if (referenceMarker === null) {
+			referenceMarker = createReferenceMark(backlink, leaf, editor);
+		}
 
-		let exists = filteredReferences
-			.map((x: any) => x.reference)
-			.indexOf(reference);
-		if (exists != -1 && bbox) {
-			filteredReferences[exists].element.style.top =
-				bbox.top - titleBbox.top + 32 + "px";
-			filteredReferences[exists].element.style.left =
-				lineBbox.width + 40 + "px";
+		if (bbox) {
+			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
+			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
 	});
 }
 
-export function updateReferenceMarkPositions(
-	references: any = getReferences()
-) {
+export function updateReferenceMarkPositions(allBacklinks: Backlink[]) {
 	const { workspace } = getThat().app;
-	const leaves = workspace.getLeavesOfType("markdown");
-	const visibleLeaves = leaves.filter((leaf: any) =>
+	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
+	const visibleLeaves = leaves.filter((leaf) =>
+		// @ts-ignore TODO: find a better way to access this -- sketchy!
 		leaf.tabHeaderEl.className.includes("is-active")
 	);
 
-	visibleLeaves.forEach((visibleLeaf: any) => {
-		const title =
-			visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
-			".md";
-		const visibleLeafReferences = references.filter(
-			(x: any) => x.file == title
+	visibleLeaves.forEach((visibleLeaf) => {
+		const backlinksToLeaf = allBacklinks.filter(
+			(b) => b.referencedLocation.filename == getFilename(visibleLeaf)
 		);
-		updateReferenceMarkPosition(
-			visibleLeaf,
-			visibleLeaf.view.editor,
-			visibleLeafReferences
-		);
+		updateReferenceMarkPosition(visibleLeaf, backlinksToLeaf);
 	});
 }
 
 export function createReferenceMark(
-	reference: any,
-	leaf: any = this.app.workspace.getLeaf(),
-	editor: any = this.app.workspace.getLeaf().view.editor
-) {
-	const title = leaf.containerEl.querySelector(".inline-title");
+	backlink: Backlink,
+	leaf: WorkspaceLeaf,
+	editor: Editor
+): HTMLElement {
+	// @ts-ignore TODO: find a better way to access this...
+	const containerEl: Element = leaf.containerEl;
+	const title = containerEl.querySelector(".inline-title");
+	if (!title) {
+		throw new Error("Missing title");
+	}
 	const titleBbox = title.getBoundingClientRect();
-	const line = leaf.containerEl.querySelector(".cm-line");
+	const line = containerEl.querySelector(".cm-line");
+	if (!line) {
+		throw new Error("No lines??");
+	}
 	const lineBbox = line.getBoundingClientRect();
 
-	const { from, to } = reference;
-	const rangeStart = parseEditorPosition(from);
-	const rangeEnd = parseEditorPosition(to);
-	console.log(rangeStart);
+	const { from } = backlink.referencedLocation;
+	const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
 
-	const pos = editor.posToOffset(rangeStart);
-	const bbox = editor.cm.coordsAtPos(pos);
-
+	let { span } = createReferenceIcon();
+	span.style.color = "black";
+	span.style.position = "absolute";
 	if (bbox) {
-		let { span, svg } = createReferenceIcon();
-		updateReferenceMarks(span, reference, leaf.id);
-		span.style.color = "black";
-		span.style.position = "absolute";
 		span.style.top = bbox.top - titleBbox.top + 20 + "px";
 		span.style.left = lineBbox.width + 40 + "px";
-		span.setAttribute("reference", JSON.stringify(reference));
+	}
+	span.id = getReferenceMarkID(backlink);
 
-		span.addEventListener("click", async () => {
-			const { workspace } = state.values[0].app;
-			const leavesByTab = collectLeavesByTabHelper();
+	span.addEventListener("click", async () => {
+		const { workspace } = state.values[0].app;
+		const leavesByTab = collectLeavesByTabHelper();
 
-			const { tabIdx, index, dataString, leafId } = state.values[2];
-			/* If temporary, then keep leaf */
-			if (dataString) {
-				let [prefix, text, suffix, file, from, to] = processURI(dataString);
-				let rangeEnd = parseEditorPosition(to);
-				/*
+		const { tabIdx, index, dataString, leafId } = state.values[2];
+		/* If temporary, then keep leaf */
+		if (dataString) {
+			let [prefix, text, suffix, file, from, to] = processURI(dataString);
+			/*
 					The problem here is that I don't have the position of the span element.
 					I want to set the active cursor to the end of the span
-				*/
-				// let [text2, file2, from2, to2] = this.name.split("|");
-				// const currentTab = getHoveredTab(leavesByTab, span);
-				// // console.log("currentTab");
-				// // console.log(currentTab);
-				// let rangeEnd2 = parseEditorPosition(to2);
+			// let [text2, file2, from2, to2] = this.name.split("|");
+			// const currentTab = getHoveredTab(leavesByTab, span);
+			// // console.log("currentTab");
+			// // console.log(currentTab);
+			// let rangeEnd2 = parseEditorPosition(to2);
 
-				// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-				// // console.log(lineText);
-				// // currentTab.view.editor.setCursor(rangeEnd2);
+			// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+			// // console.log(lineText);
+			// // currentTab.view.editor.setCursor(rangeEnd2);
+			*/
 
-				let targetLeaf = leavesByTab[tabIdx][1][index];
-				workspace.setActiveLeaf(targetLeaf);
-				const editor = targetLeaf.view.editor;
-				editor.setCursor(rangeEnd);
+			let targetLeaf = leavesByTab[tabIdx][1][index];
+			workspace.setActiveLeaf(targetLeaf);
+			const editor = targetLeaf.view.editor;
+			editor.setCursor(editor.cm.posToOffset(to));
 
-				updateHover({
-					leafId: null,
-					originalTop: null,
-				});
-			}
-		});
-
-		editor.containerEl.querySelector(".cm-scroller").appendChild(span);
-	}
-}
-
-export function createReferenceMarkPositions(
-	leaf: any,
-	editor: any,
-	leafReferences: any
-) {
-	let referenceMarks = getReferenceMarks().filter((x: any) => x.id == leaf.id);
-
-	leafReferences.forEach((reference: any) => {
-		if (
-			referenceMarks
-				.map((x: any) => JSON.stringify(x.reference))
-				.indexOf(JSON.stringify(reference)) != -1
-		) {
-			return;
+			updateHover({
+				leafId: null,
+				originalTop: null,
+			});
 		}
-
-		createReferenceMark(reference, leaf, editor);
 	});
 
-	// console.log(leafReferences);
-	// referenceMarks.forEach((referenceMark: any) => {
-	// 	console.log("referenceMark");
-	// 	console.log(referenceMark);
-	// 	let exists = leafReferences
-	// 		.map((x: any) => JSON.stringify(x.reference))
-	// 		.indexOf(JSON.stringify(referenceMark.reference));
-	// 	console.log(exists);
-	// 	if (exists == -1) {
-	// 		removeReferenceMark(referenceMark.reference);
-	// 		referenceMark.element.remove();
-	// 	}
-	// });
+	getReferenceMarkContainer(editor).appendChild(span);
+	return span;
 }
 
-export function addReferencesToLeaf(leaf: any) {
-	const references = getReferences();
-	console.log(leaf.view.file);
-	// const title =
-	// 	leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
-	const title = leaf.view.file.name;
-	const leafReferences = references.filter((x: any) => x.file == title);
-	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
+export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
+	const allBacklinks: Backlink[] = getReferences();
+	const filename = getFilename(leaf);
+	// const leafReferences = allBacklinks.filter(
+	// 	(x) => x.referencedLocation.filename == filename
+	// );
+	const markdownView = getMarkdownView(leaf);
+	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
+	if (!workspaceTabs) {
+		throw new Error("Missing workspace tabs");
+	}
 
-	leaf.view.editor.containerEl
-		.querySelector(".cm-scroller")
+	console.log(allBacklinks);
+	console.log(leaf);
+	console.log(getFilename(leaf));
+	const backlinksToLeaf = allBacklinks.filter(
+		(b) => b.referencingLocation.filename == getFilename(leaf)
+	);
+
+	getContainerElement(markdownView.editor)
+		.querySelector(".cm-scroller")!
 		.addEventListener("scroll", () => {
-			createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
-			updateReferenceMarkPositions(references);
+			updateReferenceMarkPositions(backlinksToLeaf);
 		});
 
-	createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
-	updateReferenceMarkPositions(references);
+	updateReferenceMarkPositions(backlinksToLeaf);
 	let resizeObserver = new ResizeObserver(() => {
-		updateReferenceMarkPositions(references);
+		updateReferenceMarkPositions(backlinksToLeaf);
 	});
 
 	resizeObserver.observe(workspaceTabs);
+}
+
+export interface DocumentLocation {
+	prefix: string;
+	text: string;
+	suffix: string;
+	filename: string;
+	from: number; // document offsets
+	to: number; // document offsets
+}
+
+export interface Backlink {
+	referencedLocation: DocumentLocation;
+	referencingLocation: DocumentLocation;
+	dataString: string;
+}
+
+function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
+	if (!(leaf.view instanceof MarkdownView)) {
+		throw new Error("Unexpected non-markdown view");
+	}
+	return leaf.view as MarkdownView;
+}
+
+function getFilename(leaf: WorkspaceLeaf): string {
+	const { file } = getMarkdownView(leaf);
+	if (!file) {
+		throw new Error("Unexpected missing file");
+	}
+	return file.name;
+}
+
+function createReferenceData(
+	referencingFileData: string,
+	referencingFile: TFile
+): Backlink[] {
+	let backlinks: Backlink[] = [];
+
+	let matches = [...referencingFileData.matchAll(REFERENCE_REGEX)];
+	matches.forEach((match) => {
+		let [prefix, text, suffix, referencedFileName, from, to] = processURI(
+			match[1]
+		);
+		const referencedLocation: DocumentLocation = {
+			prefix,
+			text,
+			suffix,
+			filename: referencedFileName,
+			from,
+			to,
+		};
+
+		const referencingSurroundingStrings = getPrefixAndSuffix(
+			referencingFileData,
+			match.index!,
+			match.index! + match.length
+		);
+		const referencingLocation: DocumentLocation = {
+			prefix: referencingSurroundingStrings.prefix,
+			text,
+			suffix: referencingSurroundingStrings.suffix,
+			filename: referencingFile.path,
+			from: match.index!, // TODO do weird string format
+			to: match.index! + match.length, // TODO do weird string format
+		};
+
+		backlinks.push({
+			referencedLocation,
+			referencingLocation,
+			dataString: match[1],
+		});
+	});
+	return backlinks;
 }
 
 let debounceTimer: NodeJS.Timeout;
 export function generateReferences() {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(() => {
-		let references: any = [];
+		console.log("generating references");
+		let backlinks: Backlink[] = [];
 		let markdownFiles = this.app.vault.getMarkdownFiles();
 		// console.log(markdownFiles);
 		Promise.all(
@@ -312,23 +382,27 @@ export function generateReferences() {
 			}));
 
 			zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-				let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
-				matches.forEach((match) => {
-					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-					references.push({
-						prefix,
-						text,
-						suffix,
-						file: file2,
-						from,
-						to,
-						dataString: match[1],
-						sourceFile: file.markdownFile.path,
-					});
-				});
+				backlinks.push(
+					...createReferenceData(file.fileData, file.markdownFile)
+				);
+				// let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
+
+				// matches.forEach((match) => {
+				// 	let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+				// 	references.push({
+				// 		prefix,
+				// 		text,
+				// 		suffix,
+				// 		file: file2,
+				// 		from,
+				// 		to,
+				// 		dataString: match[1],
+				// 		sourceFile: file.markdownFile.path,
+				// 	});
+				// });
 			});
 
-			updateReference({ references });
+			updateReference({ references: backlinks });
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			leaves.forEach((leaf: WorkspaceLeaf) => {
@@ -336,6 +410,17 @@ export function generateReferences() {
 			});
 		});
 	}, 100);
+}
+
+export async function recomputeReferencesForPage() {
+	const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
+	if (!activeLeaf) return;
+	const file = activeLeaf.leaf.view.file;
+	const fileData = await this.app.vault.read(file);
+
+	// console.log(fileData);
+	// updateReference({ references: createReferenceData(fileData, file) });
+	// console.log(getReferences());
 }
 
 export async function openReference() {
@@ -346,7 +431,7 @@ export async function openReference() {
 	/* If temporary, then keep leaf */
 	if (dataString) {
 		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-		let rangeEnd = parseEditorPosition(to);
+		// let rangeEnd = parseEditorPosition(to);
 		/*
 					The problem here is that I don't have the position of the span element.
 					I want to set the active cursor to the end of the span
@@ -365,7 +450,7 @@ export async function openReference() {
 		let targetLeaf = leavesByTab[tabIdx][1][index];
 		workspace.setActiveLeaf(targetLeaf);
 		const editor = targetLeaf.view.editor;
-		editor.setCursor(rangeEnd);
+		editor.setCursor(editor.cm.offsetToPos(to));
 		updateHover({
 			leafId: null,
 			originalTop: null,
