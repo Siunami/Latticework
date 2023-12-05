@@ -45,31 +45,33 @@ class ReferenceWidget extends WidgetType {
 		console.log("content !!!!!");
 		console.log(content);
 		console.log(this.view);
-		// let workspaceTabs = this.view.contentDOM.closest(".workspace-tabs");
+		let workspaceTabs = this.view.contentDOM.closest(".workspace-tabs");
 
-		// console.log(workspaceTabs);
-		// let title =
-		// 	workspaceTabs.containerEl.querySelector(".view-header-title")?.innerHTML +
-		// 	".md";
+		console.log(workspaceTabs);
+		if (workspaceTabs && content) {
+			let title =
+				workspaceTabs.querySelector(".view-header-title")?.innerHTML + ".md";
+			console.log(title);
+			let [prefix, text, suffix, file, from, to] = content[1].split(":");
+			prefix = decodeURIComponentString(prefix);
+			text = decodeURIComponentString(text);
+			suffix = decodeURIComponentString(suffix);
+			file = decodeURIComponentString(file);
+			from = decodeURIComponentString(from);
+			to = decodeURIComponentString(to);
+
+			// createReferenceMark({
+			// 	prefix,
+			// 	text,
+			// 	suffix,
+			// 	file,
+			// 	from,
+			// 	to,
+			// 	sourceFile: title,
+			// 	dataString: content[1],
+			// });
+		}
 		// console.log(content[1].split(":"));
-		// let [prefix, text, suffix, file, from, to] = content.split(":");
-		// prefix = decodeURIComponentString(prefix);
-		// text = decodeURIComponentString(text);
-		// suffix = decodeURIComponentString(suffix);
-		// file = decodeURIComponentString(file);
-		// from = decodeURIComponentString(from);
-		// to = decodeURIComponentString(to);
-
-		// createReferenceMark({
-		// 	prefix,
-		// 	text,
-		// 	suffix,
-		// 	file,
-		// 	from,
-		// 	to,
-		// 	sourceFile: title,
-		// 	dataString: content,
-		// });
 
 		console.log(this.view);
 		console.log("new reference");

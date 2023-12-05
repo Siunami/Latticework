@@ -33,6 +33,10 @@ function findTextPositions(
 	prefix: string = "",
 	suffix: string = ""
 ) {
+	if (searchTerm == "sidebar next to with a comme") {
+		console.log("THIS IS THE ONE");
+	}
+
 	const editor = view.editor;
 
 	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
@@ -48,14 +52,21 @@ function findTextPositions(
 
 	if (text.includes(prefix + searchTerm + suffix)) {
 		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		console.log("matchIndex");
+		console.log(matchIndex);
 		let startIndex =
 			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
 			1;
+
 		let endIndex =
 			lines.findIndex(
 				(line: any) =>
 					line.index > matchIndex + prefix.length + searchTerm.length
 			) - 1;
+		if (startIndex == -2) {
+			startIndex = lines.length - 1;
+			endIndex = lines.length - 1;
+		}
 
 		const selection = editor.getRange(
 			{
@@ -155,11 +166,10 @@ export function updateReferenceMarkPosition(
 	const lineBbox = line.getBoundingClientRect();
 
 	let references = getReferenceMarks();
+	let filteredReferences = references.filter((x: any) => x.id == leaf.id);
 
 	leafReferences.forEach((reference: any) => {
 		const { from, to, text } = reference;
-
-		const positions = findTextPositions(leaf.view, text);
 
 		let rangeStart = parseEditorPosition(from);
 		let rangeEnd = parseEditorPosition(to);
@@ -167,19 +177,35 @@ export function updateReferenceMarkPosition(
 
 		const pos = editor.posToOffset(rangeStart);
 
-		if (rangeText != text) {
-			if (positions?.rangeStart && positions?.rangeEnd) {
-				rangeStart = positions?.rangeStart;
-				rangeEnd = positions?.rangeEnd;
-			}
-		}
+		console.log(rangeText);
+		console.log(pos);
+
+		// console.log("test");
+		// if (rangeText != text) {
+		// 	const positions = findTextPositions(leaf.view, text);
+		// 	console.log(positions);
+		// 	if (positions?.rangeStart && positions?.rangeEnd) {
+		// 		rangeStart = positions.rangeStart;
+		// 		rangeEnd = positions.rangeEnd;
+		// 	}
+		// 	//  else {
+		// 	// 	console.log("reference not found");
+		// 	// 	let exists = filteredReferences
+		// 	// 		.map((x: any) => x.reference)
+		// 	// 		.indexOf(reference);
+		// 	// 	if (exists != -1) {
+		// 	// 		filteredReferences[exists].element.remove();
+		// 	// 		removeReferenceMark(reference);
+		// 	// 	}
+		// 	// }
+		// }
 
 		const bbox = editor.cm.coordsAtPos(pos);
 
-		let filteredReferences = references.filter((x: any) => x.id == leaf.id);
 		let exists = filteredReferences
 			.map((x: any) => x.reference)
 			.indexOf(reference);
+		console.log(exists);
 		if (exists != -1 && bbox) {
 			filteredReferences[exists].element.style.top =
 				bbox.top - titleBbox.top + 20 + "px";
@@ -198,6 +224,8 @@ export function updateAllVisibleReferenceMarkPositions(
 		leaf.tabHeaderEl.className.includes("is-active")
 	);
 
+	console.log("updateAllVisibleReferenceMarkPositions");
+	console.log(visibleLeaves);
 	visibleLeaves.forEach((visibleLeaf: any) => {
 		const title =
 			visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
@@ -227,16 +255,6 @@ export function createReferenceMark(
 	const { from, to } = reference;
 	const rangeStart = parseEditorPosition(from);
 	const rangeEnd = parseEditorPosition(to);
-
-	const text = editor.getRange(rangeStart, rangeEnd);
-	console.log(text);
-	// if (reference.text != text) {
-	// 	// need to find the text
-	// 	console.log("text not equal");
-	// 	console.log(text);
-
-	// 	return;
-	// }
 
 	const pos = editor.posToOffset(rangeStart);
 	const bbox = editor.cm.coordsAtPos(pos);

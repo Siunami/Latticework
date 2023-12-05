@@ -159,7 +159,6 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			console.log(evt);
-			console.log(this.app.workspace.getActiveViewOfType(MarkdownView)?.editor);
 			updateAllVisibleReferenceMarkPositions();
 
 			// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
