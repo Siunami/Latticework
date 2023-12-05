@@ -32,7 +32,7 @@ const emptyLineGutter = gutter({
 	lineMarker(view, line) {
 		console.log(view);
 		console.log(line);
-		console.log(getReferences());
+		// console.log(getReferences());
 
 		return line.from == line.to ? emptyMarker : null;
 	},

@@ -4,6 +4,7 @@ import {
 	parseEditorPosition,
 	encodeURIComponentString,
 } from "./utils";
+import { start } from "repl";
 
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
 // [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
@@ -31,6 +32,9 @@ export async function updateClipboard(only: boolean = false) {
 			let endIndex = lines.filter((line: any) => line.i == to.line)[0];
 			endIndex = endIndex.index + to.ch;
 
+			console.log(startIndex);
+			console.log(endIndex);
+
 			let prefix = text
 				.slice(startIndex - 25 > 0 ? startIndex - 25 : 0, startIndex)
 				.split("\n")
@@ -42,12 +46,20 @@ export async function updateClipboard(only: boolean = false) {
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
 			)}:${encodeURIComponentString(view.file.path)}:${encodeURIComponentString(
-				view.editor.getCursor("from").line +
-					"," +
-					view.editor.getCursor("from").ch
-			)}:${encodeURIComponentString(
-				view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
-			)})`;
+				startIndex
+			)}:${encodeURIComponentString(endIndex)})`;
+
+			// let reference = `[↗](urn:${encodeURIComponentString(
+			// 	prefix
+			// )}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
+			// 	suffix
+			// )}:${encodeURIComponentString(view.file.path)}:${encodeURIComponentString(
+			// 	view.editor.getCursor("from").line +
+			// 		"," +
+			// 		view.editor.getCursor("from").ch
+			// )}:${encodeURIComponentString(
+			// 	view.editor.getCursor("to").line + "," + view.editor.getCursor("to").ch
+			// )})`;
 
 			if (!only) {
 				reference = '"' + selection + '" ' + reference;

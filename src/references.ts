@@ -273,7 +273,6 @@ export function createReferenceMarkPositions(
 
 export function addReferencesToLeaf(leaf: any) {
 	const references = getReferences();
-	console.log(leaf.view.file);
 	// const title =
 	// 	leaf.containerEl.querySelector(".view-header-title").innerHTML + ".md";
 	const title = leaf.view.file.name;
@@ -315,6 +314,7 @@ export function generateReferences() {
 				let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
 				matches.forEach((match) => {
 					let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
+
 					references.push({
 						prefix,
 						text,
