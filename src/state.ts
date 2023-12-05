@@ -62,7 +62,6 @@ export let hoverElement = StateField.define<object | null>({
 				if (data.type == "hover-start") {
 					return Object.assign({}, data);
 				} else if (data.type == "hover") {
-					if (value) console.log(Object.assign(value, data));
 					if (value) return Object.assign(value, data);
 					return data;
 				} else if (data.type == "hover-off") {
@@ -174,6 +173,16 @@ export function updateHover(value: object) {
 	}).state;
 }
 
+export function resetHover() {
+	state = state.update({
+		effects: hoverEffect.of(
+			JSON.stringify({
+				type: "hover-off",
+			})
+		),
+	}).state;
+}
+
 export function getCursor() {
 	return state.field(cursorElement);
 }
@@ -182,6 +191,16 @@ export function updateCursor(value: object) {
 	state = state.update({
 		effects: cursorEffect.of(
 			JSON.stringify(Object.assign(value, { type: "cursor" }))
+		),
+	}).state;
+}
+
+export function resetCursor() {
+	state = state.update({
+		effects: cursorEffect.of(
+			JSON.stringify({
+				type: "cursor-off",
+			})
 		),
 	}).state;
 }

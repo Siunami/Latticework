@@ -23,7 +23,7 @@ import {
 	encodeURIComponentString,
 } from "./utils";
 import { REFERENCE_REGEX } from "./constants";
-import { collectLeavesByTabHelper } from "./leaves";
+import { collectLeavesByTabHelper } from "./workspace";
 import { SearchCursor } from "@codemirror/search"; // Import the SearchCursor class
 import { Text } from "@codemirror/state";
 
@@ -33,10 +33,6 @@ function findTextPositions(
 	prefix: string = "",
 	suffix: string = ""
 ) {
-	if (searchTerm == "sidebar next to with a comme") {
-		console.log("THIS IS THE ONE");
-	}
-
 	const editor = view.editor;
 
 	// const test = new SearchCursor(Text.of(activeLeaf.view.data), searchTerm);
@@ -52,36 +48,21 @@ function findTextPositions(
 
 	if (text.includes(prefix + searchTerm + suffix)) {
 		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
-		console.log("matchIndex");
-		console.log(matchIndex);
 		let startIndex =
-			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
-			1;
+			lines.findIndex(
+				(line: any) => line.index + line.length > matchIndex + prefix.length
+			) - 1;
 
 		let endIndex =
 			lines.findIndex(
 				(line: any) =>
-					line.index > matchIndex + prefix.length + searchTerm.length
+					line.index + line.length >
+					matchIndex + prefix.length + searchTerm.length
 			) - 1;
 		if (startIndex == -2) {
 			startIndex = lines.length - 1;
 			endIndex = lines.length - 1;
 		}
-
-		const selection = editor.getRange(
-			{
-				line: startIndex,
-				ch: matchIndex + prefix.length - lines[startIndex].index,
-			},
-			{
-				line: endIndex,
-				ch:
-					matchIndex +
-					prefix.length +
-					searchTerm.length -
-					lines[endIndex].index,
-			}
-		);
 
 		return {
 			rangeStart: {
@@ -112,13 +93,8 @@ function findNewRange(
 ): { from: number; to: number } | null {
 	// const cursor = editor.getSearchCursor(text);
 	// const cursor = new SearchCursor(Text.of(leaf.view.data), "a");
-	console.log(leaf.view.data);
-	console.log(text);
-	// console.log(leaf.view.editor.cm.getSearchCursor(text));
-	// console.log(leaf.view.editor.cm);
 	const cursor = new SearchCursor(Text.of(leaf.view.data), text);
 
-	console.log(cursor);
 	if (cursor.next()) {
 		return cursor.value;
 	} else {
@@ -126,33 +102,64 @@ function findNewRange(
 	}
 }
 
-export function createReferenceIcon(): HTMLSpanElement {
+export function createReferenceIcon(): {
+	span: HTMLSpanElement;
+	svg: SVGElement;
+} {
 	const span = document.createElement("span");
 
+	const height = 28;
+
+	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+	svg.setAttribute("width", "24");
+	svg.setAttribute("height", `${height}`);
+	svg.setAttribute("viewBox", `0 0 24 ${height}`);
+	svg.setAttribute("fill", "white");
+	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+	svg.style.border = "4px solid black";
+	svg.style.backgroundColor = "white";
+	svg.style.cursor = "pointer";
+
 	span.addEventListener("mouseenter", async () => {
-		span.style.backgroundColor = "rgb(187, 215, 230)";
-		// this.startReferenceEffect(span, "cursor");
+		svg.style.backgroundColor = "rgb(187, 215, 230)";
 	});
 
 	span.addEventListener("mouseleave", async () => {
-		span.style.backgroundColor = "rgba(0, 0, 0, 0)";
-		// this.endCursorEffect();
+		svg.style.backgroundColor = "white";
 	});
 
-	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-	svg.setAttribute("width", "16");
-	svg.setAttribute("height", "16");
-	svg.setAttribute("viewBox", "0 0 16 16");
-	svg.setAttribute("fill", "none");
-	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+	line.setAttribute("x1", "6");
+	line.setAttribute("y1", `${(height - 8) / 3}`);
+	line.setAttribute("x2", "18");
+	line.setAttribute("y2", `${(height - 8) / 3}`);
+	line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+	line.setAttribute("stroke", "black"); // Set the stroke color to black
 
-	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-	path.setAttribute("d", "M8 16L0 8L8 0L16 8L8 16Z");
-	path.setAttribute("fill", "yellow");
+	svg.appendChild(line);
 
-	svg.appendChild(path);
+	const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+	line2.setAttribute("x1", "6");
+	line2.setAttribute("y1", `${((height - 8) / 3) * 2}`);
+	line2.setAttribute("x2", "20");
+	line2.setAttribute("y2", `${((height - 8) / 3) * 2}`);
+	line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+	line2.setAttribute("stroke", "black"); // Set the stroke color to black
+
+	svg.appendChild(line2);
+
+	const line3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
+	line3.setAttribute("x1", "6");
+	line3.setAttribute("y1", `${((height - 8) / 3) * 3}`);
+	line3.setAttribute("x2", "15");
+	line3.setAttribute("y2", `${((height - 8) / 3) * 3}`);
+	line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+	line3.setAttribute("stroke", "black"); // Set the stroke color to black
+
+	svg.appendChild(line3);
+
 	span.appendChild(svg);
-	return span;
+	return { span, svg };
 }
 
 export function updateReferenceMarkPosition(
@@ -177,9 +184,12 @@ export function updateReferenceMarkPosition(
 
 		const pos = editor.posToOffset(rangeStart);
 
-		console.log(rangeText);
-		console.log(pos);
-
+		/* 
+		When the range in the reference text doesn't match,
+		This means that the text has updated
+		Find the new range position if possible
+		Otherwise (future) remove the reference mark
+		*/
 		// console.log("test");
 		// if (rangeText != text) {
 		// 	const positions = findTextPositions(leaf.view, text);
@@ -205,7 +215,6 @@ export function updateReferenceMarkPosition(
 		let exists = filteredReferences
 			.map((x: any) => x.reference)
 			.indexOf(reference);
-		console.log(exists);
 		if (exists != -1 && bbox) {
 			filteredReferences[exists].element.style.top =
 				bbox.top - titleBbox.top + 20 + "px";
@@ -215,7 +224,7 @@ export function updateReferenceMarkPosition(
 	});
 }
 
-export function updateAllVisibleReferenceMarkPositions(
+export function updateReferenceMarkPositions(
 	references: any = getReferences()
 ) {
 	const { workspace } = getThat().app;
@@ -224,8 +233,6 @@ export function updateAllVisibleReferenceMarkPositions(
 		leaf.tabHeaderEl.className.includes("is-active")
 	);
 
-	console.log("updateAllVisibleReferenceMarkPositions");
-	console.log(visibleLeaves);
 	visibleLeaves.forEach((visibleLeaf: any) => {
 		const title =
 			visibleLeaf.containerEl.querySelector(".view-header-title").innerHTML +
@@ -251,7 +258,6 @@ export function createReferenceMark(
 	const line = leaf.containerEl.querySelector(".cm-line");
 	const lineBbox = line.getBoundingClientRect();
 
-	console.log(reference);
 	const { from, to } = reference;
 	const rangeStart = parseEditorPosition(from);
 	const rangeEnd = parseEditorPosition(to);
@@ -260,7 +266,7 @@ export function createReferenceMark(
 	const bbox = editor.cm.coordsAtPos(pos);
 
 	if (bbox) {
-		let span = createReferenceIcon();
+		let { span, svg } = createReferenceIcon();
 		updateReferenceMarks(span, reference, leaf.id);
 		span.style.color = "black";
 		span.style.position = "absolute";
@@ -268,19 +274,15 @@ export function createReferenceMark(
 		span.style.left = lineBbox.width + 40 + "px";
 		span.setAttribute("reference", JSON.stringify(reference));
 
-		// span.addEventListener("mouseenter", async () => {
-		// 	span.style.backgroundColor = "rgb(187, 215, 230)";
-		// 	// this.startReferenceEffect(span, "cursor");
-		// });
+		span.addEventListener("mouseenter", async () => {
+			svg.setAttribute("fill", "rgb(187, 215, 230)");
+		});
 
-		// span.addEventListener("mouseleave", async () => {
-		// 	span.style.backgroundColor = "rgba(0, 0, 0, 0)";
-		// 	// this.endCursorEffect();
-		// });
+		span.addEventListener("mouseleave", async () => {
+			svg.setAttribute("fill", "none");
+		});
 
 		span.addEventListener("click", async () => {
-			console.log("click");
-			console.log(reference.text);
 			const { workspace } = state.values[0].app;
 			const leavesByTab = collectLeavesByTabHelper();
 
@@ -290,10 +292,9 @@ export function createReferenceMark(
 				let [prefix, text, suffix, file, from, to] = processURI(dataString);
 				let rangeEnd = parseEditorPosition(to);
 				/*
-                        The problem here is that I don't have the position of the span element.
-                        I want to set the active cursor to the end of the span
-                    */
-
+					The problem here is that I don't have the position of the span element.
+					I want to set the active cursor to the end of the span
+				*/
 				// let [text2, file2, from2, to2] = this.name.split("|");
 				// const currentTab = getHoveredTab(leavesByTab, span);
 				// // console.log("currentTab");
@@ -361,20 +362,17 @@ export function addReferencesToLeaf(leaf: any) {
 	const leafReferences = references.filter((x: any) => x.file == title);
 	let workspaceTabs = leaf.containerEl.closest(".workspace-tabs");
 
-	// console.log(leaf.view.editor.containerEl.querySelector(".cm-scroller"));
-
 	leaf.view.editor.containerEl
 		.querySelector(".cm-scroller")
 		.addEventListener("scroll", () => {
-			console.log("scroll");
 			createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
-			updateAllVisibleReferenceMarkPositions(references);
+			updateReferenceMarkPositions(references);
 		});
 
 	createReferenceMarkPositions(leaf, leaf.view.editor, leafReferences);
-	updateAllVisibleReferenceMarkPositions(references);
+	updateReferenceMarkPositions(references);
 	let resizeObserver = new ResizeObserver(() => {
-		updateAllVisibleReferenceMarkPositions(references);
+		updateReferenceMarkPositions(references);
 	});
 
 	resizeObserver.observe(workspaceTabs);
@@ -384,7 +382,6 @@ let debounceTimer: NodeJS.Timeout;
 export function generateReferences() {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(() => {
-		console.log("GENERATE REFERENCES");
 		let references: any = [];
 		let markdownFiles = this.app.vault.getMarkdownFiles();
 		// console.log(markdownFiles);

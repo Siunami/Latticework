@@ -1,34 +1,14 @@
-import {
-	App,
-	Plugin,
-	PluginSettingTab,
-	Setting,
-	MarkdownView,
-	Editor,
-	EditorRange,
-	Menu,
-	Notice,
-	ItemView,
-	WorkspaceLeaf,
-	WorkspaceSplit,
-	TFile,
-} from "obsidian";
+import { Plugin, MarkdownView } from "obsidian";
 
-import {
-	updateHover,
-	updateThat,
-	getThat,
-	state,
-	getReferences,
-} from "./state";
+import { updateThat, state, getHover } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
 	generateReferences,
 	addReferencesToLeaf,
-	updateAllVisibleReferenceMarkPositions,
+	updateReferenceMarkPositions,
 } from "./references";
-import { checkCursorPositionAtDatastring } from "./utils";
+import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -48,44 +28,12 @@ export default class ReferencePlugin extends Plugin {
 		]);
 
 		this.registerEvent(
-			this.app.workspace.on("window-open", (ev) => {
-				console.log("window opened:");
-				// console.log(ev);
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on("resize", () => {
-				console.log("resize");
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on("file-open", (ev) => {
-				console.log("file opened:");
-				// console.log(ev);
-				// console.log(getReferences());
-
-				let currentLeaf: any = this.app.workspace.getLeaf();
-
-				// check it references have already been created, else create references
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on("layout-change", () => {
-				console.log("layout-changed:");
-			})
-		);
-
-		this.registerEvent(
 			this.app.workspace.on("active-leaf-change", (ev) => {
 				console.log("active-leaf-changed:");
 				console.log(ev);
 				// This should create referenceMarkers if they don't exist and update
 				// else update only
 
-				console.log(this.app.workspace.getActiveViewOfType(MarkdownView));
 				try {
 					const activeView =
 						this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -95,20 +43,6 @@ export default class ReferencePlugin extends Plugin {
 				} catch (e) {
 					console.log(e);
 				}
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on("window-close", (ev) => {
-				console.log("window closed:");
-				console.log(ev);
-			})
-		);
-
-		this.registerEvent(
-			this.app.workspace.on("editor-drop", (ev) => {
-				console.log("Editor dropped:");
-				console.log(ev);
 			})
 		);
 
@@ -132,12 +66,7 @@ export default class ReferencePlugin extends Plugin {
 					span = span.parentElement;
 				}
 			}
-			if (
-				dataString &&
-				span &&
-				span instanceof HTMLSpanElement &&
-				!span.className.includes("old-block")
-			) {
+			if (dataString && span && span instanceof HTMLSpanElement) {
 				console.log("start hover reference effect");
 				// this.startReferenceEffect(span, "hover");
 			} else if (
@@ -147,19 +76,19 @@ export default class ReferencePlugin extends Plugin {
 			) {
 				console.log("start reference reference effect");
 				// this.startBacklinkEffect(span);
-			} else if (state.values[2] != null) {
+			} else if (getHover() != null) {
 				console.log("end hover reference effect");
 				// this.endReferenceHoverEffect();
 			}
 		});
 
 		this.registerDomEvent(document, "click", async (evt) => {
-			// this.checkFocusCursor(evt);
+			checkFocusCursor(evt);
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			console.log(evt);
-			updateAllVisibleReferenceMarkPositions();
+			updateReferenceMarkPositions();
+			checkFocusCursor(evt);
 
 			// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 			// if (activeView?.leaf != null) {
@@ -202,7 +131,7 @@ export default class ReferencePlugin extends Plugin {
 			} else {
 				// Timeout fix: it doesn't recognize the latest paste change immediately because the paste event might not trigger the DOM change event.
 				setTimeout(() => {
-					// this.checkFocusCursor(evt);
+					checkFocusCursor(evt);
 				}, 50);
 			}
 
@@ -214,6 +143,51 @@ export default class ReferencePlugin extends Plugin {
 				updateClipboard(true);
 			}
 		});
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("window-close", (ev) => {
+		// 		console.log("window closed:");
+		// 		console.log(ev);
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("editor-drop", (ev) => {
+		// 		console.log("Editor dropped:");
+		// 		console.log(ev);
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("window-open", (ev) => {
+		// 		console.log("window opened:");
+		// 		// console.log(ev);
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("resize", () => {
+		// 		console.log("resize");
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("file-open", (ev) => {
+		// 		console.log("file opened:");
+		// 		// console.log(ev);
+		// 		// console.log(getReferences());
+
+		// 		let currentLeaf: any = this.app.workspace.getLeaf();
+
+		// 		// check it references have already been created, else create references
+		// 	})
+		// );
+
+		// this.registerEvent(
+		// 	this.app.workspace.on("layout-change", () => {
+		// 		console.log("layout-changed:");
+		// 	})
+		// );
 	}
 
 	onunload() {}

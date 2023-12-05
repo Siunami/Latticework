@@ -34,24 +34,12 @@ class ReferenceWidget extends WidgetType {
 		let content = regex.exec(this.name);
 		console.log(content);
 
-		// // const content = match[1];
-		// let decoration = Decoration.replace({
-		// 	widget: new ReferenceWidget(content ? content[1] : "", view),
-		// });
-		// console.log(content);
-
-		// const regex = /\[\u2197\]\(urn:([^)]*)\)/g;
-		// let content = this.name;
-		console.log("content !!!!!");
-		console.log(content);
-		console.log(this.view);
 		let workspaceTabs = this.view.contentDOM.closest(".workspace-tabs");
 
 		console.log(workspaceTabs);
 		if (workspaceTabs && content) {
 			let title =
 				workspaceTabs.querySelector(".view-header-title")?.innerHTML + ".md";
-			console.log(title);
 			let [prefix, text, suffix, file, from, to] = content[1].split(":");
 			prefix = decodeURIComponentString(prefix);
 			text = decodeURIComponentString(text);
@@ -71,78 +59,13 @@ class ReferenceWidget extends WidgetType {
 			// 	dataString: content[1],
 			// });
 		}
-		// console.log(content[1].split(":"));
 
-		console.log(this.view);
-		console.log("new reference");
+		const { span, svg } = createReferenceIcon();
 
-		// if (this.name.split("|").length != 4) {
-		// 	console.log("invalid placeholder");
-		// 	const regex = /\[↗\]\(urn:([^)]*)\)/g;
-		// 	let match = regex.exec(this.name);
-		// 	const content = match[1];
-		// 	console.log(content); // Output: 'example'
-		// 	console.log(content.split(":"));
-		// }
-		const span = createReferenceIcon();
-
-		// span.style.backgroundColor = "rgb(187, 215, 230)";
-		span.style.color = "black";
-		span.setAttribute("class", "block");
-		// const regex = /\[↗\]\(urn:([^)]*)\)/g;
-		// let match = regex.exec(this.name);
-		// if (match) {
-		// 	const content = match[1];
-		// 	span.setAttribute("data", content);
-		// }
-		span.setAttribute("data", this.name);
-
-		span.addEventListener("mouseenter", async () => {
-			span.style.backgroundColor = "rgb(187, 215, 230)";
-		});
-
-		span.addEventListener("mouseleave", async () => {
-			span.style.backgroundColor = "rgba(0, 0, 0, 0)";
-		});
+		if (content) span.setAttribute("data", content[1]);
 
 		span.addEventListener("click", openReference);
 		return span;
-	}
-}
-
-function test(match: RegExpExecArray, view: EditorView) {
-	console.log(match);
-	console.log(view);
-	// const regex = /\[↗\]\(urn:([^)]*)\)/g;
-	// let content = regex.exec(match[0]) != null ? regex.exec(match[0]) : "";
-
-	// // const content = match[1];
-	// let decoration = Decoration.replace({
-	// 	widget: new ReferenceWidget(content ? content[1] : "", view),
-	// });
-	// console.log(content);
-
-	const regex = /\[\u2197\]\(urn:([^)]*)\)/g;
-	let content = regex.exec(match[0]);
-	console.log("content !!!!!");
-	console.log(content);
-	let workspaceTabs = view.contentDOM.closest(".workspace-tabs");
-	if (workspaceTabs != null && content) {
-		let title =
-			workspaceTabs.querySelector(".view-header-title")?.innerHTML + ".md";
-		let dataString = content[1];
-		let [prefix, text, suffix, file, from, to] = dataString.split(":");
-
-		createReferenceMark({
-			prefix,
-			text,
-			suffix,
-			file,
-			from,
-			to,
-			sourceFile: title,
-			dataString: regex.exec(match[0]),
-		});
 	}
 }
 

@@ -1,5 +1,7 @@
 import { MarkdownView } from "obsidian";
-import { REFERENCE_REGEX } from "./constants";
+import { REFERENCE_REGEX, ACTION_TYPE } from "./constants";
+import { startReferenceEffect, endReferenceCursorEffect } from "./events";
+import { getCursor } from "./state";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -29,49 +31,73 @@ export function processURI(dataString: string) {
 	return [prefix, text, suffix, file, from, to];
 }
 
-export function getCurrentTabIndex(leavesByTab: any[], span: HTMLSpanElement) {
-	let workspaceTab = span.closest(".workspace-tabs");
-	let currTabIdx = leavesByTab.findIndex((x: any) => {
-		return x[0].containerEl == workspaceTab;
+export function findTextPositions(
+	view: MarkdownView,
+	searchTerm: string,
+	prefix: string = "",
+	suffix: string = ""
+) {
+	let rollingIndex = 0;
+	const text = view.data;
+	const lines = text.split("\n").map((line: string, i: number) => {
+		let data = { line, index: rollingIndex, length: line.length + 1, i };
+		rollingIndex += data.length;
+		return data;
 	});
-	return currTabIdx;
+
+	if (text.includes(prefix + searchTerm + suffix)) {
+		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		let startIndex =
+			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
+			1;
+		let endIndex =
+			lines.findIndex(
+				(line: any) =>
+					line.index > matchIndex + prefix.length + searchTerm.length
+			) - 1;
+
+		if (startIndex == -2) startIndex = lines.length - 1;
+		if (endIndex == -2) endIndex = lines.length - 1;
+
+		return {
+			rangeStart: {
+				line: startIndex,
+				ch: matchIndex + prefix.length - lines[startIndex].index,
+			},
+			rangeEnd: {
+				line: endIndex,
+				ch:
+					matchIndex +
+					prefix.length +
+					searchTerm.length -
+					lines[endIndex].index,
+			},
+			lines,
+		};
+	}
+	return null;
 }
 
-export function getAdjacentTabs(
-	leavesByTab: any[],
-	currTabIdx: number,
-	file: string
-) {
-	let rightAdjacentTab: any[] = [];
-	let leftAdjacentTab: any[] = [];
-	let adjacentTabs: any[] = [];
+export function listItemLength(line: string) {
+	// Matches lines that start with a bullet (either -, *, or + followed by a space)
+	const bulletRegex = /^(\s*[-*+]\s+)/;
 
-	if (leavesByTab[currTabIdx + 1]) {
-		rightAdjacentTab = leavesByTab[currTabIdx + 1][1].map((leaf: any) =>
-			leaf.getViewState()
-		);
-		adjacentTabs = [...adjacentTabs, ...rightAdjacentTab];
-	}
-	if (leavesByTab[currTabIdx - 1]) {
-		leftAdjacentTab = leavesByTab[currTabIdx - 1][1].map((leaf: any) =>
-			leaf.getViewState()
-		);
-		adjacentTabs = [...adjacentTabs, ...leftAdjacentTab];
-	}
+	// Matches lines that start with a number followed by a dot and a space (like "1. ")
+	const numberRegex = /^(\s*\d+\.\s+)/;
 
-	let index = adjacentTabs.findIndex((x: any) => x.state.file == file);
-	return { adjacentTabs, rightAdjacentTab, leftAdjacentTab, index };
+	let match = line.match(bulletRegex) || line.match(numberRegex);
+	return match ? match[0].length : 0;
 }
 
 export function checkCursorPositionAtDatastring(
 	evt: Event | { target: HTMLElement }
-): any {
+): {
+	matched: boolean;
+	span: HTMLSpanElement | undefined;
+} {
 	const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 	const cursorFrom = activeView?.editor.getCursor("from");
 	const cursorTo = activeView?.editor.getCursor("to");
-
-	// console.log(cursorFrom);
-	// console.log(cursorTo);
 
 	let matched = false;
 	let matchSpan;
@@ -83,13 +109,11 @@ export function checkCursorPositionAtDatastring(
 		// &&cursorFrom.ch - 1 >= -1
 	) {
 		const lineText = activeView?.editor.getLine(cursorFrom.line);
-		// console.log(lineText);
 
 		// from possible regex matches in lineText
 		if (lineText) {
 			const matches = [...lineText.matchAll(REFERENCE_REGEX)];
 			matches.forEach((match) => {
-				// console.log(match);
 				if (match.index?.toString()) {
 					const start = match.index;
 					const end = start + match[0].length;
@@ -115,4 +139,21 @@ export function checkCursorPositionAtDatastring(
 		}
 	}
 	return { matched, span: matchSpan };
+}
+
+export function checkFocusCursor(evt: Event | { target: HTMLElement }) {
+	let { matched, span } = checkCursorPositionAtDatastring(evt);
+
+	if (matched && span) {
+		if (getCursor() != null) {
+			endReferenceCursorEffect();
+			setTimeout(() => {
+				if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+			}, 100);
+		} else {
+			startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		}
+	} else {
+		endReferenceCursorEffect();
+	}
 }
