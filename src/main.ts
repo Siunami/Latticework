@@ -15,9 +15,8 @@ import {
 	updateBacklinkMarkPositions,
 } from "./references";
 import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
-import { StateField } from "@codemirror/state";
-import { createReferenceIcon, recomputeReferencesForPage } from "./references";
-import { SVG_HOVER_COLOR } from "./constants";
+import { StateField, Extension, Range, StateEffect } from "@codemirror/state";
+import { highlightKeymap } from "./mark";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -34,6 +33,7 @@ export default class ReferencePlugin extends Plugin {
 			// editorChange,
 			highlights,
 			referenceResources,
+			highlightKeymap,
 		]);
 
 		this.registerEvent(

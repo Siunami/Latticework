@@ -160,7 +160,6 @@ export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
 export const cursorEffect = StateEffect.define<string>();
 export const backlinkEffect = StateEffect.define<string>();
-export const referenceMarksAnnotation = Annotation.define<any>();
 
 export let state: any = EditorState.create({
 	extensions: [
@@ -269,39 +268,3 @@ export function updateBacklinks(value: Backlink[]) {
 		),
 	}).state;
 }
-/*
-export function getReferenceMarks() {
-	return state.field(referenceMarks);
-}
-
-// Need to check before adding to array if reference exists already
-// Just compare "reference" data object in the span
-export function updateReferenceMarks(
-	value: object,
-	reference: object,
-	id: string
-) {
-	state = state.update({
-		annotations: referenceMarksAnnotation.of({
-			type: "referenceMark",
-			element: value,
-			reference,
-			id,
-		}),
-	}).state;
-}
-
-export function removeReferenceMark(reference: object) {
-	let marks = state.field(referenceMarks);
-	let index = marks.map((x: any) => x.reference).indexOf(reference);
-	if (index != -1) {
-		marks.splice(index, 1);
-		state = state.update({
-			annotations: referenceMarksAnnotation.of({
-				type: "removeReferenceMark",
-				reference,
-			}),
-		}).state;
-	}
-}
-*/

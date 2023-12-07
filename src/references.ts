@@ -13,7 +13,6 @@ import { processURI, getPrefixAndSuffix } from "./utils";
 import { REFERENCE_REGEX } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
-import { get } from "http";
 
 export function createReferenceIcon(): {
 	span: HTMLSpanElement;
@@ -175,7 +174,6 @@ export async function updateBacklinkMarkPositions() {
 	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
 
 	const allBacklinks: Backlink[] = getBacklinks();
-	console.log(allBacklinks);
 	leaves.forEach((leaf) => {
 		const backlinksToLeaf = allBacklinks.filter(
 			(b) => b.referencedLocation.filename == getFilename(leaf)
