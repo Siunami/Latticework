@@ -18,7 +18,7 @@ export function encodeURIComponentString(str: string): string {
 	});
 }
 
-export function decodeURIComponentString(str: string) {
+export function decodeURIComponentString(str: string): string {
 	return decodeURIComponent(
 		str.replace(/%3A/g, ":").replace(/%28/g, "(").replace(/%29/g, ")")
 	);
@@ -111,9 +111,7 @@ export function listItemLength(line: string) {
 	return match ? match[0].length : 0;
 }
 
-export function checkCursorPositionAtDatastring(
-	evt: Event | { target: HTMLElement }
-): {
+export function checkCursorPositionAtDatastring(evt: Event): {
 	matched: boolean;
 	span: HTMLSpanElement | undefined;
 } {
@@ -122,7 +120,7 @@ export function checkCursorPositionAtDatastring(
 	const cursorTo = activeView?.editor.getCursor("to");
 
 	let matched = false;
-	let matchSpan;
+	let matchSpan: HTMLSpanElement | undefined = undefined;
 	if (
 		cursorFrom &&
 		cursorTo &&
@@ -137,12 +135,15 @@ export function checkCursorPositionAtDatastring(
 			const matches = [...lineText.matchAll(REFERENCE_REGEX)];
 			matches.forEach((match) => {
 				if (match.index?.toString()) {
-					const start = match.index;
-					const end = start + match[0].length;
+					const start: number = match.index;
+					const end: number = start + match[0].length;
 					if (end == cursorTo.ch && evt.target) {
 						const dataString = match[1];
 						// get the html element at the match location
-						const container: any = evt.target;
+						let elementInstance = evt.target instanceof Element;
+						if (!elementInstance)
+							throw new Error("Element not instance of Element");
+						const container: Element = evt.target as Element;
 						// find html span element in target that has a data attribute equal to contents
 						let span = container.querySelector(`span[data="${dataString}"]`);
 						if (span && span instanceof HTMLSpanElement) {
@@ -170,7 +171,7 @@ function handleHoveredCursor() {
 	}
 }
 
-export function checkFocusCursor(evt: Event | { target: HTMLElement }) {
+export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {

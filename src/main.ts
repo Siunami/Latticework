@@ -1,35 +1,29 @@
 import { Plugin, MarkdownView } from "obsidian";
 
-import { updateThat, state, getHover, getReferences } from "./state";
+import {
+	updateThat,
+	state,
+	getHover,
+	getBacklinks,
+	syncBacklinks,
+} from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
-	generateReferences,
+	generateBacklinks,
 	addReferencesToLeaf,
-	updateReferenceMarkPositions,
+	updateBacklinkMarkPositions,
 } from "./references";
 import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
 import { StateField } from "@codemirror/state";
 import { createReferenceIcon, recomputeReferencesForPage } from "./references";
 import { SVG_HOVER_COLOR } from "./constants";
 
-export let editorChange = StateField.define<any>({
-	create() {
-		return null;
-	},
-	update(value, tr: any) {
-		// console.log("editorChange");
-		// console.log(tr);
-		recomputeReferencesForPage();
-		return value;
-	},
-});
-
 export default class ReferencePlugin extends Plugin {
 	onload() {
 		// that = this;
 		setTimeout(() => {
-			generateReferences();
+			generateBacklinks();
 		}, 4000);
 
 		updateThat(this);
@@ -37,7 +31,7 @@ export default class ReferencePlugin extends Plugin {
 		this.registerEditorExtension([
 			// emptyLineGutter,
 			// placeholders,
-			editorChange,
+			// editorChange,
 			highlights,
 			referenceResources,
 		]);
@@ -106,57 +100,18 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerDomEvent(document, "click", async (evt) => {
 			checkFocusCursor(evt);
+			updateBacklinkMarkPositions();
+		});
+
+		this.registerDomEvent(document, "keyup", async (evt) => {
+			console.log("keyup");
+			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			updateReferenceMarkPositions(getReferences());
+			console.log("keydown");
 			checkFocusCursor(evt);
-
-			// const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
-			// if (activeView?.leaf != null) {
-			// 	// addReferencesToLeaf(activeView.leaf);
-			// }
-
-			if (evt.key == "z" && evt.metaKey) {
-				let { matched, span } = checkCursorPositionAtDatastring(evt);
-				console.log(matched);
-				console.log(span);
-				// undo needs to undo any potential references created
-
-				// if (matched) {
-				// 	if (
-				// 		state.values[2] != null &&
-				// 		state.values[3] != null &&
-				// 		state.values[2].dataString == state.values[3].dataString
-				// 	) {
-				// 		console.log("UNDO HOVER");
-				// 		state = state.update({
-				// 			effects: hoverEffect.of(
-				// 				JSON.stringify({
-				// 					type: "hover-off",
-				// 				})
-				// 			),
-				// 		}).state;
-				// 	}
-
-				// 	console.log("UNDO CURSOR");
-				// 	state = state.update({
-				// 		effects: cursorEffect.of(
-				// 			JSON.stringify({
-				// 				type: "cursor-off",
-				// 			})
-				// 		),
-				// 	}).state;
-				// 	const activeView =
-				// 		this.app.workspace.getActiveViewOfType(MarkdownView);
-				// 	activeView?.editor.undo();
-				// }
-			} else {
-				// Timeout fix: it doesn't recognize the latest paste change immediately because the paste event might not trigger the DOM change event.
-				setTimeout(() => {
-					checkFocusCursor(evt);
-				}, 50);
-			}
+			updateBacklinkMarkPositions();
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
 				console.log("c");

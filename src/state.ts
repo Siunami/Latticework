@@ -8,7 +8,8 @@ import {
 	Transaction,
 	Text,
 } from "@codemirror/state";
-import { Backlink } from "./references";
+import { Backlink } from "./types";
+import { updateBacklinkMarkPositions } from "./references";
 
 export let that = StateField.define<any>({
 	create() {
@@ -45,12 +46,11 @@ export let hoveredCursor = StateField.define<any>({
 	},
 });
 
-export let references = StateField.define<any[]>({
+export let backlinks = StateField.define<Backlink[]>({
 	create() {
 		return [];
 	},
 	update(value, tr) {
-		console.log(tr);
 		/*
 			I  want to get the current activeLeaf and recompute the references
 			merge this into the references field
@@ -58,17 +58,18 @@ export let references = StateField.define<any[]>({
 
 		if (tr.effects.length > 0) {
 			try {
-				let data = JSON.parse(tr.effects[0].value);
-				if (data.type == "reference") {
-					// return data.references;
-
-					// existing value, new values, merging them, temporarily converting them into a string
-					let set = new Set(
-						[...value, ...data.references].map((item) => JSON.stringify(item))
+				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
+					tr.effects[0].value
+				);
+				if (data.type == "backlink") {
+					if (data.backlinks.length == 0) return value;
+					let referencingLocation =
+						data.backlinks[0]["referencingLocation"]["filename"];
+					let filteredValues = value.filter(
+						(backlink) =>
+							backlink.referencingLocation.filename != referencingLocation
 					);
-
-					let uniqueArr = Array.from(set, (item) => JSON.parse(item));
-					return uniqueArr;
+					return [...filteredValues, ...data.backlinks];
 				}
 				return value;
 			} catch (e) {
@@ -132,16 +133,51 @@ export let cursorElement = StateField.define<object | null>({
 	},
 });
 
+export let editorChange = StateField.define<null>({
+	create() {
+		return null;
+	},
+	update(value, tr) {
+		if (tr.effects.length > 0) {
+			try {
+				let data = JSON.parse(tr.effects[0].value);
+				if (data.type == "sync") {
+					updateBacklinkMarkPositions();
+					return value;
+				}
+				return value;
+			} catch (e) {
+				console.log(e);
+				return value;
+			}
+		}
+		return value;
+	},
+});
+
 export const thatAnnotation = Annotation.define<any>();
 export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
 export const cursorEffect = StateEffect.define<string>();
-export const referenceEffect = StateEffect.define<string>();
+export const backlinkEffect = StateEffect.define<string>();
 export const referenceMarksAnnotation = Annotation.define<any>();
 
 export let state: any = EditorState.create({
-	extensions: [that, hoveredCursor, references, hoverElement, cursorElement],
+	extensions: [
+		that,
+		hoveredCursor,
+		backlinks,
+		hoverElement,
+		cursorElement,
+		editorChange,
+	],
 });
+
+export function syncBacklinks() {
+	state = state.update({
+		effects: backlinkEffect.of(JSON.stringify({ type: "sync" })),
+	}).state;
+}
 
 export function getThat() {
 	return state.field(that);
@@ -221,15 +257,15 @@ export function resetCursor() {
 	}).state;
 }
 
-export function getReferences(): Backlink[] {
-	return state.field(references);
+export function getBacklinks(): Backlink[] {
+	return state.field(backlinks);
 }
 
 // NOTE: I have no idea what this is doing.
-export function updateReference(value: any) {
+export function updateBacklinks(value: Backlink[]) {
 	state = state.update({
-		effects: referenceEffect.of(
-			JSON.stringify(Object.assign(value, { type: "reference" }))
+		effects: backlinkEffect.of(
+			JSON.stringify(Object.assign({ backlinks: value }, { type: "backlink" }))
 		),
 	}).state;
 }

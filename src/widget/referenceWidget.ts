@@ -13,8 +13,8 @@ import {
 import {
 	openReference,
 	createReferenceIcon,
-	generateReferences,
-	createReferenceMark,
+	generateBacklinks,
+	createBacklinkMark,
 } from "../references";
 
 import { decodeURIComponentString } from "src/utils";
