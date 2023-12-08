@@ -1,4 +1,4 @@
-import { MarkdownView } from "obsidian";
+import { MarkdownView, TextFileView, View } from "obsidian";
 import { REFERENCE_REGEX, ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 import { startReferenceEffect, endReferenceCursorEffect } from "./events";
 import {
@@ -54,13 +54,16 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 }
 
 export function findTextPositions(
-	view: MarkdownView,
+	view: View,
 	searchTerm: string,
 	prefix: string = "",
 	suffix: string = ""
 ) {
 	let rollingIndex = 0;
+
+	// @ts-ignore
 	const text = view.data;
+	// const text = view.getDisplayText();
 	const lines = text.split("\n").map((line: string, i: number) => {
 		let data = { line, index: rollingIndex, length: line.length + 1, i };
 		rollingIndex += data.length;
@@ -175,6 +178,8 @@ export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
+		console.log(span);
+
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
 			handleHoveredCursor();

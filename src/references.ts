@@ -170,7 +170,7 @@ export function updateBacklinkMarkPosition(
 
 export async function updateBacklinkMarkPositions() {
 	await recomputeReferencesForPage();
-	const { workspace } = getThat().app;
+	const { workspace } = getThat();
 	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
 
 	const allBacklinks: Backlink[] = getBacklinks();
@@ -212,39 +212,39 @@ export function createBacklinkMark(
 	}
 	span.id = getBacklinkID(backlink);
 
-	span.addEventListener("click", async () => {
-		const { workspace } = state.values[0].app;
-		const leavesByTab = collectLeavesByTabHelper();
+	// span.addEventListener("click", async () => {
+	// 	const { workspace } = state.values[0].app;
+	// 	const leavesByTab = collectLeavesByTabHelper();
 
-		const { tabIdx, index, dataString, leafId } = state.values[2];
-		/* If temporary, then keep leaf */
-		if (dataString) {
-			let [prefix, text, suffix, file, from, to] = processURI(dataString);
-			/*
-					The problem here is that I don't have the position of the span element.
-					I want to set the active cursor to the end of the span
-			// let [text2, file2, from2, to2] = this.name.split("|");
-			// const currentTab = getHoveredTab(leavesByTab, span);
-			// // console.log("currentTab");
-			// // console.log(currentTab);
-			// let rangeEnd2 = parseEditorPosition(to2);
+	// 	const { tabIdx, index, dataString, leafId } = state.values[2];
+	// 	/* If temporary, then keep leaf */
+	// 	if (dataString) {
+	// 		let [prefix, text, suffix, file, from, to] = processURI(dataString);
+	// 		/*
+	// 				The problem here is that I don't have the position of the span element.
+	// 				I want to set the active cursor to the end of the span
+	// 		// let [text2, file2, from2, to2] = this.name.split("|");
+	// 		// const currentTab = getHoveredTab(leavesByTab, span);
+	// 		// // console.log("currentTab");
+	// 		// // console.log(currentTab);
+	// 		// let rangeEnd2 = parseEditorPosition(to2);
 
-			// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-			// // console.log(lineText);
-			// // currentTab.view.editor.setCursor(rangeEnd2);
-			*/
+	// 		// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
+	// 		// // console.log(lineText);
+	// 		// // currentTab.view.editor.setCursor(rangeEnd2);
+	// 		*/
 
-			let targetLeaf = leavesByTab[tabIdx][1][index];
-			workspace.setActiveLeaf(targetLeaf);
-			const editor = targetLeaf.view.editor;
-			editor.setCursor(editor.cm.posToOffset(to));
+	// 		let targetLeaf = leavesByTab[tabIdx][index];
+	// 		workspace.setActiveLeaf(targetLeaf);
+	// 		const editor = targetLeaf.view.editor;
+	// 		editor.setCursor(editor.cm.posToOffset(to));
 
-			updateHover({
-				leafId: null,
-				originalTop: null,
-			});
-		}
-	});
+	// 		updateHover({
+	// 			leafId: null,
+	// 			originalTop: null,
+	// 		});
+	// 	}
+	// });
 
 	getBacklinkContainer(editor).appendChild(span);
 	return span;
@@ -416,13 +416,13 @@ export async function openReference() {
 		// // console.log(lineText);
 		// // currentTab.view.editor.setCursor(rangeEnd2);
 
-		let targetLeaf = leavesByTab[tabIdx][1][index];
-		workspace.setActiveLeaf(targetLeaf);
-		const editor = targetLeaf.view.editor;
-		editor.setCursor(editor.cm.offsetToPos(to));
-		updateHover({
-			leafId: null,
-			originalTop: null,
-		});
+		// let targetLeaf = leavesByTab[tabIdx][1][index];
+		// workspace.setActiveLeaf(targetLeaf);
+		// const editor = targetLeaf.view.editor;
+		// editor.setCursor(editor.cm.offsetToPos(to));
+		// updateHover({
+		// 	leafId: null,
+		// 	originalTop: null,
+		// });
 	}
 }

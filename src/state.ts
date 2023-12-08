@@ -10,8 +10,9 @@ import {
 } from "@codemirror/state";
 import { Backlink } from "./types";
 import { updateBacklinkMarkPositions } from "./references";
+import { App } from "obsidian";
 
-export let that = StateField.define<any>({
+export let that = StateField.define<App | null>({
 	create() {
 		return null;
 	},
@@ -20,7 +21,7 @@ export let that = StateField.define<any>({
 			tr["annotations"].length == 2 &&
 			tr["annotations"][0].value.type == "that"
 		) {
-			return tr["annotations"][0].value.that;
+			return tr["annotations"][0].value.that.app;
 		}
 		return value;
 	},
@@ -118,6 +119,7 @@ export let cursorElement = StateField.define<object | null>({
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
+					console.log(data)
 					if (value) return Object.assign(value, data);
 					return data;
 				} else if (data.type == "cursor-off") {
@@ -178,7 +180,7 @@ export function syncBacklinks() {
 	}).state;
 }
 
-export function getThat() {
+export function getThat(): App {
 	return state.field(that);
 }
 

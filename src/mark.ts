@@ -8,7 +8,7 @@ import {
 } from "@codemirror/state";
 import { SVG_HOVER_COLOR } from "./constants";
 
-const addHiglight = StateEffect.define<{ from: number; to: number }>({
+const addHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({
 		from: change.mapPos(from),
 		to: change.mapPos(to),
@@ -28,7 +28,7 @@ const highlightField = StateField.define<DecorationSet>({
 	update(higlights, tr) {
 		higlights = higlights.map(tr.changes);
 		for (let e of tr.effects)
-			if (e.is(addHiglight)) {
+			if (e.is(addHighlight)) {
 				higlights = higlights.update({
 					add: [highlightMark.range(e.value.from, e.value.to)],
 				});
@@ -45,31 +45,31 @@ const highlightTheme = EditorView.baseTheme({
 	".highlight": { "background-color": SVG_HOVER_COLOR, color: "black" },
 });
 
-export function highlightSelection(view: EditorView) {
-	// let effects: StateEffect<unknown>[] = view.state.selection.ranges
-	// 	.filter((r) => !r.empty)
-	// 	.map(({ from, to }) => addUnderline.of({ from, to }));
+export function highlightSelection(view: EditorView, from: number, to: number) {
+	// // let effects: StateEffect<unknown>[] = view.state.selection.ranges
+	// // 	.filter((r) => !r.empty)
+	// // 	.map(({ from, to }) => addUnderline.of({ from, to }));
 
-	const data = [
-		{ from: 0, to: 4 },
-		{ from: 9, to: 15 },
-		{ from: 20, to: 25 },
-		{ from: 30, to: 35 },
+	// const data = [
+	// 	{ from: 0, to: 4 },
+	// 	{ from: 9, to: 15 },
+	// 	{ from: 20, to: 25 },
+	// 	{ from: 30, to: 35 },
 
-		// { from: 0, to: 278 },
-		// { from: 350, to: 379 },
-		// { from: 500, to: 530 },
-	];
-	const randomItem = data[Math.floor(Math.random() * data.length)];
-	console.log(randomItem);
+	// 	// { from: 0, to: 278 },
+	// 	// { from: 350, to: 379 },
+	// 	// { from: 500, to: 530 },
+	// ];
+	// const randomItem = data[Math.floor(Math.random() * data.length)];
+	// console.log(randomItem);
+
 	// let effects: StateEffect<unknown>[] = [randomItem].map(({ from, to }) =>
-	// 	addUnderline.of({ from, to })
+	// 	addHighlight.of({ from, to })
 	// );
 
-	let effects: StateEffect<unknown>[] = [randomItem].map(({ from, to }) =>
-		addHiglight.of({ from, to })
-	);
+	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
 
+	console.log(effects);
 	if (!effects.length) return false;
 
 	if (!view.state.field(highlightField, false))
@@ -92,11 +92,11 @@ export function removeHighlights(view: EditorView) {
 }
 
 export const highlightKeymap = keymap.of([
-	{
-		key: "Mod-h",
-		preventDefault: true,
-		run: highlightSelection,
-	},
+	// {
+	// 	key: "Mod-h",
+	// 	preventDefault: true,
+	// 	run: highlightSelection,
+	// },
 	{
 		key: "Mod-j",
 		preventDefault: true,
