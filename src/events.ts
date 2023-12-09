@@ -30,159 +30,6 @@ import {
 import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 
-function highlightHoveredReference(dataString: string, tabIdx: number) {
-	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-
-	const leavesByTab = collectLeavesByTabHelper();
-	let index = leavesByTab[tabIdx]
-		.map((leaf: any) => leaf.getViewState())
-		.findIndex((x: any) => x.state.file == file);
-	if (index != -1) {
-		let targetLeaf: WorkspaceLeaf = leavesByTab[tabIdx][index];
-
-		// @ts-ignore
-		const editor = targetLeaf.view.editor;
-		/*
-		{
-			"top": 0,
-			"left": 0,
-			"clientHeight": 1311,
-			"clientWidth": 1063,
-			"height": 1311,
-			"width": 1078
-		}
-		*/
-		let positions = findTextPositions(
-			targetLeaf.view,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		console.log(positions);
-		if (!positions) return;
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
-
-		const originalScroll = editor.getScrollInfo();
-		const originalCursor = editor.getCursor();
-
-		const ranges = [];
-
-		let lines = text.split("\n");
-		let currIndex = 0;
-
-		// function shiftIfBullet(rangeStart) {}
-
-		if (rangeStart.line != rangeEnd.line) {
-			let start = rangeStart.line;
-			let end = rangeEnd.line;
-			let curr = start;
-			while (curr <= end) {
-				if (curr == start) {
-					editor.replaceRange(
-						`+++${decodeURIComponentString(lines[currIndex])}+++`,
-						rangeStart,
-						{
-							line: curr,
-							ch: editor.getLine(curr).length,
-						}
-					);
-					ranges.push([
-						lines[currIndex],
-						rangeStart,
-						{
-							line: curr,
-							ch: editor.getLine(curr).length,
-						},
-					]);
-					curr++;
-				} else if (curr == end) {
-					let listItemIndex = listItemLength(lines[currIndex]);
-					let listItemText = lines[currIndex].slice(
-						listItemIndex,
-						lines[currIndex].length
-					);
-					editor.replaceRange(
-						`+++${decodeURIComponentString(listItemText)}+++`,
-						{
-							line: curr,
-							ch: listItemIndex,
-						},
-						rangeEnd
-					);
-					ranges.push([
-						listItemText,
-						{
-							line: curr,
-							ch: listItemIndex,
-						},
-						Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 }),
-					]);
-					curr++;
-				} else {
-					let listItemIndex = listItemLength(lines[currIndex]);
-					let listItemText = lines[currIndex].slice(
-						listItemIndex,
-						lines[currIndex].length
-					);
-					editor.replaceRange(
-						`+++${decodeURIComponentString(listItemText)}+++`,
-						{
-							line: curr,
-							ch: listItemIndex,
-						},
-						{
-							line: curr,
-							ch: editor.getLine(curr).length,
-						}
-					);
-					ranges.push([
-						listItemText,
-						{
-							line: curr,
-							ch: listItemIndex,
-						},
-						{
-							line: curr,
-							ch: editor.getLine(curr).length,
-						},
-					]);
-					curr++;
-				}
-				currIndex++;
-			}
-		} else {
-			editor.replaceRange(
-				`+++${decodeURIComponentString(text)}+++`,
-				rangeStart,
-				rangeEnd
-			);
-			ranges.push([
-				text,
-				rangeStart,
-				Object.assign({}, rangeEnd, { ch: rangeEnd.ch + 6 }),
-			]);
-		}
-
-		editor.scrollIntoView(
-			{
-				from: rangeStart,
-				to: rangeEnd,
-			},
-			true
-		);
-		return {
-			tabIdx,
-			index,
-			dataString,
-			originalTop: originalScroll.top,
-			originalCursor,
-			ranges,
-		};
-	}
-	return null;
-}
-
 function getEditorView(leaf: WorkspaceLeaf) {
 	const view = leaf.view;
 
@@ -211,8 +58,6 @@ export async function startReferenceEffect(
 	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
 	let getState = type == ACTION_TYPE.MOUSE ? getHover : getCursor;
 	let resetState = type == ACTION_TYPE.MOUSE ? resetHover : resetCursor;
-
-	console.log(updateState);
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
@@ -250,6 +95,8 @@ export async function startReferenceEffect(
 		leafId: id,
 		temp,
 	});
+
+	if (temp) newLeaf.containerEl.style.opacity = "0.7";
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		// @ts-ignore
@@ -308,10 +155,11 @@ export async function endReferenceCursorEffect() {
 	removeHighlights(editorView);
 
 	if (temp) {
-		setTimeout(() => {
-			targetLeaf.detach();
-		}, 100);
-	} else {
+		targetLeaf.detach();
+		// setTimeout(() => {
+		// 	targetLeaf.detach();
+		// }, 100);
+	} else if (viewport) {
 		let originalLeaf = workspace.getLeafById(leafId);
 		if (!originalLeaf) throw new Error("Original leaf not found");
 
@@ -346,10 +194,11 @@ export async function endReferenceHoverEffect() {
 	removeHighlights(editorView);
 
 	if (temp) {
-		setTimeout(() => {
-			targetLeaf.detach();
-		}, 100);
-	} else {
+		targetLeaf.detach();
+		// setTimeout(() => {
+		// 	targetLeaf.detach();
+		// }, 100);
+	} else if (viewport) {
 		let originalLeaf = workspace.getLeafById(leafId);
 		if (!originalLeaf) throw new Error("Original leaf not found");
 

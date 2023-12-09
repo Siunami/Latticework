@@ -8,9 +8,18 @@ import {
 	getThat,
 	getBacklinks,
 	updateBacklinks,
+	updateCursor,
+	getCursor,
+	getHover,
+	resetCursor,
 } from "./state";
-import { processURI, getPrefixAndSuffix } from "./utils";
-import { REFERENCE_REGEX } from "./constants";
+import {
+	processURI,
+	getPrefixAndSuffix,
+	handleHoveredCursor,
+	checkFocusCursor,
+} from "./utils";
+import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 
@@ -134,9 +143,7 @@ export function updateBacklinkMarkPosition(
 		.map((x: HTMLSpanElement) => x.id)
 		.forEach((id) => {
 			if (!backlinkIds.includes(id)) {
-				console.log("REMOVE BACKLINK");
 				let element = document.getElementById(id);
-				console.log(element);
 				if (element) element.remove();
 			}
 		});
@@ -161,14 +168,15 @@ export function updateBacklinkMarkPosition(
 }
 
 export async function updateBacklinkMarkPositions() {
-	// await recomputeReferencesForPage();
+	await recomputeReferencesForPage();
 	const { workspace } = getThat();
 	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
 
 	const allBacklinks: Backlink[] = getBacklinks();
 	leaves.forEach((leaf) => {
 		const backlinksToLeaf = allBacklinks.filter(
-			(b) => b.referencedLocation.filename == getFilename(leaf)
+			// @ts-ignore
+			(b) => b.referencedLocation.filename == leaf.view.file.path
 		);
 		updateBacklinkMarkPosition(leaf, backlinksToLeaf);
 	});
@@ -359,7 +367,6 @@ export function generateBacklinks() {
 
 			updateBacklinks(backlinks);
 
-			console.log(backlinks);
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			leaves.forEach((leaf: WorkspaceLeaf) => {
@@ -386,37 +393,34 @@ export async function recomputeReferencesForPage() {
 	}, 300);
 }
 
-export async function openReference() {
-	const { workspace } = state.values[0].app;
-	const leavesByTab = collectLeavesByTabHelper();
+export async function openReference(ev: MouseEvent) {
+	let cursor = getCursor();
+	let hover = getHover();
+	let leaf = getThat().workspace.getLeafById(hover.id);
 
-	const { tabIdx, index, dataString, leafId } = state.values[2];
-	/* If temporary, then keep leaf */
-	if (dataString) {
-		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-		// let rangeEnd = parseEditorPosition(to);
-		/*
-					The problem here is that I don't have the position of the span element.
-					I want to set the active cursor to the end of the span
-				*/
+	// @ts-ignore
+	let container = leaf.containerEl;
+	if (!container) throw new Error("Container not found");
+	container.style.opacity = "1";
 
-		// let [text2, file2, from2, to2] = this.name.split("|");
-		// const currentTab = getHoveredTab(leavesByTab, span);
-		// // console.log("currentTab");
-		// // console.log(currentTab);
-		// let rangeEnd2 = parseEditorPosition(to2);
-
-		// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-		// // console.log(lineText);
-		// // currentTab.view.editor.setCursor(rangeEnd2);
-
-		// let targetLeaf = leavesByTab[tabIdx][1][index];
-		// workspace.setActiveLeaf(targetLeaf);
-		// const editor = targetLeaf.view.editor;
-		// editor.setCursor(editor.cm.offsetToPos(to));
-		// updateHover({
-		// 	leafId: null,
-		// 	originalTop: null,
-		// });
+	if (
+		cursor &&
+		hover &&
+		cursor.dataString &&
+		hover.dataString &&
+		cursor.dataString == hover.dataString
+	) {
+		updateCursor({
+			temp: false,
+			viewport: null,
+		});
 	}
+	updateHover({
+		temp: false,
+		viewport: null,
+	});
+
+	handleHoveredCursor(ACTION_TYPE.CURSOR);
+
+	resetCursor();
 }

@@ -81,6 +81,7 @@ export let backlinks = StateField.define<Backlink[]>({
 				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
 					tr.effects[0].value
 				);
+				console.log(data);
 				if (data.type == "backlink") {
 					if (data.backlinks.length == 0) return value;
 					let referencingLocation =
@@ -138,7 +139,6 @@ export let cursorElement = StateField.define<object | null>({
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
-					console.log(data);
 					if (value) return Object.assign(value, data);
 					return data;
 				} else if (data.type == "cursor-off") {

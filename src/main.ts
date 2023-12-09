@@ -22,7 +22,6 @@ import {
 	handleHoveredCursor,
 } from "./utils";
 import { StateField, Extension, Range, StateEffect } from "@codemirror/state";
-import { highlightKeymap } from "./mark";
 import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 
 export default class ReferencePlugin extends Plugin {
@@ -119,13 +118,12 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
 			console.log("keyup");
+			checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			console.log("keydown");
-			checkFocusCursor(evt);
-			updateBacklinkMarkPositions();
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
 				console.log("c");

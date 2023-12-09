@@ -92,8 +92,6 @@ export function collectLeavesByTabHelper() {
 	const currLeaf: WorkspaceLeaf = workspace.getLeaf();
 	// const rootSplit = findRootSplit(currLeaf);
 	const rootSplit: WorkspaceSplit = currLeaf.getRoot();
-	console.log("rootSplit");
-	console.log(rootSplit);
 	return collectLeavesByTab(rootSplit);
 }
 

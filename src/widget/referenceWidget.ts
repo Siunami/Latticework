@@ -62,7 +62,7 @@ class ReferenceWidget extends WidgetType {
 
 		if (content) span.setAttribute("data", content[1]);
 
-		// span.addEventListener("click", openReference);
+		span.addEventListener("click", openReference);
 		return span;
 	}
 }
@@ -75,7 +75,8 @@ const referenceDecoration = (match: RegExpExecArray, view: EditorView) => {
 };
 
 const referenceMatcher = new MatchDecorator({
-	regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
+	// regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
+	regexp: /\[\u2197\]\(urn:([^:]*:){5}[^:]*\)/g,
 	decoration: (match, view, pos) => {
 		return referenceDecoration(match, view);
 	},

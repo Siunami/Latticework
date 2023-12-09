@@ -144,12 +144,22 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 					if (end == cursorTo.ch && evt.target) {
 						const dataString = match[1];
 						// get the html element at the match location
-						let elementInstance = evt.target instanceof Element;
-						if (!elementInstance)
+						let checkContainer = evt.target instanceof Element;
+						if (!checkContainer)
 							throw new Error("Element not instance of Element");
-						const container: Element = evt.target as Element;
+						let container = evt.target as Element;
+
+						console.log(container);
+						let activeLine;
+						if (container.classList.contains("cm-active")) {
+							activeLine = container;
+						} else {
+							activeLine = container.querySelector(".cm-active");
+						}
+						console.log(activeLine);
+						if (!activeLine) throw new Error("Element not instance of Element");
 						// find html span element in target that has a data attribute equal to contents
-						let span = container.querySelector(`span[data="${dataString}"]`);
+						let span = activeLine.querySelector(`span[data="${dataString}"]`);
 						if (span && span instanceof HTMLSpanElement) {
 							console.log("Found span element:", span);
 							// Do something with the span element
@@ -170,15 +180,23 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 // Remove an existing higlighted reference
 export function handleHoveredCursor(user: string) {
 	if (getHoveredCursor()) {
-		console.log(getHoveredCursor());
-		// getHoveredCursor().forEach(
-		// 	(element: any) => (element.style.backgroundColor = "white")
-		// );
-		getHoveredCursor().forEach((element: any) => {
-			if (element.user === user) {
-				element.cursor.style.backgroundColor = "white";
-			}
-		});
+		let nonCursors = getHoveredCursor()
+			.filter((element: any) => {
+				return element.user !== user;
+			})
+			.map((element: any) => element.cursor.closest("span"));
+
+		console.log(nonCursors);
+
+		getHoveredCursor()
+			.filter((element: any) => element.user === user)
+			.forEach((element: any) => {
+				console.log(element);
+				if (!nonCursors.includes(element.cursor.closest("span"))) {
+					element.cursor.style.backgroundColor = "white";
+				}
+			});
+
 		removeHoveredCursor(user);
 	}
 }
@@ -187,8 +205,6 @@ export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
-		console.log(span);
-
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
 			handleHoveredCursor(ACTION_TYPE.CURSOR);
@@ -197,9 +213,11 @@ export function checkFocusCursor(evt: Event) {
 		}
 
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
-		setTimeout(() => {
-			if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
-		}, 125); // so wait 125ms before opening new peek tab
+		if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+
+		// setTimeout(() => {
+		// 	if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		// }, ); // so wait 125ms before opening new peek tab
 	} else {
 		endReferenceCursorEffect();
 		handleHoveredCursor(ACTION_TYPE.CURSOR);
