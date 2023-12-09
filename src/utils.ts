@@ -153,7 +153,11 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 						let activeLine;
 						if (container.classList.contains("cm-active")) {
 							activeLine = container;
-						} else {
+						}
+						// else if (container.closest(".cm-active")) {
+						// 	activeLine = container.closest(".cm-active");
+						// }
+						else {
 							activeLine = container.querySelector(".cm-active");
 						}
 						console.log(activeLine);
@@ -178,8 +182,9 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 }
 
 // Remove an existing higlighted reference
-export function handleHoveredCursor(user: string) {
+export function handleRemoveHoveredCursor(user: string) {
 	if (getHoveredCursor()) {
+		// cursors not associated with the user action
 		let nonCursors = getHoveredCursor()
 			.filter((element: any) => {
 				return element.user !== user;
@@ -188,6 +193,7 @@ export function handleHoveredCursor(user: string) {
 
 		console.log(nonCursors);
 
+		// white background if cursors are not associated with the user action
 		getHoveredCursor()
 			.filter((element: any) => element.user === user)
 			.forEach((element: any) => {
@@ -205,9 +211,10 @@ export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
+		// remove existing cursors
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
-			handleHoveredCursor(ACTION_TYPE.CURSOR);
+			handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
 			updateHoveredCursor(svgElement, ACTION_TYPE.CURSOR);
 		}
@@ -220,6 +227,6 @@ export function checkFocusCursor(evt: Event) {
 		// }, ); // so wait 125ms before opening new peek tab
 	} else {
 		endReferenceCursorEffect();
-		handleHoveredCursor(ACTION_TYPE.CURSOR);
+		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 	}
 }

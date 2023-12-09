@@ -16,7 +16,7 @@ import {
 import {
 	processURI,
 	getPrefixAndSuffix,
-	handleHoveredCursor,
+	handleRemoveHoveredCursor,
 	checkFocusCursor,
 } from "./utils";
 import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
@@ -420,7 +420,7 @@ export async function openReference(ev: MouseEvent) {
 		viewport: null,
 	});
 
-	handleHoveredCursor(ACTION_TYPE.CURSOR);
+	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 
 	resetCursor();
 }

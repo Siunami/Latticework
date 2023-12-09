@@ -19,7 +19,7 @@ import { startReferenceEffect, endReferenceHoverEffect } from "./events";
 import {
 	checkCursorPositionAtDatastring,
 	checkFocusCursor,
-	handleHoveredCursor,
+	handleRemoveHoveredCursor,
 } from "./utils";
 import { StateField, Extension, Range, StateEffect } from "@codemirror/state";
 import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
@@ -103,9 +103,8 @@ export default class ReferencePlugin extends Plugin {
 				// this.startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
-
 				endReferenceHoverEffect();
-				handleHoveredCursor(ACTION_TYPE.MOUSE);
+				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			}
 		});
 

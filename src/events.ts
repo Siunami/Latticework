@@ -49,6 +49,74 @@ function getEditorView(leaf: WorkspaceLeaf) {
 	return null;
 }
 
+export async function startBacklinkEffect(span: HTMLSpanElement) {
+	let source = getHover();
+	let destination = getCursor();
+	let updateState = updateHover;
+
+	// Mutex, prevent concurrent access to following section of code
+	if (source != null) return;
+	updateState({
+		type: `${ACTION_TYPE.MOUSE}-start`,
+	});
+
+	const dataString = span.getAttribute("data");
+	if (!dataString) return;
+
+	if (destination != null && destination.dataString == dataString) {
+		updateHover(destination);
+		return;
+	}
+
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	let leavesByTab = collectLeavesByTabHelper();
+
+	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
+
+	// if (currTabIdx != -1) {
+	// && currTab != -1) {
+	// // Check adjacent tabs for file and open file if needed
+	const { newLeaf, temp } = await openFileInAdjacentTab(
+		leavesByTab,
+		currTabIdx,
+		file
+	);
+
+	// @ts-ignore
+	let id = newLeaf.id;
+	if (!id) throw new Error("Leaf id not found");
+	updateState({
+		leafId: id,
+		temp,
+	});
+
+	if (newLeaf && newLeaf.view instanceof MarkdownView) {
+		// @ts-ignore
+		let id = newLeaf.id;
+
+		const editorView: EditorView = getEditorView(newLeaf);
+		if (!editorView) throw new Error("Editor view not found");
+		const viewport = newLeaf.view.editor.getScrollInfo();
+
+		highlightSelection(editorView, from, to);
+		let positions = findTextPositions(
+			newLeaf.view,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) throw new Error("Positions not found");
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
+
+		newLeaf.view.editor.scrollIntoView({
+			from: rangeStart,
+			to: rangeEnd,
+		});
+	}
+}
+
 export async function startReferenceEffect(
 	span: HTMLSpanElement,
 	type: string
@@ -56,8 +124,8 @@ export async function startReferenceEffect(
 	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
 	let destination = type == ACTION_TYPE.MOUSE ? getCursor() : getHover();
 	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
-	let getState = type == ACTION_TYPE.MOUSE ? getHover : getCursor;
-	let resetState = type == ACTION_TYPE.MOUSE ? resetHover : resetCursor;
+	// let getState = type == ACTION_TYPE.MOUSE ? getHover : getCursor;
+	// let resetState = type == ACTION_TYPE.MOUSE ? resetHover : resetCursor;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
