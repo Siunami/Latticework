@@ -5,6 +5,7 @@ import {
 	getHoveredCursor,
 	updateHoveredCursor,
 	removeHoveredCursor,
+	getHover,
 } from "./state";
 
 export function parseEditorPosition(positionString: string) {
@@ -167,10 +168,18 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 }
 
 // Remove an existing higlighted reference
-function handleHoveredCursor() {
+export function handleHoveredCursor(user: string) {
 	if (getHoveredCursor()) {
-		getHoveredCursor().style.backgroundColor = "white";
-		removeHoveredCursor();
+		console.log(getHoveredCursor());
+		// getHoveredCursor().forEach(
+		// 	(element: any) => (element.style.backgroundColor = "white")
+		// );
+		getHoveredCursor().forEach((element: any) => {
+			if (element.user === user) {
+				element.cursor.style.backgroundColor = "white";
+			}
+		});
+		removeHoveredCursor(user);
 	}
 }
 
@@ -182,9 +191,9 @@ export function checkFocusCursor(evt: Event) {
 
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
-			handleHoveredCursor();
+			handleHoveredCursor(ACTION_TYPE.CURSOR);
 			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-			updateHoveredCursor(svgElement);
+			updateHoveredCursor(svgElement, ACTION_TYPE.CURSOR);
 		}
 
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
@@ -193,6 +202,6 @@ export function checkFocusCursor(evt: Event) {
 		}, 125); // so wait 125ms before opening new peek tab
 	} else {
 		endReferenceCursorEffect();
-		handleHoveredCursor();
+		handleHoveredCursor(ACTION_TYPE.CURSOR);
 	}
 }

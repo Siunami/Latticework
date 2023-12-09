@@ -6,6 +6,7 @@ import {
 	getHover,
 	getBacklinks,
 	syncBacklinks,
+	updateHoveredCursor,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
@@ -14,9 +15,15 @@ import {
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
 } from "./references";
-import { checkCursorPositionAtDatastring, checkFocusCursor } from "./utils";
+import { startReferenceEffect, endReferenceHoverEffect } from "./events";
+import {
+	checkCursorPositionAtDatastring,
+	checkFocusCursor,
+	handleHoveredCursor,
+} from "./utils";
 import { StateField, Extension, Range, StateEffect } from "@codemirror/state";
 import { highlightKeymap } from "./mark";
+import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -33,7 +40,7 @@ export default class ReferencePlugin extends Plugin {
 			// editorChange,
 			highlights,
 			referenceResources,
-			highlightKeymap,
+			// highlightKeymap,
 		]);
 
 		this.registerEvent(
@@ -82,7 +89,12 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("data")
 			) {
 				console.log("start hover reference effect");
-				// startReferenceEffect(span, "hover");
+				const svgElement = span.querySelector("svg");
+				if (svgElement) {
+					svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+					updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
+				}
+				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
 				span &&
 				span instanceof HTMLSpanElement &&
@@ -92,7 +104,9 @@ export default class ReferencePlugin extends Plugin {
 				// this.startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
-				// endReferenceHoverEffect();
+
+				endReferenceHoverEffect();
+				handleHoveredCursor(ACTION_TYPE.MOUSE);
 			}
 		});
 

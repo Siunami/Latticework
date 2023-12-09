@@ -206,11 +206,11 @@ export async function startReferenceEffect(
 	span: HTMLSpanElement,
 	type: string
 ) {
-	let source = type == ACTION_TYPE.HOVER ? getHover() : getCursor();
-	let destination = type == ACTION_TYPE.HOVER ? getCursor() : getHover();
-	let updateState = type == ACTION_TYPE.HOVER ? updateHover : updateCursor;
-	let getState = type == ACTION_TYPE.HOVER ? getHover : getCursor;
-	let resetState = type == ACTION_TYPE.HOVER ? resetHover : resetCursor;
+	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
+	let destination = type == ACTION_TYPE.MOUSE ? getCursor() : getHover();
+	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
+	let getState = type == ACTION_TYPE.MOUSE ? getHover : getCursor;
+	let resetState = type == ACTION_TYPE.MOUSE ? resetHover : resetCursor;
 
 	console.log(updateState);
 
@@ -243,14 +243,13 @@ export async function startReferenceEffect(
 		file
 	);
 
-	if (newLeaf && temp) {
-		// @ts-ignore
-		let id = newLeaf.id;
-		if (!id) throw new Error("Leaf id not found");
-		updateState({
-			leafId: id,
-		});
-	}
+	// @ts-ignore
+	let id = newLeaf.id;
+	if (!id) throw new Error("Leaf id not found");
+	updateState({
+		leafId: id,
+		temp,
+	});
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		// @ts-ignore
@@ -258,6 +257,8 @@ export async function startReferenceEffect(
 
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
+		const viewport = newLeaf.view.editor.getScrollInfo();
+
 		highlightSelection(editorView, from, to);
 		let positions = findTextPositions(
 			newLeaf.view,
@@ -281,6 +282,7 @@ export async function startReferenceEffect(
 			dataString,
 			id,
 			originalTop: editorView.documentTop,
+			viewport,
 		});
 	}
 }
@@ -292,7 +294,7 @@ export async function endReferenceCursorEffect() {
 		return;
 	}
 
-	const { dataString, id, leafId, originalTop } = getCursor();
+	const { dataString, id, leafId, originalTop, temp, viewport } = getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();
@@ -304,21 +306,71 @@ export async function endReferenceCursorEffect() {
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
-	// @ts-ignore
-	// targetLeaf.view.editor.scrollIntoView(originalTop, true);
 
-	// let originalLeaf = workspace.getLeafById(leafId);
-	// console.log(originalLeaf);
-	// getEditorView(originalLeaf).scrollIntoView(originalTop, true);
-
-	if (leafId) {
+	if (temp) {
 		setTimeout(() => {
 			targetLeaf.detach();
 		}, 100);
+	} else {
+		let originalLeaf = workspace.getLeafById(leafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		if (originalLeaf && originalLeaf.view instanceof MarkdownView) {
+			const view: MarkdownView = originalLeaf.view;
+			view.editor.scrollTo(0, viewport.top);
+		}
 	}
 
 	// End mutex lock
 	resetCursor();
+}
+
+export async function endReferenceHoverEffect() {
+	if (!getHover() || Object.keys(getHover()).length == 0) {
+		// End mutex lock
+		resetHover();
+		return;
+	}
+
+	const { dataString, id, leafId, originalTop, temp, viewport } = getHover();
+	if (getCursor() != null && getCursor().dataString == dataString) {
+		// End mutex lock
+		resetHover();
+		return;
+	}
+
+	const { workspace } = getThat();
+	let targetLeaf = workspace.getLeafById(id);
+	let editorView: EditorView = getEditorView(targetLeaf);
+
+	removeHighlights(editorView);
+
+	if (temp) {
+		setTimeout(() => {
+			targetLeaf.detach();
+		}, 100);
+	} else {
+		let originalLeaf = workspace.getLeafById(leafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		if (originalLeaf && originalLeaf.view instanceof MarkdownView) {
+			const view: MarkdownView = originalLeaf.view;
+
+			// scroll back to source prior to hover
+			view.editor.scrollTo(0, viewport.top);
+
+			// if the cursor is active, highlight the selection
+			if (getCursor() != null) {
+				const { dataString } = getCursor();
+				let [prefix, text, suffix, file, from, to] = processURI(dataString);
+				const editorView: EditorView = getEditorView(originalLeaf);
+				highlightSelection(editorView, from, to);
+			}
+		}
+	}
+
+	// End mutex lock
+	resetHover();
 }
 
 // export async function endReferenceCursorEffect() {

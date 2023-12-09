@@ -36,12 +36,31 @@ export let hoveredCursor = StateField.define<any>({
 			tr["annotations"].length == 2 &&
 			tr["annotations"][0].value.type == "hoveredCursor"
 		) {
-			return tr["annotations"][0].value.cursor;
+			if (value)
+				return [
+					...value.filter(
+						(cursor: any) => cursor.user != tr["annotations"][0].value.user
+					),
+					{
+						cursor: tr["annotations"][0].value.cursor,
+						user: tr["annotations"][0].value.user,
+					},
+				];
+			return [
+				{
+					cursor: tr["annotations"][0].value.cursor,
+					user: tr["annotations"][0].value.user,
+				},
+			];
 		} else if (
 			tr["annotations"].length == 2 &&
 			tr["annotations"][0].value.type == "removeHoveredCursor"
 		) {
-			return null;
+			if (value)
+				return value.filter(
+					(cursor: any) => cursor.user != tr["annotations"][0].value.user
+				);
+			return value;
 		}
 		return value;
 	},
@@ -119,7 +138,7 @@ export let cursorElement = StateField.define<object | null>({
 				if (data.type == "cursor-start") {
 					return {};
 				} else if (data.type == "cursor") {
-					console.log(data)
+					console.log(data);
 					if (value) return Object.assign(value, data);
 					return data;
 				} else if (data.type == "cursor-off") {
@@ -197,19 +216,21 @@ export function getHoveredCursor() {
 	return state.field(hoveredCursor);
 }
 
-export function updateHoveredCursor(cursor: HTMLOrSVGElement) {
+export function updateHoveredCursor(cursor: HTMLOrSVGElement, user: string) {
 	state = state.update({
 		annotations: hoveredCursorAnnotation.of({
 			type: "hoveredCursor",
 			cursor,
+			user,
 		}),
 	}).state;
 }
 
-export function removeHoveredCursor() {
+export function removeHoveredCursor(user: string) {
 	state = state.update({
 		annotations: hoveredCursorAnnotation.of({
 			type: "removeHoveredCursor",
+			user,
 		}),
 	}).state;
 }

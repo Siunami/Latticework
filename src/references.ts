@@ -32,14 +32,6 @@ export function createReferenceIcon(): {
 	svg.style.backgroundColor = "white";
 	svg.style.cursor = "pointer";
 
-	// span.addEventListener("mouseenter", async () => {
-	// 	svg.style.backgroundColor = SVG_HOVER_COLOR;
-	// });
-
-	// span.addEventListener("mouseleave", async () => {
-	// 	svg.style.backgroundColor = "white";
-	// });
-
 	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 	line.setAttribute("x1", "6");
 	line.setAttribute("y1", `${(height - 8) / 3}`);
@@ -169,7 +161,7 @@ export function updateBacklinkMarkPosition(
 }
 
 export async function updateBacklinkMarkPositions() {
-	await recomputeReferencesForPage();
+	// await recomputeReferencesForPage();
 	const { workspace } = getThat();
 	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
 
@@ -366,6 +358,8 @@ export function generateBacklinks() {
 			});
 
 			updateBacklinks(backlinks);
+
+			console.log(backlinks);
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			leaves.forEach((leaf: WorkspaceLeaf) => {
