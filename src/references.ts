@@ -152,6 +152,8 @@ export function updateBacklinkMarkPosition(
 		const { from } = backlink.referencedLocation;
 
 		const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
+		if (!bbox) return;
+
 		let referenceMarker = backlinkContainer.querySelector(
 			`#${getBacklinkID(backlink)}`
 		) as HTMLElement | null;
@@ -211,6 +213,7 @@ export function createBacklinkMark(
 		span.style.left = lineBbox.width + 40 + "px";
 	}
 	span.id = getBacklinkID(backlink);
+	span.setAttribute("reference", JSON.stringify(backlink));
 
 	// span.addEventListener("click", async () => {
 	// 	const { workspace } = state.values[0].app;
@@ -348,21 +351,6 @@ export function generateBacklinks() {
 
 			zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
 				backlinks.push(...createBacklinkData(file.fileData, file.markdownFile));
-				// let matches = [...file.fileData.matchAll(REFERENCE_REGEX)];
-
-				// matches.forEach((match) => {
-				// 	let [prefix, text, suffix, file2, from, to] = processURI(match[1]);
-				// 	references.push({
-				// 		prefix,
-				// 		text,
-				// 		suffix,
-				// 		file: file2,
-				// 		from,
-				// 		to,
-				// 		dataString: match[1],
-				// 		sourceFile: file.markdownFile.path,
-				// 	});
-				// });
 			});
 
 			updateBacklinks(backlinks);
@@ -412,12 +400,12 @@ export async function openReference(ev: MouseEvent) {
 	) {
 		updateCursor({
 			temp: false,
-			viewport: null,
+			cursorViewport: null,
 		});
 	}
 	updateHover({
 		temp: false,
-		viewport: null,
+		cursorViewport: null,
 	});
 
 	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);

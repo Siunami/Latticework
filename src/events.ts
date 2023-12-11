@@ -31,6 +31,7 @@ import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 
 function getEditorView(leaf: WorkspaceLeaf) {
+	if (!leaf) return null;
 	const view = leaf.view;
 
 	// @ts-ignore
@@ -60,11 +61,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		type: `${ACTION_TYPE.MOUSE}-start`,
 	});
 
-	const dataString = span.getAttribute("data");
-	if (!dataString) return;
+	const referenceData = span.getAttribute("reference");
+	if (!referenceData) throw new Error("Reference data not found");
+
+	const backlink = JSON.parse(referenceData);
+	console.log(backlink);
+	const dataString = backlink.dataString;
+
+	// resetHover();
 
 	if (destination != null && destination.dataString == dataString) {
-		updateHover(destination);
+		updateState(destination);
 		return;
 	}
 
@@ -74,14 +81,42 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
+	let currLeaf = getThat().workspace.getLeaf();
+	// @ts-ignore
+	let currLeafID = currLeaf.id;
+	if (!currLeafID) throw new Error("Leaf id not found");
+
+	if (currLeaf && currLeaf.view instanceof MarkdownView) {
+		const editorView: EditorView = getEditorView(currLeaf);
+		if (!editorView) throw new Error("Editor view not found");
+		const viewport = currLeaf.view.editor.getScrollInfo();
+		highlightSelection(editorView, from, to);
+		let positions = findTextPositions(
+			currLeaf.view,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) throw new Error("Positions not found");
+		updateState({
+			dataString,
+			originalTop: editorView.documentTop,
+			originalLeafId: currLeafID,
+		});
+	}
+
+	let referencingFile = backlink.referencingLocation.filename;
+
 	// if (currTabIdx != -1) {
 	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
 	const { newLeaf, temp } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,
-		file
+		referencingFile
 	);
+
+	console.log(newLeaf);
 
 	// @ts-ignore
 	let id = newLeaf.id;
@@ -91,30 +126,35 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		temp,
 	});
 
-	if (newLeaf && newLeaf.view instanceof MarkdownView) {
-		// @ts-ignore
-		let id = newLeaf.id;
+	// currLeaf, highlight reference.
+	// referencing location leaf, open it if necessary.
 
-		const editorView: EditorView = getEditorView(newLeaf);
-		if (!editorView) throw new Error("Editor view not found");
-		const viewport = newLeaf.view.editor.getScrollInfo();
+	return;
 
-		highlightSelection(editorView, from, to);
-		let positions = findTextPositions(
-			newLeaf.view,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
+	// if (newLeaf && newLeaf.view instanceof MarkdownView) {
+	// 	// @ts-ignore
+	// 	let id = newLeaf.id;
 
-		newLeaf.view.editor.scrollIntoView({
-			from: rangeStart,
-			to: rangeEnd,
-		});
-	}
+	// 	const editorView: EditorView = getEditorView(newLeaf);
+	// 	if (!editorView) throw new Error("Editor view not found");
+	// 	const viewport = newLeaf.view.editor.getScrollInfo();
+
+	// 	highlightSelection(editorView, from, to);
+	// 	let positions = findTextPositions(
+	// 		newLeaf.view,
+	// 		text,
+	// 		prefix.slice(0, prefix.length - 1),
+	// 		suffix.slice(1, suffix.length)
+	// 	);
+	// 	if (!positions) throw new Error("Positions not found");
+	// 	let rangeStart = positions.rangeStart;
+	// 	let rangeEnd = positions.rangeEnd;
+
+	// 	newLeaf.view.editor.scrollIntoView({
+	// 		from: rangeStart,
+	// 		to: rangeEnd,
+	// 	});
+	// }
 }
 
 export async function startReferenceEffect(
@@ -219,7 +259,7 @@ export async function endReferenceCursorEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalTop, temp, viewport } = getCursor();
+	const { dataString, leafId, originalTop, temp, cursorViewport } = getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();
@@ -237,13 +277,13 @@ export async function endReferenceCursorEffect() {
 		// setTimeout(() => {
 		// 	targetLeaf.detach();
 		// }, 100);
-	} else if (viewport) {
+	} else if (cursorViewport) {
 		let originalLeaf = workspace.getLeafById(leafId);
 		if (!originalLeaf) throw new Error("Original leaf not found");
 
 		if (originalLeaf && originalLeaf.view instanceof MarkdownView) {
 			const view: MarkdownView = originalLeaf.view;
-			view.editor.scrollTo(0, viewport.top);
+			view.editor.scrollTo(0, cursorViewport.top);
 		}
 	}
 
@@ -258,8 +298,14 @@ export async function endReferenceHoverEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalTop, originalLeafId, temp, viewport } =
-		getHover();
+	const {
+		dataString,
+		leafId,
+		originalTop,
+		originalLeafId,
+		temp,
+		cursorViewport,
+	} = getHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
 		resetHover();
@@ -278,7 +324,7 @@ export async function endReferenceHoverEffect() {
 		if (!originalLeaf) throw new Error("Original leaf not found");
 
 		workspace.revealLeaf(originalLeaf);
-	} else if (viewport) {
+	} else if (cursorViewport) {
 		let newLeaf = workspace.getLeafById(leafId);
 		if (!newLeaf) throw new Error("New leaf not found");
 
@@ -286,7 +332,7 @@ export async function endReferenceHoverEffect() {
 			const view: MarkdownView = newLeaf.view;
 
 			// scroll back to source prior to hover
-			view.editor.scrollTo(0, viewport.top);
+			view.editor.scrollTo(0, cursorViewport.top);
 
 			// if the cursor is active, highlight the selection
 			if (getCursor() != null) {

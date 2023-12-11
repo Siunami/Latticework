@@ -15,7 +15,11 @@ import {
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
 } from "./references";
-import { startReferenceEffect, endReferenceHoverEffect } from "./events";
+import {
+	startReferenceEffect,
+	endReferenceHoverEffect,
+	startBacklinkEffect,
+} from "./events";
 import {
 	checkCursorPositionAtDatastring,
 	checkFocusCursor,
@@ -100,7 +104,12 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("reference")
 			) {
 				console.log("start backlink effect");
-				// this.startBacklinkEffect(span);
+				const svgElement = span.querySelector("svg");
+				if (svgElement) {
+					svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+					updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
+				}
+				startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
 				endReferenceHoverEffect();

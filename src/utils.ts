@@ -191,13 +191,10 @@ export function handleRemoveHoveredCursor(user: string) {
 			})
 			.map((element: any) => element.cursor.closest("span"));
 
-		console.log(nonCursors);
-
 		// white background if cursors are not associated with the user action
 		getHoveredCursor()
 			.filter((element: any) => element.user === user)
 			.forEach((element: any) => {
-				console.log(element);
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
 					element.cursor.style.backgroundColor = "white";
 				}
