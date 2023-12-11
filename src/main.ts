@@ -19,6 +19,7 @@ import {
 	startReferenceEffect,
 	endReferenceHoverEffect,
 	startBacklinkEffect,
+	endBacklinkHoverEffect,
 } from "./events";
 import {
 	checkCursorPositionAtDatastring,
@@ -113,7 +114,12 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
 				endReferenceHoverEffect();
+
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
+			} else if (getBacklinks() != null) {
+				console.log("end backlink reference effect");
+				endBacklinkHoverEffect();
+				handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 			}
 		});
 

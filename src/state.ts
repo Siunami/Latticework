@@ -127,6 +127,32 @@ export let hoverElement = StateField.define<object | null>({
 	},
 });
 
+export let backlinkHoverElement = StateField.define<object | null>({
+	create() {
+		return null;
+	},
+	update(value, tr) {
+		if (tr.effects.length > 0) {
+			try {
+				let data = JSON.parse(tr.effects[0].value);
+				if (data.type == "backlink-start") {
+					return Object.assign({}, data);
+				} else if (data.type == "backlink-update") {
+					if (value) return Object.assign(value, data);
+					return data;
+				} else if (data.type == "backlink-off") {
+					return null;
+				}
+				return value;
+			} catch (e) {
+				console.log(e);
+				return value;
+			}
+		}
+		return value;
+	},
+});
+
 export let cursorElement = StateField.define<object | null>({
 	create() {
 		return null;
@@ -178,6 +204,7 @@ export let editorChange = StateField.define<null>({
 export const thatAnnotation = Annotation.define<any>();
 export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
+export const backlinkHoverEffect = StateEffect.define<string>();
 export const cursorEffect = StateEffect.define<string>();
 export const backlinkEffect = StateEffect.define<string>();
 
@@ -187,6 +214,7 @@ export let state: any = EditorState.create({
 		hoveredCursor,
 		backlinks,
 		hoverElement,
+		backlinkHoverElement,
 		cursorElement,
 		editorChange,
 	],
@@ -251,6 +279,28 @@ export function resetHover() {
 		effects: hoverEffect.of(
 			JSON.stringify({
 				type: "hover-off",
+			})
+		),
+	}).state;
+}
+
+export function getBacklinkHover() {
+	return state.field(backlinkHoverElement);
+}
+
+export function updateBacklinkHover(value: object) {
+	state = state.update({
+		effects: backlinkHoverEffect.of(
+			JSON.stringify(Object.assign(value, { type: "backlink-update" }))
+		),
+	}).state;
+}
+
+export function resetBacklinkHover() {
+	state = state.update({
+		effects: backlinkHoverEffect.of(
+			JSON.stringify({
+				type: "backlink-off",
 			})
 		),
 	}).state;

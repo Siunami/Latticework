@@ -7,6 +7,9 @@ import {
 	resetHover,
 	resetCursor,
 	getThat,
+	getBacklinkHover,
+	updateBacklinkHover,
+	resetBacklinkHover,
 } from "./state";
 import { ACTION_TYPE } from "./constants";
 import {
@@ -50,25 +53,35 @@ function getEditorView(leaf: WorkspaceLeaf) {
 	return null;
 }
 
+function checkSpanElementExists(
+	span: HTMLSpanElement,
+	containerEl: HTMLElement
+): boolean {
+	const spanElements = containerEl.getElementsByTagName("span");
+	for (let i = 0; i < spanElements.length; i++) {
+		if (spanElements[i] === span) {
+			return true;
+		}
+	}
+	return false;
+}
+
 export async function startBacklinkEffect(span: HTMLSpanElement) {
-	let source = getHover();
+	let source = getBacklinkHover();
 	let destination = getCursor();
-	let updateState = updateHover;
+	let updateState = updateBacklinkHover;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
 	updateState({
-		type: `${ACTION_TYPE.MOUSE}-start`,
+		type: `${ACTION_TYPE.BACKLINK}-start`,
 	});
 
 	const referenceData = span.getAttribute("reference");
 	if (!referenceData) throw new Error("Reference data not found");
 
 	const backlink = JSON.parse(referenceData);
-	console.log(backlink);
 	const dataString = backlink.dataString;
-
-	// resetHover();
 
 	if (destination != null && destination.dataString == dataString) {
 		updateState(destination);
@@ -81,18 +94,24 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
-	let currLeaf = getThat().workspace.getLeaf();
-	// @ts-ignore
-	let currLeafID = currLeaf.id;
-	if (!currLeafID) throw new Error("Leaf id not found");
+	let backlinkLeaf = leavesByTab[currTabIdx].filter((leaf: WorkspaceLeaf) => {
+		// @ts-ignore
+		let containerEl = leaf.containerEl;
+		const exists = checkSpanElementExists(span, containerEl);
+		return exists;
+	})[0];
 
-	if (currLeaf && currLeaf.view instanceof MarkdownView) {
-		const editorView: EditorView = getEditorView(currLeaf);
+	// @ts-ignore
+	let backlinkLeafID = backlinkLeaf.id;
+	if (!backlinkLeafID) throw new Error("Leaf id not found");
+
+	if (backlinkLeaf && backlinkLeaf.view instanceof MarkdownView) {
+		const editorView: EditorView = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
-		const viewport = currLeaf.view.editor.getScrollInfo();
+		const viewport = backlinkLeaf.view.editor.getScrollInfo();
 		highlightSelection(editorView, from, to);
 		let positions = findTextPositions(
-			currLeaf.view,
+			backlinkLeaf.view,
 			text,
 			prefix.slice(0, prefix.length - 1),
 			suffix.slice(1, suffix.length)
@@ -101,7 +120,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
-			originalLeafId: currLeafID,
+			originalLeafId: backlinkLeafID,
 		});
 	}
 
@@ -116,8 +135,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		referencingFile
 	);
 
-	console.log(newLeaf);
-
 	// @ts-ignore
 	let id = newLeaf.id;
 	if (!id) throw new Error("Leaf id not found");
@@ -125,6 +142,28 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		leafId: id,
 		temp,
 	});
+
+	if (temp) newLeaf.containerEl.style.opacity = "0.7";
+
+	// const {
+	// 	text: referencingText,
+	// 	prefix: referencingPrefix,
+	// 	suffix: referencingSuffix,
+	// 	from: referencingFrom,
+	// 	to: referencingTo,
+	// } = backlink.referencingLocation;
+
+	// // Need to get full text
+	// let positions = findTextPositions(
+	// 	newLeaf.view,
+	// 	newLeaf.view.data,
+	// 	referencingPrefix.slice(0, referencingPrefix.length - 1),
+	// 	referencingSuffix.slice(1, referencingSuffix.length)
+	// );
+	// if (!positions) throw new Error("Positions not found");
+
+	// console.log(positions);
+	// console.log(referencingFrom, referencingTo);
 
 	// currLeaf, highlight reference.
 	// referencing location leaf, open it if necessary.
@@ -261,7 +300,7 @@ export async function endReferenceCursorEffect() {
 
 	const { dataString, leafId, originalTop, temp, cursorViewport } = getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
-		// End mutex lock
+		// End mutex lock1
 		resetCursor();
 		return;
 	}
@@ -284,6 +323,18 @@ export async function endReferenceCursorEffect() {
 		if (originalLeaf && originalLeaf.view instanceof MarkdownView) {
 			const view: MarkdownView = originalLeaf.view;
 			view.editor.scrollTo(0, cursorViewport.top);
+
+			// if the cursor is active, highlight the selection
+			if (getHover() != null) {
+				// console.log(getCursor());
+				const { dataString, cursorViewport, leafId, originalLeafId } =
+					getHover();
+				let [prefix, text, suffix, file, from, to] = processURI(dataString);
+				const cursorLeaf = workspace.getLeafById(leafId);
+				workspace.revealLeaf(cursorLeaf);
+				const editorView: EditorView = getEditorView(cursorLeaf);
+				highlightSelection(editorView, from, to);
+			}
 		}
 	}
 
@@ -292,6 +343,7 @@ export async function endReferenceCursorEffect() {
 }
 
 export async function endReferenceHoverEffect() {
+	console.log("endReferenceHoverEffect");
 	if (!getHover() || Object.keys(getHover()).length == 0) {
 		// End mutex lock
 		resetHover();
@@ -336,9 +388,13 @@ export async function endReferenceHoverEffect() {
 
 			// if the cursor is active, highlight the selection
 			if (getCursor() != null) {
-				const { dataString, cursorViewport, id } = getCursor();
+				// console.log(getCursor());
+				const { dataString, cursorViewport, leafId, originalLeafId } =
+					getCursor();
 				let [prefix, text, suffix, file, from, to] = processURI(dataString);
-				const editorView: EditorView = getEditorView(newLeaf);
+				const cursorLeaf = workspace.getLeafById(leafId);
+				workspace.revealLeaf(cursorLeaf);
+				const editorView: EditorView = getEditorView(cursorLeaf);
 				highlightSelection(editorView, from, to);
 			}
 		}
@@ -346,6 +402,55 @@ export async function endReferenceHoverEffect() {
 
 	// End mutex lock
 	resetHover();
+}
+
+export async function endBacklinkHoverEffect() {
+	if (!getBacklinkHover() || Object.keys(getBacklinkHover()).length == 0) {
+		// End mutex lock
+		resetBacklinkHover();
+		return;
+	}
+
+	const {
+		dataString,
+		leafId,
+		originalTop,
+		originalLeafId,
+		temp,
+		cursorViewport,
+	} = getBacklinkHover();
+	if (getCursor() != null && getCursor().dataString == dataString) {
+		// End mutex lock
+		resetBacklinkHover();
+		return;
+	}
+
+	const { workspace } = getThat();
+	let targetLeaf = workspace.getLeafById(leafId);
+	let editorView: EditorView = getEditorView(targetLeaf);
+
+	removeHighlights(editorView);
+
+	// backlink effect
+	const originalLeaf = workspace.getLeafById(originalLeafId);
+	if (!originalLeaf) {
+		resetBacklinkHover();
+		throw new Error("Original leaf not found");
+	}
+	let originalEditorView: EditorView = getEditorView(originalLeaf);
+
+	console.log(originalLeaf);
+	removeHighlights(originalEditorView);
+
+	if (temp) {
+		targetLeaf.detach();
+		// setTimeout(() => {
+		// 	targetLeaf.detach();
+		// }, 100);
+	}
+
+	// End mutex lock
+	resetBacklinkHover();
 }
 
 // export async function endReferenceCursorEffect() {

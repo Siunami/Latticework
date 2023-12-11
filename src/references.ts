@@ -12,6 +12,9 @@ import {
 	getCursor,
 	getHover,
 	resetCursor,
+	updateHoveredCursor,
+	updateBacklinkHover,
+	getBacklinkHover,
 } from "./state";
 import {
 	processURI,
@@ -19,7 +22,7 @@ import {
 	handleRemoveHoveredCursor,
 	checkFocusCursor,
 } from "./utils";
-import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
+import { ACTION_TYPE, REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 
@@ -215,6 +218,26 @@ export function createBacklinkMark(
 	span.id = getBacklinkID(backlink);
 	span.setAttribute("reference", JSON.stringify(backlink));
 
+	span.addEventListener("mouseenter", async () => {
+		// remove existing cursors
+		const svgElement = span.querySelector("svg");
+		if (svgElement) {
+			handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
+		}
+	});
+
+	span.addEventListener("mouseleave", async () => {
+		const svgElement = span.querySelector("svg");
+		if (svgElement) {
+			svgElement.style.backgroundColor = "white";
+			handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+		}
+	});
+
+	span.addEventListener("click", openBacklinkReference);
+
 	// span.addEventListener("click", async () => {
 	// 	const { workspace } = state.values[0].app;
 	// 	const leavesByTab = collectLeavesByTabHelper();
@@ -379,6 +402,38 @@ export async function recomputeReferencesForPage() {
 			updateBacklinks(references);
 		});
 	}, 300);
+}
+
+export async function openBacklinkReference(ev: MouseEvent) {
+	let cursor = getCursor();
+	let hover = getBacklinkHover();
+	let leaf = getThat().workspace.getLeafById(hover.leafId);
+
+	// @ts-ignore
+	let container = leaf.containerEl;
+	if (!container) throw new Error("Container not found");
+	container.style.opacity = "1";
+
+	if (
+		cursor &&
+		hover &&
+		cursor.dataString &&
+		hover.dataString &&
+		cursor.dataString == hover.dataString
+	) {
+		updateCursor({
+			temp: false,
+			cursorViewport: null,
+		});
+	}
+	updateBacklinkHover({
+		temp: false,
+		cursorViewport: null,
+	});
+
+	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
+
+	resetCursor();
 }
 
 export async function openReference(ev: MouseEvent) {
