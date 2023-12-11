@@ -396,7 +396,7 @@ export async function recomputeReferencesForPage() {
 export async function openReference(ev: MouseEvent) {
 	let cursor = getCursor();
 	let hover = getHover();
-	let leaf = getThat().workspace.getLeafById(hover.id);
+	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
 	let container = leaf.containerEl;

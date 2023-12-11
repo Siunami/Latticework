@@ -81,7 +81,6 @@ export let backlinks = StateField.define<Backlink[]>({
 				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
 					tr.effects[0].value
 				);
-				console.log(data);
 				if (data.type == "backlink") {
 					if (data.backlinks.length == 0) return value;
 					let referencingLocation =

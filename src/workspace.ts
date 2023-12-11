@@ -8,6 +8,7 @@ import {
 	WorkspaceTabs,
 } from "obsidian";
 import { getThat } from "./state";
+import { ACTION_TYPE } from "./constants";
 
 function findRootSplit(split: any) {
 	console.log(split);
@@ -131,7 +132,8 @@ export function getAdjacentTabs(
 export async function openFileInAdjacentTab(
 	leavesByTab: any[],
 	currTabIdx: number,
-	file: string
+	file: string,
+	type?: string
 ) {
 	let { adjacentTabs, rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
 		leavesByTab,
@@ -148,6 +150,7 @@ export async function openFileInAdjacentTab(
 	const { workspace } = getThat();
 	// there are no adjacent tabs
 	if (adjacentTabs.length == 0) {
+		// if (type == ACTION_TYPE.MOUSE) return { newLeaf: null, temp: false };
 		const currLeaf = workspace.getLeaf();
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
@@ -168,7 +171,7 @@ export async function openFileInAdjacentTab(
 		let newLeaf = workspace.getLeaf(true);
 		await openFileInLeaf(newLeaf, file);
 		workspace.revealLeaf(newLeaf);
-		workspace.setActiveLeaf(currLeaf);
+		workspace.setActiveLeaf(newLeaf);
 		return { newLeaf, temp: true };
 	} else if (rightAdjacentTab.length > 0) {
 		// leaf exists in right tab
@@ -178,7 +181,7 @@ export async function openFileInAdjacentTab(
 		let newLeaf = workspace.getLeaf(true);
 		await openFileInLeaf(newLeaf, file);
 		workspace.revealLeaf(newLeaf);
-		workspace.setActiveLeaf(currLeaf);
+		workspace.setActiveLeaf(newLeaf);
 		return { newLeaf, temp: true };
 	}
 	return { newLeaf: null, temp: false };
