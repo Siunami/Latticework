@@ -10,8 +10,9 @@ import {
 	getBacklinkHover,
 	updateBacklinkHover,
 	resetBacklinkHover,
+	updateHoveredCursor,
 } from "./state";
-import { ACTION_TYPE } from "./constants";
+import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 import {
 	collectLeavesByTabHelper,
 	getCurrentTabIndex,
@@ -22,6 +23,7 @@ import {
 	decodeURIComponentString,
 	findTextPositions,
 	listItemLength,
+	handleRemoveHoveredCursor,
 } from "./utils";
 import {
 	Editor,
@@ -109,14 +111,14 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		const editorView: EditorView = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = backlinkLeaf.view.editor.getScrollInfo();
-		highlightSelection(editorView, from, to);
-		let positions = findTextPositions(
-			backlinkLeaf.view,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		if (!positions) throw new Error("Positions not found");
+		// highlightSelection(editorView, from, to);
+		// let positions = findTextPositions(
+		// 	backlinkLeaf.view.data,
+		// 	text,
+		// 	prefix.slice(0, prefix.length - 1),
+		// 	suffix.slice(1, suffix.length)
+		// );
+		// if (!positions) throw new Error("Positions not found");
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
@@ -143,57 +145,31 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		temp,
 	});
 
-	if (temp) newLeaf.containerEl.style.opacity = "0.7";
+	if (temp) {
+		// newLeaf.containerEl.style.opacity = "0.7";
+		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+	}
 
-	// const {
-	// 	text: referencingText,
-	// 	prefix: referencingPrefix,
-	// 	suffix: referencingSuffix,
-	// 	from: referencingFrom,
-	// 	to: referencingTo,
-	// } = backlink.referencingLocation;
+	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
+		`span[data="${backlink.dataString}"]`
+	);
 
-	// // Need to get full text
-	// let positions = findTextPositions(
-	// 	newLeaf.view,
-	// 	newLeaf.view.data,
-	// 	referencingPrefix.slice(0, referencingPrefix.length - 1),
-	// 	referencingSuffix.slice(1, referencingSuffix.length)
-	// );
-	// if (!positions) throw new Error("Positions not found");
-
-	// console.log(positions);
-	// console.log(referencingFrom, referencingTo);
-
-	// currLeaf, highlight reference.
-	// referencing location leaf, open it if necessary.
+	if (backlinkSpan) {
+		// backlinkSpan.scrollIntoView({
+		// 	behavior: "smooth",
+		// 	block: "center",
+		// 	inline: "center",
+		// });
+		const svgElement = backlinkSpan.querySelector("svg");
+		if (svgElement) {
+			svgElement.style.borderRadius = "5px";
+			svgElement.style.boxShadow = `0px 0px 10px 10px ${SVG_HOVER_COLOR}`;
+			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
+		}
+	}
 
 	return;
-
-	// if (newLeaf && newLeaf.view instanceof MarkdownView) {
-	// 	// @ts-ignore
-	// 	let id = newLeaf.id;
-
-	// 	const editorView: EditorView = getEditorView(newLeaf);
-	// 	if (!editorView) throw new Error("Editor view not found");
-	// 	const viewport = newLeaf.view.editor.getScrollInfo();
-
-	// 	highlightSelection(editorView, from, to);
-	// 	let positions = findTextPositions(
-	// 		newLeaf.view,
-	// 		text,
-	// 		prefix.slice(0, prefix.length - 1),
-	// 		suffix.slice(1, suffix.length)
-	// 	);
-	// 	if (!positions) throw new Error("Positions not found");
-	// 	let rangeStart = positions.rangeStart;
-	// 	let rangeEnd = positions.rangeEnd;
-
-	// 	newLeaf.view.editor.scrollIntoView({
-	// 		from: rangeStart,
-	// 		to: rangeEnd,
-	// 	});
-	// }
 }
 
 export async function startReferenceEffect(
@@ -235,7 +211,7 @@ export async function startReferenceEffect(
 	// if (currTabIdx != -1) {
 	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
-	const { newLeaf, temp } = await openFileInAdjacentTab(
+	const { newLeaf, temp, originalTab } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,
 		file,
@@ -254,7 +230,11 @@ export async function startReferenceEffect(
 		temp,
 	});
 
-	if (temp) newLeaf.containerEl.style.opacity = "0.7";
+	if (temp) {
+		// newLeaf.containerEl.style.opacity = "0.7";
+		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+	}
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
@@ -263,7 +243,7 @@ export async function startReferenceEffect(
 
 		highlightSelection(editorView, from, to);
 		let positions = findTextPositions(
-			newLeaf.view,
+			newLeaf.view.data,
 			text,
 			prefix.slice(0, prefix.length - 1),
 			suffix.slice(1, suffix.length)
@@ -285,10 +265,16 @@ export async function startReferenceEffect(
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
-			originalLeafId: currLeafID,
+			// originalLeafId: currLeafID,
 			cursorViewport,
 		});
 	}
+
+	// @ts-ignore
+	const originalLeafId = originalTab.id;
+	updateState({
+		originalLeafId,
+	});
 }
 
 export async function endReferenceCursorEffect() {
@@ -298,7 +284,8 @@ export async function endReferenceCursorEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalTop, temp, cursorViewport } = getCursor();
+	const { dataString, leafId, originalLeafId, temp, cursorViewport } =
+		getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock1
 		resetCursor();
@@ -307,37 +294,68 @@ export async function endReferenceCursorEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) throw new Error("Target leaf not found");
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
 
-	if (temp) {
-		targetLeaf.detach();
-		// setTimeout(() => {
-		// 	targetLeaf.detach();
-		// }, 100);
-	} else if (cursorViewport) {
-		let originalLeaf = workspace.getLeafById(leafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
+		const view: MarkdownView = targetLeaf.view;
+		view.editor.scrollTo(0, cursorViewport.top);
 
-		if (originalLeaf && originalLeaf.view instanceof MarkdownView) {
-			const view: MarkdownView = originalLeaf.view;
-			view.editor.scrollTo(0, cursorViewport.top);
+		// const result = await new Promise((resolve) => {
+		// 	const scrolling = setInterval(() => {
+		// 		const scrollAmount = 40;
+		// 		const currentScroll = view.editor.getScrollInfo().top;
+		// 		if (currentScroll == cursorViewport.top) {
+		// 			clearInterval(scrolling);
+		// 		} else if (currentScroll > cursorViewport.top) {
+		// 			if (currentScroll - scrollAmount < cursorViewport.top) {
+		// 				view.editor.scrollTo(0, cursorViewport.top);
+		// 				clearInterval(scrolling);
+		// 				resolve("done");
+		// 			} else {
+		// 				view.editor.scrollTo(0, currentScroll - scrollAmount);
+		// 			}
+		// 		} else if (currentScroll < cursorViewport.top) {
+		// 			if (currentScroll + scrollAmount > cursorViewport.top) {
+		// 				view.editor.scrollTo(0, cursorViewport.top);
+		// 				clearInterval(scrolling);
+		// 				resolve("done");
+		// 			} else {
+		// 				view.editor.scrollTo(0, currentScroll + scrollAmount);
+		// 			}
+		// 		}
+		// 	}, 10);
+		// });
 
-			// if the cursor is active, highlight the selection
-			if (getHover() != null) {
-				// console.log(getCursor());
-				const { dataString, cursorViewport, leafId, originalLeafId } =
-					getHover();
-				let [prefix, text, suffix, file, from, to] = processURI(dataString);
-				const cursorLeaf = workspace.getLeafById(leafId);
-				workspace.revealLeaf(cursorLeaf);
-				const editorView: EditorView = getEditorView(cursorLeaf);
-				highlightSelection(editorView, from, to);
-			}
+		// view.containerEl.querySelector(".cm-scroller")?.scrollTo({
+		// 	top: cursorViewport.top,
+		// 	behavior: "smooth",
+		// });
+
+		// if the hover is active, highlight the selection
+		if (getHover() != null) {
+			const { dataString, cursorViewport, leafId, originalLeafId } = getHover();
+			let [prefix, text, suffix, file, from, to] = processURI(dataString);
+			const cursorLeaf = workspace.getLeafById(leafId);
+			console.log(cursorLeaf);
+			workspace.revealLeaf(cursorLeaf);
+			const editorView: EditorView = getEditorView(cursorLeaf);
+			highlightSelection(editorView, from, to);
 		}
 	}
 
+	if (temp && targetLeaf) {
+		targetLeaf.detach();
+	}
+
+	// if (!temp) {
+	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
+	// 	if (!originalLeaf) throw new Error("Original leaf not found");
+
+	// 	workspace.revealLeaf(originalLeaf);
+	// }
 	// End mutex lock
 	resetCursor();
 }
@@ -350,15 +368,10 @@ export async function endReferenceHoverEffect() {
 		return;
 	}
 
-	const {
-		dataString,
-		leafId,
-		originalTop,
-		originalLeafId,
-		temp,
-		cursorViewport,
-	} = getHover();
+	const { dataString, leafId, originalLeafId, temp, cursorViewport } =
+		getHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
+		console.log("cursor reset");
 		// End mutex lock
 		resetHover();
 		return;
@@ -366,39 +379,69 @@ export async function endReferenceHoverEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
-	let editorView: EditorView = getEditorView(targetLeaf);
+	if (!targetLeaf) throw new Error("Target leaf not found");
+	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
 
-	if (temp) {
-		targetLeaf.detach();
-		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
+		const view: MarkdownView = targetLeaf.view;
+		view.editor.scrollTo(0, cursorViewport.top);
 
-		workspace.revealLeaf(originalLeaf);
-	} else if (cursorViewport) {
-		let newLeaf = workspace.getLeafById(leafId);
-		if (!newLeaf) throw new Error("New leaf not found");
+		// const currentScroll = view.editor.getScrollInfo().top;
+		// const result = await new Promise((resolve) => {
+		// 	const scrolling = setInterval(() => {
+		// 		const scrollAmount = 40;
+		// 		const currentScroll = view.editor.getScrollInfo().top;
+		// 		if (currentScroll == cursorViewport.top) {
+		// 			clearInterval(scrolling);
+		// 		} else if (currentScroll > cursorViewport.top) {
+		// 			if (currentScroll - scrollAmount < cursorViewport.top) {
+		// 				view.editor.scrollTo(0, cursorViewport.top);
+		// 				clearInterval(scrolling);
+		// 				resolve("done");
+		// 			} else {
+		// 				view.editor.scrollTo(0, currentScroll - scrollAmount);
+		// 			}
+		// 		} else if (currentScroll < cursorViewport.top) {
+		// 			if (currentScroll + scrollAmount > cursorViewport.top) {
+		// 				view.editor.scrollTo(0, cursorViewport.top);
+		// 				clearInterval(scrolling);
+		// 				resolve("done");
+		// 			} else {
+		// 				view.editor.scrollTo(0, currentScroll + scrollAmount);
+		// 			}
+		// 		}
+		// 	}, 10);
+		// });
 
-		if (newLeaf && newLeaf.view instanceof MarkdownView) {
-			const view: MarkdownView = newLeaf.view;
+		// view.containerEl.querySelector(".cm-scroller")?.scrollTo({
+		// 	top: cursorViewport.top,
+		// 	behavior: "smooth",
+		// });
 
-			// scroll back to source prior to hover
-			view.editor.scrollTo(0, cursorViewport.top);
-
-			// if the cursor is active, highlight the selection
-			if (getCursor() != null) {
-				// console.log(getCursor());
-				const { dataString, cursorViewport, leafId, originalLeafId } =
-					getCursor();
-				let [prefix, text, suffix, file, from, to] = processURI(dataString);
-				const cursorLeaf = workspace.getLeafById(leafId);
-				workspace.revealLeaf(cursorLeaf);
-				const editorView: EditorView = getEditorView(cursorLeaf);
-				highlightSelection(editorView, from, to);
-			}
+		// if the cursor is active, highlight the selection
+		if (getCursor() != null) {
+			const { dataString, cursorViewport, leafId, originalLeafId } =
+				getCursor();
+			let [prefix, text, suffix, file, from, to] = processURI(dataString);
+			const cursorLeaf = workspace.getLeafById(leafId);
+			workspace.revealLeaf(cursorLeaf);
+			const editorView: EditorView = getEditorView(cursorLeaf);
+			highlightSelection(editorView, from, to);
 		}
 	}
+
+	if (temp && targetLeaf) {
+		targetLeaf.detach();
+	}
+
+	// if (!temp) {
+	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
+	// 	if (!originalLeaf) throw new Error("Original leaf not found");
+
+	// 	workspace.revealLeaf(originalLeaf);
+	// }
 
 	// End mutex lock
 	resetHover();
@@ -414,10 +457,10 @@ export async function endBacklinkHoverEffect() {
 	const {
 		dataString,
 		leafId,
-		originalTop,
 		originalLeafId,
 		temp,
 		cursorViewport,
+		originalTab,
 	} = getBacklinkHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
@@ -439,15 +482,32 @@ export async function endBacklinkHoverEffect() {
 	}
 	let originalEditorView: EditorView = getEditorView(originalLeaf);
 
-	console.log(originalLeaf);
 	removeHighlights(originalEditorView);
 
-	if (temp) {
-		targetLeaf.detach();
-		// setTimeout(() => {
-		// 	targetLeaf.detach();
-		// }, 100);
+	if (getCursor() != null) {
+		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();
+		let [prefix, text, suffix, file, from, to] = processURI(dataString);
+		const cursorLeaf = workspace.getLeafById(leafId);
+		workspace.revealLeaf(cursorLeaf);
+
+		const editorView: EditorView = getEditorView(cursorLeaf);
+		highlightSelection(editorView, from, to);
 	}
+
+	if (temp && targetLeaf) {
+		targetLeaf.detach();
+	}
+
+	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+
+	// if (temp) {
+	// 	targetLeaf.detach();
+	// 	// setTimeout(() => {
+	// 	// 	targetLeaf.detach();
+	// 	// }, 100);
+	// } else {
+	// 	// if the cursor is active, highlight the selection
+	// }
 
 	// End mutex lock
 	resetBacklinkHover();

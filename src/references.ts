@@ -412,7 +412,7 @@ export async function openBacklinkReference(ev: MouseEvent) {
 	// @ts-ignore
 	let container = leaf.containerEl;
 	if (!container) throw new Error("Container not found");
-	container.style.opacity = "1";
+	container.querySelector(".view-content").style.boxShadow = "none";
 
 	if (
 		cursor &&
@@ -444,7 +444,7 @@ export async function openReference(ev: MouseEvent) {
 	// @ts-ignore
 	let container = leaf.containerEl;
 	if (!container) throw new Error("Container not found");
-	container.style.opacity = "1";
+	container.querySelector(".view-content").style.boxShadow = "none";
 
 	if (
 		cursor &&

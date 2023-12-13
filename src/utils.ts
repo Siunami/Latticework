@@ -55,15 +55,13 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 }
 
 export function findTextPositions(
-	view: View,
+	text: string,
 	searchTerm: string,
 	prefix: string = "",
 	suffix: string = ""
 ) {
 	let rollingIndex = 0;
 
-	// @ts-ignore
-	const text = view.data;
 	// const text = view.getDisplayText();
 	const lines = text.split("\n").map((line: string, i: number) => {
 		let data = { line, index: rollingIndex, length: line.length + 1, i };
@@ -149,7 +147,6 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 							throw new Error("Element not instance of Element");
 						let container = evt.target as Element;
 
-						console.log(container);
 						let activeLine;
 						if (container.classList.contains("cm-active")) {
 							activeLine = container;
@@ -197,6 +194,7 @@ export function handleRemoveHoveredCursor(user: string) {
 			.forEach((element: any) => {
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
 					element.cursor.style.backgroundColor = "white";
+					element.cursor.style.boxShadow = "none";
 				}
 			});
 
@@ -217,7 +215,7 @@ export function checkFocusCursor(evt: Event) {
 		}
 
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
-		if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		startReferenceEffect(span, ACTION_TYPE.CURSOR);
 
 		// setTimeout(() => {
 		// 	if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
