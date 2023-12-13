@@ -32,12 +32,13 @@ export function createReferenceIcon(): {
 } {
 	const span = document.createElement("span");
 
-	const height = 28;
+	const height = 24;
+	const width = 24 * 0.9;
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-	svg.setAttribute("width", "24");
+	svg.setAttribute("width", `${width}`);
 	svg.setAttribute("height", `${height}`);
-	svg.setAttribute("viewBox", `0 0 24 ${height}`);
+	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 	svg.setAttribute("fill", "white");
 	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 	svg.style.border = "4px solid black";
@@ -45,30 +46,30 @@ export function createReferenceIcon(): {
 	svg.style.cursor = "pointer";
 
 	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line.setAttribute("x1", "6");
-	line.setAttribute("y1", `${(height - 8) / 3}`);
-	line.setAttribute("x2", "18");
-	line.setAttribute("y2", `${(height - 8) / 3}`);
+	line.setAttribute("x1", "3");
+	line.setAttribute("y1", `${(height - 3) / 3}`);
+	line.setAttribute("x2", "14");
+	line.setAttribute("y2", `${(height - 3) / 3}`);
 	line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line.setAttribute("stroke", "black"); // Set the stroke color to black
 
 	svg.appendChild(line);
 
 	const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line2.setAttribute("x1", "6");
-	line2.setAttribute("y1", `${((height - 8) / 3) * 2}`);
-	line2.setAttribute("x2", "20");
-	line2.setAttribute("y2", `${((height - 8) / 3) * 2}`);
+	line2.setAttribute("x1", "3");
+	line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
+	line2.setAttribute("x2", "17");
+	line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
 	line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line2.setAttribute("stroke", "black"); // Set the stroke color to black
 
 	svg.appendChild(line2);
 
 	const line3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line3.setAttribute("x1", "6");
-	line3.setAttribute("y1", `${((height - 8) / 3) * 3}`);
-	line3.setAttribute("x2", "15");
-	line3.setAttribute("y2", `${((height - 8) / 3) * 3}`);
+	line3.setAttribute("x1", "3");
+	line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
+	line3.setAttribute("x2", "12");
+	line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
 	line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line3.setAttribute("stroke", "black"); // Set the stroke color to black
 
