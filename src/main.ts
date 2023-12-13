@@ -7,6 +7,7 @@ import {
 	getBacklinks,
 	syncBacklinks,
 	updateHoveredCursor,
+	getCursor,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
@@ -20,6 +21,7 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
+	endReferenceCursorEffect,
 } from "./events";
 import {
 	checkCursorPositionAtDatastring,
@@ -49,8 +51,9 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerEvent(
 			this.app.workspace.on("active-leaf-change", (ev) => {
-				console.log("active-leaf-changed:");
-				console.log(ev);
+				// console.log("active-leaf-changed:");
+				// console.log(ev);
+
 				// This should create referenceMarkers if they don't exist and update
 				// else update only
 
@@ -114,13 +117,17 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
 				endReferenceHoverEffect();
-
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
-			} else if (getBacklinks() != null) {
-				console.log("end backlink reference effect");
-				endBacklinkHoverEffect();
-				handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+			} else if (getCursor() != null) {
+				console.log("end cursor reference effect");
+				endReferenceCursorEffect();
+				handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 			}
+			// else if (getBacklinks() != null) {
+			// 	console.log("end backlink reference effect");
+			// 	endBacklinkHoverEffect();
+			// 	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+			// }
 		});
 
 		// on selection changes, event over click and keydown

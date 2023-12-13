@@ -1142,8 +1142,7 @@ export default class MyHighlightPlugin extends Plugin {
 			dataString = JSON.parse(reference).dataString;
 			reference = JSON.parse(reference);
 		}
-		console.log(dataString);
-		console.log(reference);
+
 		if (!dataString || !reference) return;
 
 		if (destination != null && destination.dataString == dataString) {
@@ -1161,11 +1160,9 @@ export default class MyHighlightPlugin extends Plugin {
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
-		console.log(currTabIdx);
 
 		const data = highlightHoveredReference(dataString, currTabIdx, false);
 		if (data) {
-			console.log(data);
 			state = state.update({
 				effects: stateMutation.of(
 					JSON.stringify(Object.assign(data, { type: "hover" }))
@@ -1192,8 +1189,6 @@ export default class MyHighlightPlugin extends Plugin {
 				}).state;
 			}
 
-			console.log("currLeaf");
-			console.log(currLeaf);
 			if (currLeaf) {
 				let elements = [...currLeaf.containerEl.querySelectorAll("[data]")];
 				let elementIndex = [...currLeaf.containerEl.querySelectorAll("[data]")]
@@ -1205,13 +1200,10 @@ export default class MyHighlightPlugin extends Plugin {
 				// );
 				let element = elements[elementIndex];
 				let bbox = element.getBoundingClientRect();
-				console.log(element);
-				console.log(currLeaf.view.editor);
 				let scrollTop = currLeaf.view.editor.getScrollInfo().top;
 
 				currLeaf.view.editor.scrollTo(0, scrollTop + (bbox.top - 300));
 
-				console.log(element);
 				element.style.backgroundColor = "rgb(187, 215, 230)";
 				state = state.update({
 					effects: stateMutation.of(
@@ -1264,8 +1256,6 @@ export default class MyHighlightPlugin extends Plugin {
 
 		let leavesByTab = collectLeavesByTabHelper();
 		let currTabIdx = getCurrentTabIndex(leavesByTab, span);
-
-		console.log(currTabIdx);
 
 		if (currTabIdx != -1) {
 			// && currTab != -1) {

@@ -332,7 +332,7 @@ export function getBacklinks(): Backlink[] {
 	return state.field(backlinks);
 }
 
-// NOTE: I have no idea what this is doing.
+// This updates the cache of backlinks across all the files
 export function updateBacklinks(value: Backlink[]) {
 	state = state.update({
 		effects: backlinkEffect.of(

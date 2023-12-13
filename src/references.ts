@@ -21,6 +21,7 @@ import {
 	getPrefixAndSuffix,
 	handleRemoveHoveredCursor,
 	checkFocusCursor,
+	findTextPositions,
 } from "./utils";
 import { ACTION_TYPE, REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
@@ -31,13 +32,15 @@ export function createReferenceIcon(): {
 	svg: SVGElement;
 } {
 	const span = document.createElement("span");
+	span.style.marginTop = "2px";
 
-	const height = 28;
+	const height = 24;
+	const width = height * 0.9;
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-	svg.setAttribute("width", "24");
+	svg.setAttribute("width", `${width}`);
 	svg.setAttribute("height", `${height}`);
-	svg.setAttribute("viewBox", `0 0 24 ${height}`);
+	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 	svg.setAttribute("fill", "white");
 	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
 	svg.style.border = "4px solid black";
@@ -45,30 +48,30 @@ export function createReferenceIcon(): {
 	svg.style.cursor = "pointer";
 
 	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line.setAttribute("x1", "6");
-	line.setAttribute("y1", `${(height - 8) / 3}`);
-	line.setAttribute("x2", "18");
-	line.setAttribute("y2", `${(height - 8) / 3}`);
+	line.setAttribute("x1", "3");
+	line.setAttribute("y1", `${(height - 6) / 3}`);
+	line.setAttribute("x2", "11");
+	line.setAttribute("y2", `${(height - 6) / 3}`);
 	line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line.setAttribute("stroke", "black"); // Set the stroke color to black
 
 	svg.appendChild(line);
 
 	const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line2.setAttribute("x1", "6");
-	line2.setAttribute("y1", `${((height - 8) / 3) * 2}`);
-	line2.setAttribute("x2", "20");
-	line2.setAttribute("y2", `${((height - 8) / 3) * 2}`);
+	line2.setAttribute("x1", "3");
+	line2.setAttribute("y1", `${((height - 6) / 3) * 2}`);
+	line2.setAttribute("x2", "17");
+	line2.setAttribute("y2", `${((height - 6) / 3) * 2}`);
 	line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line2.setAttribute("stroke", "black"); // Set the stroke color to black
 
 	svg.appendChild(line2);
 
 	const line3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line3.setAttribute("x1", "6");
-	line3.setAttribute("y1", `${((height - 8) / 3) * 3}`);
-	line3.setAttribute("x2", "15");
-	line3.setAttribute("y2", `${((height - 8) / 3) * 3}`);
+	line3.setAttribute("x1", "3");
+	line3.setAttribute("y1", `${((height - 6) / 3) * 3}`);
+	line3.setAttribute("x2", "13");
+	line3.setAttribute("y2", `${((height - 6) / 3) * 3}`);
 	line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line3.setAttribute("stroke", "black"); // Set the stroke color to black
 
@@ -208,6 +211,14 @@ export function createBacklinkMark(
 	const { from } = backlink.referencedLocation;
 	const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
 
+	// Andy's notes on laying out the references so that they don't collide
+	// 1. in this function, store the bbox.top in an attribute so that you can use it later
+	// 2. separately, do a global layout pass whenever the geometry changes or also on edits (With debounce)
+	//    in that global layout pass, sort all the references by bbox.top (via the attribute), then greedily layout
+	//	  let lastYBottom; for the first one, place it where it wants to be. then set lastYBottom to that bbox.top plus its height
+	//	  then, for the rest, set their top to max(bbox.top, lastYBottom + margin)
+	// think about the case where the backlink is to an isolated quote
+
 	let { span } = createReferenceIcon();
 	span.style.color = "black";
 	span.style.position = "absolute";
@@ -237,40 +248,6 @@ export function createBacklinkMark(
 	});
 
 	span.addEventListener("click", openBacklinkReference);
-
-	// span.addEventListener("click", async () => {
-	// 	const { workspace } = state.values[0].app;
-	// 	const leavesByTab = collectLeavesByTabHelper();
-
-	// 	const { tabIdx, index, dataString, leafId } = state.values[2];
-	// 	/* If temporary, then keep leaf */
-	// 	if (dataString) {
-	// 		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-	// 		/*
-	// 				The problem here is that I don't have the position of the span element.
-	// 				I want to set the active cursor to the end of the span
-	// 		// let [text2, file2, from2, to2] = this.name.split("|");
-	// 		// const currentTab = getHoveredTab(leavesByTab, span);
-	// 		// // console.log("currentTab");
-	// 		// // console.log(currentTab);
-	// 		// let rangeEnd2 = parseEditorPosition(to2);
-
-	// 		// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-	// 		// // console.log(lineText);
-	// 		// // currentTab.view.editor.setCursor(rangeEnd2);
-	// 		*/
-
-	// 		let targetLeaf = leavesByTab[tabIdx][index];
-	// 		workspace.setActiveLeaf(targetLeaf);
-	// 		const editor = targetLeaf.view.editor;
-	// 		editor.setCursor(editor.cm.posToOffset(to));
-
-	// 		updateHover({
-	// 			leafId: null,
-	// 			originalTop: null,
-	// 		});
-	// 	}
-	// });
 
 	getBacklinkContainer(editor).appendChild(span);
 	return span;
@@ -333,21 +310,45 @@ function createBacklinkData(
 			to,
 		};
 
+		// 1. find the line which includes match.index
+		// 2. strip out all the links in that line
+		// 3. extract the first N characters of the line
+		// const portalText = referencingFileData.slice(
+		// 	match.index! - PORTAL_TEXT_SLICE_SIZE,
+		// 	PORTAL_TEXT_SLICE_SIZE
+		// );
+
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
 			match.index!,
-			match.index! + match.length
+			match.index! + match![0].length
 		);
+
+		let referencedText = referencingFileData.slice(
+			match.index!,
+			match.index! + match![0].length
+		);
+		let positions = findTextPositions(
+			referencingFileData,
+			referencedText,
+			referencingSurroundingStrings.prefix,
+			referencingSurroundingStrings.suffix
+		);
+		if (!positions) throw new Error("Positions not found");
+
 		const referencingLocation: DocumentLocation = {
 			prefix: referencingSurroundingStrings.prefix,
 			text,
 			suffix: referencingSurroundingStrings.suffix,
 			filename: referencingFile.path,
-			from: match.index!, // TODO do weird string format
-			to: match.index! + match.length, // TODO do weird string format
+			// from: positions!.rangeStart!,
+			// to: positions!.rangeEnd!,
+			from: referencingFileData.indexOf(referencedText),
+			to: referencingFileData.indexOf(referencedText) + referencedText.length,
 		};
 
 		backlinks.push({
+			// portalText,
 			referencedLocation,
 			referencingLocation,
 			dataString: match[1],
@@ -362,7 +363,7 @@ export function generateBacklinks() {
 	debounceTimer = setTimeout(() => {
 		console.log("generating references");
 		let backlinks: Backlink[] = [];
-		let markdownFiles = this.app.vault.getMarkdownFiles();
+		let markdownFiles: TFile[] = getThat().vault.getMarkdownFiles();
 
 		Promise.all(
 			markdownFiles.map((file: TFile) => this.app.vault.read(file))
@@ -410,9 +411,9 @@ export async function openBacklinkReference(ev: MouseEvent) {
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
-	let container = leaf.containerEl;
-	if (!container) throw new Error("Container not found");
-	container.style.opacity = "1";
+	let containerEl = leaf.containerEl;
+	if (!containerEl) throw new Error("Container not found");
+	containerEl.querySelector(".view-content").style.boxShadow = "none";
 
 	if (
 		cursor &&
@@ -431,7 +432,7 @@ export async function openBacklinkReference(ev: MouseEvent) {
 		cursorViewport: null,
 	});
 
-	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
+	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 
 	resetCursor();
 }
@@ -442,9 +443,9 @@ export async function openReference(ev: MouseEvent) {
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
-	let container = leaf.containerEl;
-	if (!container) throw new Error("Container not found");
-	container.style.opacity = "1";
+	let containerEl = leaf.containerEl;
+	if (!containerEl) throw new Error("Container not found");
+	containerEl.querySelector(".view-content").style.boxShadow = "none";
 
 	if (
 		cursor &&

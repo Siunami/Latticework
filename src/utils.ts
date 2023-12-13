@@ -55,15 +55,13 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 }
 
 export function findTextPositions(
-	view: View,
+	text: string,
 	searchTerm: string,
 	prefix: string = "",
 	suffix: string = ""
 ) {
 	let rollingIndex = 0;
 
-	// @ts-ignore
-	const text = view.data;
 	// const text = view.getDisplayText();
 	const lines = text.split("\n").map((line: string, i: number) => {
 		let data = { line, index: rollingIndex, length: line.length + 1, i };
@@ -120,11 +118,14 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 	span: HTMLSpanElement | undefined;
 } {
 	const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
+	const activeLeaf = this.app.workspace.getLeaf();
+
 	const cursorFrom = activeView?.editor.getCursor("from");
 	const cursorTo = activeView?.editor.getCursor("to");
 
 	let matched = false;
 	let matchSpan: HTMLSpanElement | undefined = undefined;
+
 	if (
 		cursorFrom &&
 		cursorTo &&
@@ -149,18 +150,12 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 							throw new Error("Element not instance of Element");
 						let container = evt.target as Element;
 
-						console.log(container);
 						let activeLine;
 						if (container.classList.contains("cm-active")) {
 							activeLine = container;
-						}
-						// else if (container.closest(".cm-active")) {
-						// 	activeLine = container.closest(".cm-active");
-						// }
-						else {
+						} else {
 							activeLine = container.querySelector(".cm-active");
 						}
-						console.log(activeLine);
 						if (!activeLine) throw new Error("Element not instance of Element");
 						// find html span element in target that has a data attribute equal to contents
 						let span = activeLine.querySelector(`span[data="${dataString}"]`);
@@ -183,6 +178,7 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 
 // Remove an existing higlighted reference
 export function handleRemoveHoveredCursor(user: string) {
+	console.log(getHoveredCursor());
 	if (getHoveredCursor()) {
 		// cursors not associated with the user action
 		let nonCursors = getHoveredCursor()
@@ -197,6 +193,7 @@ export function handleRemoveHoveredCursor(user: string) {
 			.forEach((element: any) => {
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
 					element.cursor.style.backgroundColor = "white";
+					element.cursor.style.boxShadow = "none";
 				}
 			});
 
@@ -204,7 +201,7 @@ export function handleRemoveHoveredCursor(user: string) {
 	}
 }
 
-export function checkFocusCursor(evt: Event) {
+export async function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
@@ -217,7 +214,7 @@ export function checkFocusCursor(evt: Event) {
 		}
 
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
-		if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		startReferenceEffect(span, ACTION_TYPE.CURSOR);
 
 		// setTimeout(() => {
 		// 	if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
