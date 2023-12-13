@@ -63,6 +63,7 @@ class ReferenceWidget extends WidgetType {
 		if (content) span.setAttribute("data", content[1]);
 
 		span.addEventListener("click", openReference);
+
 		return span;
 	}
 }

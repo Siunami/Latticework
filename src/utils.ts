@@ -7,6 +7,7 @@ import {
 	removeHoveredCursor,
 	getHover,
 } from "./state";
+import { updateHoveredCursorColor } from "./references";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -206,14 +207,7 @@ export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
-		// remove existing cursors
-		const svgElement = span.querySelector("svg");
-		if (svgElement) {
-			handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
-			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-			updateHoveredCursor(svgElement, ACTION_TYPE.CURSOR);
-		}
-
+		updateHoveredCursorColor(span);
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
 		startReferenceEffect(span, ACTION_TYPE.CURSOR);
 

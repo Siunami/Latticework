@@ -76,7 +76,24 @@ export function createReferenceIcon(): {
 	svg.appendChild(line3);
 
 	span.appendChild(svg);
-	return { span, svg };
+
+	// let newSpan: HTMLSpanElement = document.createElement("span");
+	// newSpan.innerHTML = "📄";
+	// newSpan.style.cursor = "pointer";
+	return { span: span, svg };
+}
+
+export function updateHoveredCursorColor(span: HTMLSpanElement) {
+	// remove existing cursors
+	const svgElement = span.querySelector("svg");
+	if (svgElement) {
+		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
+		svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+		updateHoveredCursor(svgElement, ACTION_TYPE.CURSOR);
+	}
+
+	// span.style.backgroundColor = SVG_HOVER_COLOR;
+	// updateHoveredCursor(span, ACTION_TYPE.CURSOR);
 }
 
 function getCodeMirrorEditorView(editor: Editor): EditorView {
@@ -221,12 +238,13 @@ export function createBacklinkMark(
 
 	span.addEventListener("mouseenter", async () => {
 		// remove existing cursors
-		const svgElement = span.querySelector("svg");
-		if (svgElement) {
-			handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
-			svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
-		}
+		// const svgElement = span.querySelector("svg");
+		// if (svgElement) {
+		// 	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+		// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+		// 	updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
+		// }
+		updateHoveredCursorColor(span);
 	});
 
 	span.addEventListener("mouseleave", async () => {

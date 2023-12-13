@@ -14,6 +14,7 @@ import {
 	generateBacklinks,
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
+	updateHoveredCursorColor,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -93,11 +94,12 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("data")
 			) {
 				console.log("start hover reference effect");
-				const svgElement = span.querySelector("svg");
-				if (svgElement) {
-					svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-					updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
-				}
+				updateHoveredCursorColor(span);
+				// const svgElement = span.querySelector("svg");
+				// if (svgElement) {
+				// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+				// 	updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
+				// }
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
 				span &&
@@ -105,11 +107,13 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("reference")
 			) {
 				console.log("start backlink effect");
-				const svgElement = span.querySelector("svg");
-				if (svgElement) {
-					svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-					updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
-				}
+				// const svgElement = span.querySelector("svg");
+				// if (svgElement) {
+				// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+				// 	updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
+				// }
+				updateHoveredCursorColor(span);
+
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
