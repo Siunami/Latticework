@@ -183,7 +183,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 	if (originalLeafId) {
-		console.log(getThat().workspace.getLeafById(originalLeafId));
 		updateState({
 			originalLeafId,
 		});
@@ -278,8 +277,15 @@ export async function startReferenceEffect(
 
 		console.log("RANGESTART POS");
 		console.log(newLeaf.view.editor.posToOffset(rangeStart));
-
-		// let offset = getThat().
+		console.log(newLeaf.view.containerEl.querySelector(".cm-scroller"));
+		console.log(
+			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop
+		);
+		console.log(
+			newLeaf.view.containerEl
+				.querySelector(".cm-scroller")
+				.getBoundingClientRect().height
+		);
 
 		newLeaf.view.editor.scrollIntoView(
 			{
@@ -370,7 +376,6 @@ export async function endReferenceCursorEffect() {
 			const { dataString, cursorViewport, leafId, originalLeafId } = getHover();
 			let [prefix, text, suffix, file, from, to] = processURI(dataString);
 			const cursorLeaf = workspace.getLeafById(leafId);
-			console.log(cursorLeaf);
 			workspace.revealLeaf(cursorLeaf);
 			const editorView: EditorView = getEditorView(cursorLeaf);
 			highlightSelection(editorView, from, to);

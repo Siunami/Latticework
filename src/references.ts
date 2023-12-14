@@ -266,6 +266,7 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 		if (svgElement) {
 			svgElement.style.backgroundColor = "white";
 		}
+		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 	});
 
 	span.addEventListener("click", openBacklinkReference);
