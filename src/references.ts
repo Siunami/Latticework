@@ -119,7 +119,7 @@ function getBacklinkID(backlink: Backlink): string {
 	return `backlink-${id}`;
 }
 
-function getBacklinkContainer(editor: Editor): HTMLElement {
+export function getBacklinkContainer(editor: Editor): HTMLElement {
 	const containerEl: HTMLElement = getContainerElement(editor);
 	const referenceMarkContainerID = "referenceMarkContainer";
 	const container = containerEl.querySelector(`#${referenceMarkContainerID}`);
@@ -200,8 +200,8 @@ export function updateBacklinkMarkPosition(
 
 		if (bbox) {
 			referenceMarker.style.position = "absolute";
-			referenceMarker.setAttribute("top", bbox.top.toString());
 
+			referenceMarker.setAttribute("top", bbox.top.toString());
 			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
 			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
@@ -219,6 +219,7 @@ export function updateBacklinkMarkPosition(
 			let top = parseInt(marker!.getAttribute("top")!);
 			top = Math.max(top, lastYBottom + margin);
 			lastYBottom = top;
+			marker.setAttribute("top", top.toString());
 			marker.style.top = top - titleBbox.top + 32 + "px";
 			marker.style.left = lineBbox.width + 40 + "px";
 		});
@@ -296,7 +297,7 @@ export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	resizeObserver.observe(workspaceTabs);
 }
 
-function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
+export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
 	if (!(leaf.view instanceof MarkdownView)) {
 		throw new Error("Unexpected non-markdown view");
 	}

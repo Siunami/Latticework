@@ -32,7 +32,6 @@ export default class ReferencePlugin extends Plugin {
 		this.registerEvent(
 			this.app.workspace.on("active-leaf-change", (ev) => {
 				console.log("active-leaf-changed:");
-				console.log(ev);
 				// This should create referenceMarkers if they don't exist and update
 				// else update only
 
@@ -57,7 +56,6 @@ export default class ReferencePlugin extends Plugin {
 					evt.target instanceof SVGElement ||
 					evt.target instanceof SVGPathElement)
 			) {
-				// console.log("MOUSEMOVE");
 				// If element is svg, find the containing parent span
 				span = evt.target;
 
@@ -89,7 +87,6 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
 				endReferenceHoverEffect();
-
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
 				console.log("end backlink reference effect");

@@ -35,7 +35,9 @@ import {
 import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
+	getBacklinkContainer,
 	getContainerElement,
+	getMarkdownView,
 	updateBacklinkMarkPosition,
 	updateBacklinkMarkPositions,
 } from "./references";
@@ -71,6 +73,24 @@ function checkSpanElementExists(
 		}
 	}
 	return false;
+}
+
+function parseCSSString(css: string) {
+	// Use a regular expression to match key-value pairs in the CSS string
+	const cssPropertiesRegex = /([\w-]+)\s*:\s*([^;]+)\s*;?/g;
+
+	// Initialize an empty object to store the CSS properties
+	let cssPropertiesObject: any = {};
+
+	// Iterate over all key-value pairs found by the regex
+	let match;
+	while ((match = cssPropertiesRegex.exec(css)) !== null) {
+		// match[1] is the key
+		// match[2] is the value
+		cssPropertiesObject[match[1]] = match[2];
+	}
+
+	return cssPropertiesObject;
 }
 
 export async function startBacklinkEffect(span: HTMLSpanElement) {
@@ -275,25 +295,83 @@ export async function startReferenceEffect(
 		let rangeStart = positions.rangeStart;
 		let rangeEnd = positions.rangeEnd;
 
-		console.log("RANGESTART POS");
-		console.log(newLeaf.view.editor.posToOffset(rangeStart));
-		console.log(newLeaf.view.containerEl.querySelector(".cm-scroller"));
-		console.log(
-			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop
-		);
-		console.log(
-			newLeaf.view.containerEl
-				.querySelector(".cm-scroller")
-				.getBoundingClientRect().height
-		);
+		// Oh! I’d compare the bbox of the range
+		// (which I know you find in the mark layout routine)
+		// to the scrollTop + innerHeight
+		const editor = getMarkdownView(newLeaf).editor;
+		const backlinkContainer = getBacklinkContainer(editor);
 
-		newLeaf.view.editor.scrollIntoView(
-			{
-				from: rangeStart,
-				to: rangeEnd,
-			},
-			true
-		);
+		const windowHeight = newLeaf.view.containerEl
+			.querySelector(".cm-scroller")
+			.getBoundingClientRect().height;
+		const scrollTop =
+			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+		const scrollBottom = scrollTop + windowHeight;
+
+		let visibleElements: string[] = [];
+		for (let i = 0; i < backlinkContainer.children.length; i++) {
+			let style = backlinkContainer.children[i].getAttribute("style");
+			if (style == null) continue;
+			let cssProperties = parseCSSString(style);
+			let top = parseFloat(cssProperties["top"].replace("px", ""));
+			if (top == null) continue;
+
+			if (
+				scrollTop <= top &&
+				top <= scrollBottom &&
+				backlinkContainer.children[i]
+			) {
+				let reference = backlinkContainer.children[i].getAttribute("reference");
+				if (reference) {
+					visibleElements.push(JSON.parse(reference).dataString);
+				}
+			}
+		}
+
+		if (!visibleElements.includes(dataString)) {
+			let startTop = newLeaf.view.editor.getScrollInfo().top;
+			newLeaf.view.editor.scrollIntoView(
+				{
+					from: rangeStart,
+					to: rangeEnd,
+				},
+				true
+			);
+			setTimeout(() => {
+				let endTop = newLeaf.view.editor.getScrollInfo().top;
+				if (startTop < endTop) {
+					// show mark above
+					console.log("show mark above");
+					// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+					// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+					newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+						"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+				} else {
+					// show mark below
+					console.log("show mark below");
+
+					newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+						"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+				}
+			}, 10);
+		}
+		// console.log(newLeaf.view.containerEl.querySelector(".cm-scroller"));
+		// console.log(newLeaf.view.editor);
+		// console.log("Range start: " + newLeaf.view.editor.posToOffset(rangeStart));
+		// let rangeStartOffset = newLeaf.view.editor.posToOffset(rangeStart);
+		// console.log("Scroll top: " + scrollTop);
+		// console.log("Diff: " + (rangeStartOffset - scrollTop));
+		// console.log(
+		// 	newLeaf.view.containerEl
+		// 		.querySelector(".cm-scroller")
+		// 		.getBoundingClientRect().height
+		// );
+
+		// setTimeout(() => {
+		// 	console.log("Range start (post scroll): " + rangeStartOffset);
+		// 	console.log("Scroll top (post scroll): " + scrollTop);
+		// 	console.log("Diff (post scroll): " + (rangeStartOffset - scrollTop));
+		// }, 100);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -331,7 +409,17 @@ export async function endReferenceCursorEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) throw new Error("Target leaf not found");
+	if (!targetLeaf) {
+		resetHover();
+		throw new Error("Target leaf not found");
+	}
+
+	let containerEl: HTMLElement = getContainerElement(targetLeaf);
+	if (containerEl != null) {
+		// @ts-ignore
+		containerEl.querySelector(".view-content")?.setAttribute("style", "");
+	}
+
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
@@ -422,7 +510,15 @@ export async function endReferenceHoverEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) throw new Error("Target leaf not found");
+	if (!targetLeaf) {
+		resetHover();
+		throw new Error("Target leaf not found");
+	}
+	let containerEl: HTMLElement = getContainerElement(targetLeaf);
+	if (containerEl != null) {
+		// @ts-ignore
+		containerEl.querySelector(".view-content")?.setAttribute("style", "");
+	}
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
@@ -525,6 +621,13 @@ export async function endBacklinkHoverEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
+
+	let containerEl: HTMLElement = getContainerElement(targetLeaf);
+	if (containerEl != null) {
+		// @ts-ignore
+		containerEl.querySelector(".view-content")?.setAttribute("style", "");
+	}
+
 	let editorView: EditorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
