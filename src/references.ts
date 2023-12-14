@@ -179,6 +179,10 @@ export function updateBacklinkMarkPosition(
 			}
 		});
 
+	let lastYBottom = -Infinity; // for large documents 😁
+	let margin = REFERENCE_ICON_HEIGHT + 4;
+	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
+
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
 		const { from } = backlink.referencedLocation;
 
@@ -197,7 +201,7 @@ export function updateBacklinkMarkPosition(
 		if (bbox) {
 			referenceMarker.style.position = "absolute";
 			referenceMarker.setAttribute("top", bbox.top.toString());
-			const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
+
 			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
 			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
@@ -205,11 +209,7 @@ export function updateBacklinkMarkPosition(
 		return referenceMarker;
 	});
 
-	let lastYBottom = -Infinity; // for large documents 😁
-	let margin = REFERENCE_ICON_HEIGHT + 4;
-	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
-
-	backlinks
+	referenceMarkers
 		.sort(
 			(a, b) =>
 				parseInt(a!.getAttribute("top")!) - parseInt(b!.getAttribute("top")!)
