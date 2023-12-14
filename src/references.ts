@@ -22,7 +22,12 @@ import {
 	handleRemoveHoveredCursor,
 	checkFocusCursor,
 } from "./utils";
-import { ACTION_TYPE, REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
+import {
+	ACTION_TYPE,
+	REFERENCE_ICON_HEIGHT,
+	REFERENCE_REGEX,
+	SVG_HOVER_COLOR,
+} from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 
@@ -32,8 +37,8 @@ export function createReferenceIcon(): {
 } {
 	const span = document.createElement("span");
 
-	const height = 24;
-	const width = 24 * 0.9;
+	const height = REFERENCE_ICON_HEIGHT;
+	const width = height * 0.9;
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	svg.setAttribute("width", `${width}`);
@@ -137,10 +142,7 @@ function getReferenceMarks(editor: Editor): HTMLElement[] {
 	return elements;
 }
 
-export function updateBacklinkMarkPosition(
-	leaf: WorkspaceLeaf,
-	backlinksToLeaf: Backlink[]
-) {
+function getLeafBBoxElements(leaf: WorkspaceLeaf) {
 	const title = getContainerElement(leaf).querySelector(".inline-title");
 	if (!title) {
 		throw new Error("Missing title");
@@ -152,6 +154,14 @@ export function updateBacklinkMarkPosition(
 	}
 	const lineBbox = line.getBoundingClientRect();
 
+	return { titleBbox, lineBbox };
+}
+
+export function updateBacklinkMarkPosition(
+	leaf: WorkspaceLeaf,
+	backlinksToLeaf: Backlink[],
+	showPortals: boolean
+) {
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
 
@@ -169,7 +179,7 @@ export function updateBacklinkMarkPosition(
 			}
 		});
 
-	backlinksToLeaf.forEach((backlink) => {
+	let referenceMarkers = backlinksToLeaf.map((backlink) => {
 		const { from } = backlink.referencedLocation;
 
 		const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
@@ -180,14 +190,38 @@ export function updateBacklinkMarkPosition(
 		) as HTMLElement | null;
 
 		if (referenceMarker === null) {
-			referenceMarker = createBacklinkMark(backlink, leaf, editor);
+			referenceMarker = createBacklinkMark(backlink);
+			backlinkContainer.appendChild(referenceMarker);
 		}
 
 		if (bbox) {
-			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
+			referenceMarker.style.position = "absolute";
+			referenceMarker.setAttribute("top", bbox.top.toString());
+			const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
+			// referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
 			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
+
+		return referenceMarker;
 	});
+
+	let lastYBottom = -Infinity; // for large documents 😁
+	let margin = REFERENCE_ICON_HEIGHT + 4;
+	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
+
+	backlinks
+		.sort(
+			(a, b) =>
+				parseInt(a!.getAttribute("top")!) - parseInt(b!.getAttribute("top")!)
+		)
+		.forEach((marker) => {
+			if (!marker) return;
+			let top = parseInt(marker!.getAttribute("top")!);
+			top = Math.max(top, lastYBottom + margin);
+			lastYBottom = top;
+			marker.style.top = top - titleBbox.top + 32 + "px";
+			marker.style.left = lineBbox.width + 40 + "px";
+		});
 }
 
 export async function updateBacklinkMarkPositions() {
@@ -201,49 +235,31 @@ export async function updateBacklinkMarkPositions() {
 			// @ts-ignore
 			(b) => b.referencedLocation.filename == leaf.view.file.path
 		);
-		updateBacklinkMarkPosition(leaf, backlinksToLeaf);
+		console.log(getContainerElement(leaf));
+		console.log(getContainerElement(leaf).innerWidth);
+		// width 900, show the reference
+		const showPortals = getContainerElement(leaf).innerWidth > 900;
+		updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
 	});
 }
 
-export function createBacklinkMark(
-	backlink: Backlink,
-	leaf: WorkspaceLeaf,
-	editor: Editor
-): HTMLElement {
-	// @ts-ignore TODO: find a better way to access this...
-	const containerEl: Element = getContainerElement(leaf);
-	const title = containerEl.querySelector(".inline-title");
-	if (!title) {
-		throw new Error("Missing title");
-	}
-	const titleBbox = title.getBoundingClientRect();
-	const line = containerEl.querySelector(".cm-line");
-	if (!line) {
-		throw new Error("No lines??");
-	}
-	const lineBbox = line.getBoundingClientRect();
-
-	const { from } = backlink.referencedLocation;
-	const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
+export function createBacklinkMark(backlink: Backlink): HTMLElement {
+	// Andy's notes on laying out the references so that they don't collide
+	// 1. in this function, store the bbox.top in an attribute so that you can use it later
+	// 2. separately, do a global layout pass whenever the geometry changes or also on edits (With debounce)
+	//    in that global layout pass, sort all the references by bbox.top (via the attribute), then greedily layout
+	//	  let lastYBottom; for the first one, place it where it wants to be. then set lastYBottom to that bbox.top plus its height
+	//	  then, for the rest, set their top to max(bbox.top, lastYBottom + margin)
+	// think about the case where the backlink is to an isolated quote
 
 	let { span } = createReferenceIcon();
-	span.style.color = "black";
 	span.style.position = "absolute";
-	if (bbox) {
-		span.style.top = bbox.top - titleBbox.top + 20 + "px";
-		span.style.left = lineBbox.width + 40 + "px";
-	}
+
 	span.id = getBacklinkID(backlink);
 	span.setAttribute("reference", JSON.stringify(backlink));
 
 	span.addEventListener("mouseenter", async () => {
 		// remove existing cursors
-		// const svgElement = span.querySelector("svg");
-		// if (svgElement) {
-		// 	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
-		// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-		// 	updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
-		// }
 		updateHoveredCursorColor(span);
 	});
 
@@ -257,41 +273,6 @@ export function createBacklinkMark(
 
 	span.addEventListener("click", openBacklinkReference);
 
-	// span.addEventListener("click", async () => {
-	// 	const { workspace } = state.values[0].app;
-	// 	const leavesByTab = collectLeavesByTabHelper();
-
-	// 	const { tabIdx, index, dataString, leafId } = state.values[2];
-	// 	/* If temporary, then keep leaf */
-	// 	if (dataString) {
-	// 		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-	// 		/*
-	// 				The problem here is that I don't have the position of the span element.
-	// 				I want to set the active cursor to the end of the span
-	// 		// let [text2, file2, from2, to2] = this.name.split("|");
-	// 		// const currentTab = getHoveredTab(leavesByTab, span);
-	// 		// // console.log("currentTab");
-	// 		// // console.log(currentTab);
-	// 		// let rangeEnd2 = parseEditorPosition(to2);
-
-	// 		// const lineText = currentTab?.view?.editor.getLine(rangeEnd2.line);
-	// 		// // console.log(lineText);
-	// 		// // currentTab.view.editor.setCursor(rangeEnd2);
-	// 		*/
-
-	// 		let targetLeaf = leavesByTab[tabIdx][index];
-	// 		workspace.setActiveLeaf(targetLeaf);
-	// 		const editor = targetLeaf.view.editor;
-	// 		editor.setCursor(editor.cm.posToOffset(to));
-
-	// 		updateHover({
-	// 			leafId: null,
-	// 			originalTop: null,
-	// 		});
-	// 	}
-	// });
-
-	getBacklinkContainer(editor).appendChild(span);
 	return span;
 }
 
@@ -312,6 +293,8 @@ export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 
 	let resizeObserver = new ResizeObserver(() => {
 		updateBacklinkMarkPositions();
+		console.log("RESIZING");
+		console.log(markdownView.editor);
 	});
 
 	resizeObserver.observe(workspaceTabs);
@@ -340,22 +323,30 @@ function createBacklinkData(
 
 	let matches = [...referencingFileData.matchAll(REFERENCE_REGEX)];
 	matches.forEach((match) => {
-		let [prefix, text, suffix, referencedFileName, from, to] = processURI(
+		let [prefix, text, suffix, filename, from, to, portal] = processURI(
 			match[1]
 		);
 		const referencedLocation: DocumentLocation = {
 			prefix,
 			text,
 			suffix,
-			filename: referencedFileName,
+			filename,
 			from,
 			to,
 		};
 
+		// 1. find the line which includes match.index
+		// 2. strip out all the links in that line
+		// 3. extract the first N characters of the line
+		// const portalText = referencingFileData.slice(
+		// 	match.index! - PORTAL_TEXT_SLICE_SIZE,
+		// 	PORTAL_TEXT_SLICE_SIZE
+		// );
+
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
 			match.index!,
-			match.index! + match.length
+			match.index! + match[0].length
 		);
 		const referencingLocation: DocumentLocation = {
 			prefix: referencingSurroundingStrings.prefix,
@@ -363,7 +354,7 @@ function createBacklinkData(
 			suffix: referencingSurroundingStrings.suffix,
 			filename: referencingFile.path,
 			from: match.index!, // TODO do weird string format
-			to: match.index! + match.length, // TODO do weird string format
+			to: match.index! + match[0].length, // TODO do weird string format
 		};
 
 		backlinks.push({

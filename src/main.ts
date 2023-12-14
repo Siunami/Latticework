@@ -1,13 +1,6 @@
 import { Plugin, MarkdownView } from "obsidian";
 
-import {
-	updateThat,
-	state,
-	getHover,
-	getBacklinks,
-	syncBacklinks,
-	updateHoveredCursor,
-} from "./state";
+import { updateThat, getHover, getBacklinks } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -22,13 +15,8 @@ import {
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
 } from "./events";
-import {
-	checkCursorPositionAtDatastring,
-	checkFocusCursor,
-	handleRemoveHoveredCursor,
-} from "./utils";
-import { StateField, Extension, Range, StateEffect } from "@codemirror/state";
-import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
+import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
+import { ACTION_TYPE } from "./constants";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -95,11 +83,6 @@ export default class ReferencePlugin extends Plugin {
 			) {
 				console.log("start hover reference effect");
 				updateHoveredCursorColor(span);
-				// const svgElement = span.querySelector("svg");
-				// if (svgElement) {
-				// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-				// 	updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
-				// }
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
 				span &&
@@ -107,11 +90,6 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("reference")
 			) {
 				console.log("start backlink effect");
-				// const svgElement = span.querySelector("svg");
-				// if (svgElement) {
-				// 	svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-				// 	updateHoveredCursor(svgElement, ACTION_TYPE.MOUSE);
-				// }
 				updateHoveredCursorColor(span);
 
 				startBacklinkEffect(span);

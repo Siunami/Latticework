@@ -8,7 +8,6 @@ import {
 	WorkspaceTabs,
 } from "obsidian";
 import { getThat } from "./state";
-import { ACTION_TYPE } from "./constants";
 
 function findRootSplit(split: any) {
 	console.log(split);
@@ -19,25 +18,6 @@ function findRootSplit(split: any) {
 	// Otherwise, keep looking upwards.
 	return findRootSplit(split.parent);
 }
-
-// function collectLeavesByTab(split: any, result: any = []) {
-// 	if (split.type == "tabs") {
-// 		result.push([split, []]);
-// 		collectLeavesByTab(split.children, result);
-// 	} else if (split.type == "leaf") {
-// 		const parentSplitId = split.parent.id;
-// 		// find array index for split with id parentSplitId
-// 		let idx = result.findIndex((x: any) => x[0].id == parentSplitId);
-// 		result[idx][1].push(split);
-// 	}
-
-// 	if (split.children) {
-// 		for (const child of split.children) {
-// 			collectLeavesByTab(child, result);
-// 		}
-// 	}
-// 	return result;
-// }
 
 function collectLeavesByTab(
 	split: WorkspaceSplit,
