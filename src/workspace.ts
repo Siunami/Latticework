@@ -130,46 +130,49 @@ export async function openFileInAdjacentTab(
 	const { workspace } = getThat();
 	if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
-		const originalTab = rightAdjacentTab.filter(
+		const originalLeaf = rightAdjacentTab.filter(
 			(t) => t.containerEl.style.display != "none"
-		);
+		)[0];
 		let leaf = rightAdjacentTab[rightAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
-		return { newLeaf: leaf, temp: false, originalTab };
+		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (leftAdjacentTabNames.includes(file)) {
 		// file exists in left tab
-		const originalTab = leftAdjacentTab.filter(
+		const originalLeaf = leftAdjacentTab.filter(
 			(t) => t.containerEl.style.display != "none"
-		);
+		)[0];
+
 		let leaf = leftAdjacentTab[leftAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
-		return { newLeaf: leaf, temp: false, originalTab };
+		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTab.length > 0) {
 		// there exists a right tab
-		const originalTab = rightAdjacentTab.filter(
+		const originalLeaf = rightAdjacentTab.filter(
 			(t) => t.containerEl.style.display != "none"
-		);
+		)[0];
+
 		let currLeaf = workspace.getLeaf();
-		let leaf = rightAdjacentTab[0];
-		workspace.setActiveLeaf(leaf);
+		workspace.setActiveLeaf(originalLeaf);
 		let newLeaf = workspace.getLeaf(true);
 		await openFileInLeaf(newLeaf, file);
 		workspace.revealLeaf(newLeaf);
+		console.log(newLeaf);
 		workspace.setActiveLeaf(currLeaf);
-		return { newLeaf, temp: true, originalTab };
+		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
 		// there exists a left tab
-		const originalTab = leftAdjacentTab.filter(
+		const originalLeaf = leftAdjacentTab.filter(
 			(t) => t.containerEl.style.display != "none"
-		);
+		)[0];
+
 		let currLeaf = workspace.getLeaf(); // get current active leaf
-		let leaf = leftAdjacentTab[0];
-		workspace.setActiveLeaf(leaf); // get the leaf in adjacent tab
+		workspace.setActiveLeaf(originalLeaf); // get the leaf in adjacent tab
 		let newLeaf = workspace.getLeaf(true); // create a new leaf
 		await openFileInLeaf(newLeaf, file); // load file into new leaf
+		console.log(newLeaf);
 		workspace.revealLeaf(newLeaf); // reveal new leaf
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
-		return { newLeaf, temp: true, originalTab };
+		return { newLeaf, temp: true, originalLeaf };
 	} else {
 		// no adjacent tabs
 		const currLeaf = workspace.getLeaf();

@@ -33,31 +33,6 @@ class ReferenceWidget extends WidgetType {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
 
-		// let workspaceTabs = this.view.contentDOM.closest(".workspace-tabs");
-
-		// if (workspaceTabs && content) {
-		// 	let title =
-		// 		workspaceTabs.querySelector(".view-header-title")?.innerHTML + ".md";
-		// 	let [prefix, text, suffix, file, from, to] = content[1].split(":");
-		// 	prefix = decodeURIComponentString(prefix);
-		// 	text = decodeURIComponentString(text);
-		// 	suffix = decodeURIComponentString(suffix);
-		// 	file = decodeURIComponentString(file);
-		// 	from = decodeURIComponentString(from);
-		// 	to = decodeURIComponentString(to);
-
-		// 	// createReferenceMark({
-		// 	// 	prefix,
-		// 	// 	text,
-		// 	// 	suffix,
-		// 	// 	file,
-		// 	// 	from,
-		// 	// 	to,
-		// 	// 	sourceFile: title,
-		// 	// 	dataString: content[1],
-		// 	// });
-		// }
-
 		const { span, svg } = createReferenceIcon();
 
 		if (content) span.setAttribute("data", content[1]);

@@ -196,6 +196,7 @@ export function handleRemoveHoveredCursor(user: string) {
 			.filter((element: any) => element.user === user)
 			.forEach((element: any) => {
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
+					console.log(element);
 					element.cursor.style.backgroundColor = "white";
 					element.cursor.style.boxShadow = "none";
 				}
@@ -209,13 +210,9 @@ export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	if (matched && span) {
-		updateHoveredCursorColor(span);
+		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
 		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
 		startReferenceEffect(span, ACTION_TYPE.CURSOR);
-
-		// setTimeout(() => {
-		// 	if (span) startReferenceEffect(span, ACTION_TYPE.CURSOR);
-		// }, ); // so wait 125ms before opening new peek tab
 	} else {
 		endReferenceCursorEffect();
 		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);

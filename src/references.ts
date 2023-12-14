@@ -88,13 +88,13 @@ export function createReferenceIcon(): {
 	return { span: span, svg };
 }
 
-export function updateHoveredCursorColor(span: HTMLSpanElement) {
+export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	// remove existing cursors
 	const svgElement = span.querySelector("svg");
 	if (svgElement) {
-		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
+		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
 		svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-		updateHoveredCursor(svgElement, ACTION_TYPE.CURSOR);
+		updateHoveredCursor(svgElement, user); // add the currently hovered reference icon
 	}
 
 	// span.style.backgroundColor = SVG_HOVER_COLOR;
@@ -106,7 +106,7 @@ function getCodeMirrorEditorView(editor: Editor): EditorView {
 	return editor.cm as EditorView;
 }
 
-function getContainerElement(
+export function getContainerElement(
 	editorOrLeaf: Editor | WorkspaceLeaf
 ): HTMLElement {
 	// @ts-ignore TODO: find a better way to access this... EXTREMELY SKETCHY
@@ -198,7 +198,7 @@ export function updateBacklinkMarkPosition(
 			referenceMarker.style.position = "absolute";
 			referenceMarker.setAttribute("top", bbox.top.toString());
 			const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
-			// referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
+			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
 			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
 
@@ -235,8 +235,6 @@ export async function updateBacklinkMarkPositions() {
 			// @ts-ignore
 			(b) => b.referencedLocation.filename == leaf.view.file.path
 		);
-		console.log(getContainerElement(leaf));
-		console.log(getContainerElement(leaf).innerWidth);
 		// width 900, show the reference
 		const showPortals = getContainerElement(leaf).innerWidth > 900;
 		updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
@@ -260,7 +258,7 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 
 	span.addEventListener("mouseenter", async () => {
 		// remove existing cursors
-		updateHoveredCursorColor(span);
+		updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 	});
 
 	span.addEventListener("mouseleave", async () => {
@@ -343,11 +341,18 @@ function createBacklinkData(
 		// 	PORTAL_TEXT_SLICE_SIZE
 		// );
 
+		let index = referencingFileData.indexOf(match[0]);
+		let slice = referencingFileData.slice(index, index + match[0].length);
+		// console.log(slice);
+
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
-			match.index!,
-			match.index! + match[0].length
+			index,
+			index + match[0].length
 		);
+		// console.log(match);
+		// console.log(referencingSurroundingStrings);
+		// console.log(text);
 		const referencingLocation: DocumentLocation = {
 			prefix: referencingSurroundingStrings.prefix,
 			text,
@@ -434,11 +439,13 @@ export async function openBacklinkReference(ev: MouseEvent) {
 		updateCursor({
 			temp: false,
 			cursorViewport: null,
+			peek: false,
 		});
 	}
 	updateBacklinkHover({
 		temp: false,
 		cursorViewport: null,
+		peek: false,
 	});
 
 	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
@@ -466,11 +473,13 @@ export async function openReference(ev: MouseEvent) {
 		updateCursor({
 			temp: false,
 			cursorViewport: null,
+			peek: false,
 		});
 	}
 	updateHover({
 		temp: false,
 		cursorViewport: null,
+		peek: false,
 	});
 
 	handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);

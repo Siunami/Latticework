@@ -27,14 +27,7 @@ export default class ReferencePlugin extends Plugin {
 
 		updateThat(this);
 
-		this.registerEditorExtension([
-			// emptyLineGutter,
-			// placeholders,
-			// editorChange,
-			highlights,
-			referenceResources,
-			// highlightKeymap,
-		]);
+		this.registerEditorExtension([highlights, referenceResources]);
 
 		this.registerEvent(
 			this.app.workspace.on("active-leaf-change", (ev) => {
@@ -82,7 +75,7 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("data")
 			) {
 				console.log("start hover reference effect");
-				updateHoveredCursorColor(span);
+				updateHoveredCursorColor(span, ACTION_TYPE.MOUSE);
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
 				span &&
@@ -90,7 +83,7 @@ export default class ReferencePlugin extends Plugin {
 				span.getAttribute("reference")
 			) {
 				console.log("start backlink effect");
-				updateHoveredCursorColor(span);
+				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
@@ -101,8 +94,9 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getBacklinks() != null) {
 				console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
-				handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+				// handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 			}
+			updateBacklinkMarkPositions();
 		});
 
 		// on selection changes, event over click and keydown

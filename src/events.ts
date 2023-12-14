@@ -34,6 +34,11 @@ import {
 } from "obsidian";
 import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
+import {
+	getContainerElement,
+	updateBacklinkMarkPosition,
+	updateBacklinkMarkPositions,
+} from "./references";
 
 function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
@@ -97,8 +102,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
 	let backlinkLeaf = leavesByTab[currTabIdx].filter((leaf: WorkspaceLeaf) => {
-		// @ts-ignore
-		let containerEl = leaf.containerEl;
+		let containerEl = getContainerElement(leaf);
 		const exists = checkSpanElementExists(span, containerEl);
 		return exists;
 	})[0];
@@ -131,7 +135,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	// if (currTabIdx != -1) {
 	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
-	const { newLeaf, temp } = await openFileInAdjacentTab(
+	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,
 		referencingFile
@@ -143,10 +147,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	updateState({
 		leafId: id,
 		temp,
+		peek: true,
 	});
 
-	if (temp) {
-		// newLeaf.containerEl.style.opacity = "0.7";
+	let originalId = originalLeaf.id;
+
+	// if (temp) {
+	// newLeaf.containerEl.style.opacity = "0.7";
+	// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+	// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+	// }
+	if (id != originalId) {
 		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
 			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
 	}
@@ -167,6 +178,15 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 			svgElement.style.boxShadow = `0px 0px 10px 10px ${SVG_HOVER_COLOR}`;
 			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
 		}
+	}
+
+	// @ts-ignore
+	const originalLeafId = originalLeaf.id;
+	if (originalLeafId) {
+		console.log(getThat().workspace.getLeafById(originalLeafId));
+		updateState({
+			originalLeafId,
+		});
 	}
 
 	return;
@@ -211,7 +231,7 @@ export async function startReferenceEffect(
 	// if (currTabIdx != -1) {
 	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
-	const { newLeaf, temp, originalTab } = await openFileInAdjacentTab(
+	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,
 		file,
@@ -228,10 +248,14 @@ export async function startReferenceEffect(
 	updateState({
 		leafId: id,
 		temp,
+		peek: true,
 	});
 
-	if (temp) {
-		// newLeaf.containerEl.style.opacity = "0.7";
+	let originalId = originalLeaf.id;
+
+	// if (temp) {
+	// 	// newLeaf.containerEl.style.opacity = "0.7";
+	if (id != originalId) {
 		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
 			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
 	}
@@ -271,10 +295,12 @@ export async function startReferenceEffect(
 	}
 
 	// @ts-ignore
-	const originalLeafId = originalTab.id;
-	updateState({
-		originalLeafId,
-	});
+	const originalLeafId = originalLeaf.id;
+	if (originalLeafId) {
+		updateState({
+			originalLeafId,
+		});
+	}
 }
 
 export async function endReferenceCursorEffect() {
@@ -284,7 +310,7 @@ export async function endReferenceCursorEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalLeafId, temp, cursorViewport } =
+	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
 		getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock1
@@ -350,6 +376,13 @@ export async function endReferenceCursorEffect() {
 		targetLeaf.detach();
 	}
 
+	if (peek) {
+		let originalLeaf = workspace.getLeafById(originalLeafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		workspace.revealLeaf(originalLeaf);
+	}
+
 	// if (!temp) {
 	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
 	// 	if (!originalLeaf) throw new Error("Original leaf not found");
@@ -368,7 +401,7 @@ export async function endReferenceHoverEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalLeafId, temp, cursorViewport } =
+	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
 		getHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		console.log("cursor reset");
@@ -434,8 +467,19 @@ export async function endReferenceHoverEffect() {
 
 	if (temp && targetLeaf) {
 		targetLeaf.detach();
+
+		let originalLeaf = workspace.getLeafById(originalLeafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		workspace.revealLeaf(originalLeaf);
 	}
 
+	if (peek) {
+		let originalLeaf = workspace.getLeafById(originalLeafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		workspace.revealLeaf(originalLeaf);
+	}
 	// if (!temp) {
 	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
 	// 	if (!originalLeaf) throw new Error("Original leaf not found");
@@ -461,6 +505,7 @@ export async function endBacklinkHoverEffect() {
 		temp,
 		cursorViewport,
 		originalTab,
+		peek,
 	} = getBacklinkHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
@@ -474,15 +519,15 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlights(editorView);
 
-	// backlink effect
-	const originalLeaf = workspace.getLeafById(originalLeafId);
-	if (!originalLeaf) {
-		resetBacklinkHover();
-		throw new Error("Original leaf not found");
-	}
-	let originalEditorView: EditorView = getEditorView(originalLeaf);
+	// // backlink effect
+	// const originalLeaf = workspace.getLeafById(originalLeafId);
+	// if (!originalLeaf) {
+	// 	resetBacklinkHover();
+	// 	throw new Error("Original leaf not found");
+	// }
+	// let originalEditorView: EditorView = getEditorView(originalLeaf);
 
-	removeHighlights(originalEditorView);
+	// removeHighlights(originalEditorView);
 
 	if (getCursor() != null) {
 		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();
@@ -498,7 +543,14 @@ export async function endBacklinkHoverEffect() {
 		targetLeaf.detach();
 	}
 
-	handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
+	if (peek) {
+		let originalLeaf = workspace.getLeafById(originalLeafId);
+		if (!originalLeaf) throw new Error("Original leaf not found");
+
+		workspace.revealLeaf(originalLeaf);
+	}
+
+	// handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 
 	// if (temp) {
 	// 	targetLeaf.detach();
