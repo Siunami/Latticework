@@ -276,6 +276,11 @@ export async function startReferenceEffect(
 		let rangeStart = positions.rangeStart;
 		let rangeEnd = positions.rangeEnd;
 
+		console.log("RANGESTART POS");
+		console.log(newLeaf.view.editor.posToOffset(rangeStart));
+
+		// let offset = getThat().
+
 		newLeaf.view.editor.scrollIntoView(
 			{
 				from: rangeStart,
@@ -549,8 +554,6 @@ export async function endBacklinkHoverEffect() {
 
 		workspace.revealLeaf(originalLeaf);
 	}
-
-	// handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 
 	// if (temp) {
 	// 	targetLeaf.detach();

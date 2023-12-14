@@ -1,6 +1,6 @@
 import { MarkdownView, TextFileView, View } from "obsidian";
 import { REFERENCE_REGEX, ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
-import { startReferenceEffect, endReferenceCursorEffect } from "./events";
+import { startReferenceEffect, endReferenceCursorEffect } from "./effects";
 import {
 	getHoveredCursor,
 	updateHoveredCursor,
@@ -160,7 +160,6 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 						else {
 							activeLine = container.querySelector(".cm-active");
 						}
-						console.log(activeLine);
 						if (!activeLine) throw new Error("Element not instance of Element");
 						// find html span element in target that has a data attribute equal to contents
 						let span = activeLine.querySelector(`span[data="${dataString}"]`);
@@ -196,7 +195,6 @@ export function handleRemoveHoveredCursor(user: string) {
 			.filter((element: any) => element.user === user)
 			.forEach((element: any) => {
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
-					console.log(element);
 					element.cursor.style.backgroundColor = "white";
 					element.cursor.style.boxShadow = "none";
 				}

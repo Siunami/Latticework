@@ -9,16 +9,6 @@ import {
 } from "obsidian";
 import { getThat } from "./state";
 
-function findRootSplit(split: any) {
-	console.log(split);
-	// If this split has no parent, it's the root.
-	if (!split.parent) {
-		return split;
-	}
-	// Otherwise, keep looking upwards.
-	return findRootSplit(split.parent);
-}
-
 function collectLeavesByTab(
 	split: WorkspaceSplit,
 	result: [WorkspaceLeaf[]] | [] = []
@@ -156,7 +146,6 @@ export async function openFileInAdjacentTab(
 		let newLeaf = workspace.getLeaf(true);
 		await openFileInLeaf(newLeaf, file);
 		workspace.revealLeaf(newLeaf);
-		console.log(newLeaf);
 		workspace.setActiveLeaf(currLeaf);
 		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
@@ -169,7 +158,6 @@ export async function openFileInAdjacentTab(
 		workspace.setActiveLeaf(originalLeaf); // get the leaf in adjacent tab
 		let newLeaf = workspace.getLeaf(true); // create a new leaf
 		await openFileInLeaf(newLeaf, file); // load file into new leaf
-		console.log(newLeaf);
 		workspace.revealLeaf(newLeaf); // reveal new leaf
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
 		return { newLeaf, temp: true, originalLeaf };

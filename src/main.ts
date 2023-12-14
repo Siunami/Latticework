@@ -14,7 +14,7 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
-} from "./events";
+} from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 
@@ -94,7 +94,6 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getBacklinks() != null) {
 				console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
-				// handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 			}
 			updateBacklinkMarkPositions();
 		});

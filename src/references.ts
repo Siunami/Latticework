@@ -265,7 +265,6 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
 			svgElement.style.backgroundColor = "white";
-			handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 		}
 	});
 
@@ -291,8 +290,6 @@ export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 
 	let resizeObserver = new ResizeObserver(() => {
 		updateBacklinkMarkPositions();
-		console.log("RESIZING");
-		console.log(markdownView.editor);
 	});
 
 	resizeObserver.observe(workspaceTabs);
