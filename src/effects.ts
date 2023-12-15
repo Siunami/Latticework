@@ -99,6 +99,108 @@ function delay(milliseconds: any) {
 	});
 }
 
+function tempDirectionIndicator(
+	leaf: any,
+	text: string,
+	prefix: string,
+	suffix: string,
+	temp: boolean,
+	dataString: string,
+	user: string = "",
+	originalTop?: number
+) {
+	let positions = findTextPositions(
+		leaf.view.data,
+		text,
+		prefix.slice(0, prefix.length - 1),
+		suffix.slice(1, suffix.length)
+	);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
+
+	// Oh! I’d compare the bbox of the range
+	// (which I know you find in the mark layout routine)
+	// to the scrollTop + innerHeight
+	const editor = getMarkdownView(leaf).editor;
+	const backlinkContainer = getBacklinkContainer(editor);
+
+	const windowHeight = leaf.view.containerEl
+		.querySelector(".cm-scroller")
+		.getBoundingClientRect().height;
+	const scrollTop =
+		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+	const scrollBottom = scrollTop + windowHeight;
+
+	let visibleElements: string[] = [];
+	for (let i = 0; i < backlinkContainer.children.length; i++) {
+		let style = backlinkContainer.children[i].getAttribute("style");
+		if (style == null) continue;
+		let cssProperties = parseCSSString(style);
+		let top = parseFloat(cssProperties["top"].replace("px", ""));
+		if (top == null) continue;
+
+		if (
+			scrollTop <= top &&
+			top <= scrollBottom &&
+			backlinkContainer.children[i]
+		) {
+			let reference = backlinkContainer.children[i].getAttribute("reference");
+			if (reference) {
+				visibleElements.push(JSON.parse(reference).dataString);
+			}
+		}
+	}
+
+	console.log(visibleElements);
+
+	if (!visibleElements.includes(dataString)) {
+		let startTop = leaf.view.editor.getScrollInfo().top;
+		// let startTop: number;
+		// if (originalTop) {
+		// 	startTop = originalTop;
+		// } else {
+		// 	startTop = leaf.view.editor.getScrollInfo().top;
+		// 	if (user == ACTION_TYPE.CURSOR) {
+		// 		updateCursor({
+		// 			originalTop: startTop,
+		// 		});
+		// 	} else if (user == ACTION_TYPE.MOUSE) {
+		// 		updateHover({
+		// 			originalTop: startTop,
+		// 		});
+		// 	}
+		// }
+
+		leaf.view.editor.scrollIntoView(
+			{
+				from: rangeStart,
+				to: rangeEnd,
+			},
+			true
+		);
+		setTimeout(() => {
+			// if (temp) return;
+			let endTop = leaf.view.editor.getScrollInfo().top;
+			console.log(leaf.containerEl.querySelector(".view-content"));
+			if (startTop < endTop) {
+				// show mark above
+				console.log("show mark above");
+				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+			} else {
+				// show mark below
+				console.log("show mark below");
+
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+			}
+		}, 10);
+	}
+}
+
 export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let source = getBacklinkHover();
 	let destination = getCursor();
@@ -181,9 +283,19 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		`span[data="${backlink.dataString}"]`
 	);
 
-	console.log(backlinkSpan);
-
 	if (backlinkSpan) {
+		const editor = getMarkdownView(newLeaf).editor;
+		const backlinkContainer = getBacklinkContainer(editor);
+
+		const windowHeight = newLeaf.view.containerEl
+			.querySelector(".cm-scroller")
+			.getBoundingClientRect().height;
+		const scrollTop =
+			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+		const scrollBottom = scrollTop + windowHeight;
+		console.log("top: " + backlinkSpan.getBoundingClientRect().top);
+		console.log("scrollTop: " + scrollTop);
+		console.log("scrollBottom: " + scrollBottom);
 		// backlinkSpan.scrollIntoView({
 		// 	behavior: "smooth",
 		// 	block: "center",
@@ -226,8 +338,6 @@ export async function startReferenceEffect(
 	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
 	let destination = type == ACTION_TYPE.MOUSE ? getCursor() : getHover();
 	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
-	// let getState = type == ACTION_TYPE.MOUSE ? getHover : getCursor;
-	let resetState = type == ACTION_TYPE.MOUSE ? resetHover : resetCursor;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
@@ -285,80 +395,16 @@ export async function startReferenceEffect(
 		const viewport = newLeaf.view.editor.getScrollInfo();
 
 		highlightSelection(editorView, from, to);
-		let positions = findTextPositions(
-			newLeaf.view.data,
+
+		tempDirectionIndicator(
+			newLeaf,
 			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
+			prefix,
+			suffix,
+			temp,
+			dataString,
+			type
 		);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
-
-		// Oh! I’d compare the bbox of the range
-		// (which I know you find in the mark layout routine)
-		// to the scrollTop + innerHeight
-		const editor = getMarkdownView(newLeaf).editor;
-		const backlinkContainer = getBacklinkContainer(editor);
-
-		const windowHeight = newLeaf.view.containerEl
-			.querySelector(".cm-scroller")
-			.getBoundingClientRect().height;
-		const scrollTop =
-			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-		const scrollBottom = scrollTop + windowHeight;
-
-		let visibleElements: string[] = [];
-		for (let i = 0; i < backlinkContainer.children.length; i++) {
-			let style = backlinkContainer.children[i].getAttribute("style");
-			if (style == null) continue;
-			let cssProperties = parseCSSString(style);
-			let top = parseFloat(cssProperties["top"].replace("px", ""));
-			if (top == null) continue;
-
-			if (
-				scrollTop <= top &&
-				top <= scrollBottom &&
-				backlinkContainer.children[i]
-			) {
-				let reference = backlinkContainer.children[i].getAttribute("reference");
-				if (reference) {
-					visibleElements.push(JSON.parse(reference).dataString);
-				}
-			}
-		}
-
-		console.log(visibleElements);
-
-		if (!visibleElements.includes(dataString)) {
-			let startTop = newLeaf.view.editor.getScrollInfo().top;
-			newLeaf.view.editor.scrollIntoView(
-				{
-					from: rangeStart,
-					to: rangeEnd,
-				},
-				true
-			);
-			setTimeout(() => {
-				if (temp) return;
-				let endTop = newLeaf.view.editor.getScrollInfo().top;
-				console.log(newLeaf.containerEl.querySelector(".view-content"));
-				if (startTop < endTop) {
-					// show mark above
-					console.log("show mark above");
-					// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-					// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-					newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-						"inset 0px 20px 20px 0px rgba(248, 255, 255)";
-				} else {
-					// show mark below
-					console.log("show mark below");
-
-					newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-						"inset 0px -30px 20px 0px rgba(248, 255, 255)";
-				}
-			}, 10);
-		}
 		// console.log(newLeaf.view.containerEl.querySelector(".cm-scroller"));
 		// console.log(newLeaf.view.editor);
 		// console.log("Range start: " + newLeaf.view.editor.posToOffset(rangeStart));
@@ -416,7 +462,7 @@ export async function endReferenceCursorEffect() {
 	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
 		getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
-		// End mutex lock1
+		// End mutex lock
 		resetCursor();
 		return;
 	}
@@ -426,12 +472,6 @@ export async function endReferenceCursorEffect() {
 	if (!targetLeaf) {
 		resetHover();
 		throw new Error("Target leaf not found");
-	}
-
-	let containerEl: HTMLElement = getContainerElement(targetLeaf);
-	if (containerEl != null) {
-		// @ts-ignore
-		containerEl.querySelector(".view-content")?.setAttribute("style", "");
 	}
 
 	let editorView = getEditorView(targetLeaf);
@@ -481,6 +521,21 @@ export async function endReferenceCursorEffect() {
 			workspace.revealLeaf(cursorLeaf);
 			const editorView: EditorView = getEditorView(cursorLeaf);
 			highlightSelection(editorView, from, to);
+			// tempDirectionIndicator(
+			// 	cursorLeaf,
+			// 	text,
+			// 	prefix,
+			// 	suffix,
+			// 	temp,
+			// 	dataString,
+			// 	ACTION_TYPE.MOUSE
+			// );
+		} else {
+			let containerEl: HTMLElement = getContainerElement(targetLeaf);
+			if (containerEl != null) {
+				// @ts-ignore
+				containerEl.querySelector(".view-content")?.setAttribute("style", "");
+			}
 		}
 	}
 
@@ -528,11 +583,7 @@ export async function endReferenceHoverEffect() {
 		resetHover();
 		throw new Error("Target leaf not found");
 	}
-	let containerEl: HTMLElement = getContainerElement(targetLeaf);
-	if (containerEl != null) {
-		// @ts-ignore
-		containerEl.querySelector(".view-content")?.setAttribute("style", "");
-	}
+
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
@@ -581,7 +632,23 @@ export async function endReferenceHoverEffect() {
 			const cursorLeaf = workspace.getLeafById(leafId);
 			workspace.revealLeaf(cursorLeaf);
 			const editorView: EditorView = getEditorView(cursorLeaf);
+			if (!editorView) throw new Error("Editor view not found");
+
 			highlightSelection(editorView, from, to);
+			// tempDirectionIndicator(
+			// 	cursorLeaf,
+			// 	text,
+			// 	prefix,
+			// 	suffix,
+			// 	temp,
+			// 	dataString
+			// );
+		} else {
+			let containerEl: HTMLElement = getContainerElement(targetLeaf);
+			if (containerEl != null) {
+				// @ts-ignore
+				containerEl.querySelector(".view-content")?.setAttribute("style", "");
+			}
 		}
 	}
 
