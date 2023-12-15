@@ -283,6 +283,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		`span[data="${backlink.dataString}"]`
 	);
 
+	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
 		const editor = getMarkdownView(newLeaf).editor;
 		const backlinkContainer = getBacklinkContainer(editor);
@@ -296,6 +297,16 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		console.log("top: " + backlinkSpan.getBoundingClientRect().top);
 		console.log("scrollTop: " + scrollTop);
 		console.log("scrollBottom: " + scrollBottom);
+
+		const spanTop = backlinkSpan.getBoundingClientRect().top - 88;
+
+		console.log(spanTop);
+		console.log(windowHeight);
+		if (spanTop < 0) {
+			editor.scrollTo(0, scrollTop - (windowHeight / 2 - spanTop));
+		} else if (spanTop > windowHeight) {
+			editor.scrollTo(0, scrollBottom - (windowHeight / 2 - spanTop));
+		}
 		// backlinkSpan.scrollIntoView({
 		// 	behavior: "smooth",
 		// 	block: "center",
