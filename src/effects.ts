@@ -93,6 +93,12 @@ function parseCSSString(css: string) {
 	return cssPropertiesObject;
 }
 
+function delay(milliseconds: any) {
+	return new Promise((resolve) => {
+		setTimeout(resolve, milliseconds);
+	});
+}
+
 export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let source = getBacklinkHover();
 	let destination = getCursor();
@@ -143,6 +149,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		// 	suffix.slice(1, suffix.length)
 		// );
 		// if (!positions) throw new Error("Positions not found");
+
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
@@ -170,21 +177,11 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		peek: true,
 	});
 
-	let originalId = originalLeaf.id;
-
-	// if (temp) {
-	// newLeaf.containerEl.style.opacity = "0.7";
-	// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-	// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-	// }
-	if (id != originalId) {
-		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-	}
-
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
+
+	console.log(backlinkSpan);
 
 	if (backlinkSpan) {
 		// backlinkSpan.scrollIntoView({
@@ -200,8 +197,19 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		}
 	}
 
-	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
+
+	if (
+		id != originalLeafId &&
+		(newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
+			"none" ||
+			newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
+	) {
+		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+	}
+
+	// @ts-ignore
 	if (originalLeafId) {
 		updateState({
 			originalLeafId,
@@ -260,6 +268,7 @@ export async function startReferenceEffect(
 	// 	resetState();
 	// 	return;
 	// }
+	await delay(100); // ensure new leaf has opened completely before doing checks below
 
 	// @ts-ignore
 	let id = newLeaf.id;
@@ -269,15 +278,6 @@ export async function startReferenceEffect(
 		temp,
 		peek: true,
 	});
-
-	let originalId = originalLeaf.id;
-
-	// if (temp) {
-	// 	// newLeaf.containerEl.style.opacity = "0.7";
-	if (id != originalId) {
-		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-	}
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
@@ -328,6 +328,8 @@ export async function startReferenceEffect(
 			}
 		}
 
+		console.log(visibleElements);
+
 		if (!visibleElements.includes(dataString)) {
 			let startTop = newLeaf.view.editor.getScrollInfo().top;
 			newLeaf.view.editor.scrollIntoView(
@@ -338,7 +340,9 @@ export async function startReferenceEffect(
 				true
 			);
 			setTimeout(() => {
+				if (temp) return;
 				let endTop = newLeaf.view.editor.getScrollInfo().top;
+				console.log(newLeaf.containerEl.querySelector(".view-content"));
 				if (startTop < endTop) {
 					// show mark above
 					console.log("show mark above");
@@ -383,8 +387,18 @@ export async function startReferenceEffect(
 		});
 	}
 
-	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
+
+	if (
+		id != originalLeafId &&
+		(newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
+			"none" ||
+			newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
+	) {
+		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+	}
+
 	if (originalLeafId) {
 		updateState({
 			originalLeafId,

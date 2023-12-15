@@ -67,6 +67,7 @@ export default class ReferencePlugin extends Plugin {
 				}
 			}
 
+			updateBacklinkMarkPositions();
 			if (
 				span &&
 				span instanceof HTMLSpanElement &&
@@ -92,7 +93,6 @@ export default class ReferencePlugin extends Plugin {
 				console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
 			}
-			updateBacklinkMarkPositions();
 		});
 
 		// on selection changes, event over click and keydown
