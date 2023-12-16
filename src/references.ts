@@ -395,16 +395,29 @@ function createBacklinkData(
 			index + match[0].length
 		);
 
+		// console.log(match);
+		// console.log(text);
+		// console.log(referencingSurroundingStrings);
+		// console.log(referencingFileData.slice(index, index + match[0].length));
+
 		const referencingLocation: DocumentLocation = {
-			prefix: referencingSurroundingStrings.prefix,
-			text,
-			suffix: referencingSurroundingStrings.suffix,
+			prefix: referencingFileData.slice(index - 25, index),
+			// prefix: referencingSurroundingStrings.prefix,
+			text: referencingFileData.slice(index, index + match[0].length),
+			suffix: referencingFileData.slice(
+				index + match[0].length,
+				index + match[0].length + 25
+			),
+			// suffix: referencingSurroundingStrings.suffix,
 			filename: referencingFile.path,
 			from: match.index!, // TODO do weird string format
 			to: match.index! + match[0].length, // TODO do weird string format
 		};
 
-		if (portal) {
+		if (portal == "portal") {
+			// OR no-portal
+			// console.log("PORTAL");
+			// console.log(prefix, text, suffix, filename, from, to, portal);
 			// get all the text from the start of the line to the end of the line
 			const getLineText = (text: string, index: number): string => {
 				const startOfLine = text.lastIndexOf("\n", index - 1) + 1;

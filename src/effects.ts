@@ -273,37 +273,68 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		peek: true,
 	});
 
+	console.log("span not found");
+	let referencingTFile = getMarkdownView(newLeaf).file;
+	if (!referencingTFile) throw new Error("Referencing TFile not found");
+	let referencingText = await getThat().vault.read(referencingTFile);
+	let positions = findTextPositions(
+		referencingText,
+		backlink.referencingLocation.text,
+		backlink.referencingLocation.prefix,
+		backlink.referencingLocation.suffix
+	);
+	console.log(positions);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
+
+	newLeaf.view.editor.scrollIntoView(
+		{
+			from: rangeStart,
+			to: rangeEnd,
+		},
+		true
+	);
+
+	const cursorViewport = newLeaf.view.editor.getScrollInfo();
+
+	updateState({
+		cursorViewport,
+	});
+
 	// NEED TO GET TO SPAN BEFORE TRYING TO SELECT IT
 	// IT COULD NOT EXIST.
 
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
+	console.log(backlinkSpan);
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
 		const editor = getMarkdownView(newLeaf).editor;
 		const backlinkContainer = getBacklinkContainer(editor);
 
-		const windowHeight = newLeaf.view.containerEl
-			.querySelector(".cm-scroller")
-			.getBoundingClientRect().height;
-		const scrollTop =
-			newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-		const scrollBottom = scrollTop + windowHeight;
-		console.log("top: " + backlinkSpan.getBoundingClientRect().top);
-		console.log("scrollTop: " + scrollTop);
-		console.log("scrollBottom: " + scrollBottom);
+		// const windowHeight = newLeaf.view.containerEl
+		// 	.querySelector(".cm-scroller")
+		// 	.getBoundingClientRect().height;
+		// const scrollTop =
+		// 	newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+		// const scrollBottom = scrollTop + windowHeight;
+		// // console.log("top: " + backlinkSpan.getBoundingClientRect().top);
+		// // console.log("scrollTop: " + scrollTop);
+		// // console.log("scrollBottom: " + scrollBottom);
 
-		const spanTop = backlinkSpan.getBoundingClientRect().top - 88;
+		// const spanTop = backlinkSpan.getBoundingClientRect().top - 88;
 
-		console.log(spanTop);
-		console.log(windowHeight);
-		if (spanTop < 0) {
-			editor.scrollTo(0, scrollTop - (windowHeight / 2 - spanTop));
-		} else if (spanTop > windowHeight) {
-			editor.scrollTo(0, scrollBottom - (windowHeight / 2 - spanTop));
-		}
+		// // console.log(spanTop);
+		// // console.log(windowHeight);
+		// if (spanTop < 0) {
+		// 	editor.scrollTo(0, scrollTop - (windowHeight / 2 - spanTop));
+		// } else if (spanTop > windowHeight) {
+		// 	editor.scrollTo(0, scrollBottom - (windowHeight / 2 - spanTop));
+		// }
+
 		// backlinkSpan.scrollIntoView({
 		// 	behavior: "smooth",
 		// 	block: "center",
@@ -315,6 +346,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 			svgElement.style.boxShadow = `0px 0px 10px 10px ${SVG_HOVER_COLOR}`;
 			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
 		}
+	} else {
 	}
 
 	const originalLeafId = originalLeaf.id;
@@ -698,6 +730,15 @@ export async function endBacklinkHoverEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) {
+		resetBacklinkHover();
+		throw new Error("Target leaf not found");
+	}
+
+	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
+		const view: MarkdownView = targetLeaf.view;
+		view.editor.scrollTo(0, cursorViewport.top);
+	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
 	if (containerEl != null) {

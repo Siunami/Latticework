@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView } from "obsidian";
+import { Plugin, MarkdownView, Notice } from "obsidian";
 
 import { updateThat, getHover, getBacklinks } from "./state";
 import { highlights, referenceResources } from "./widget";
@@ -113,9 +113,11 @@ export default class ReferencePlugin extends Plugin {
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
 				console.log("c");
 				updateClipboard();
+				new Notice("Copied reference and text to clipboard");
 			} else if (evt.key == "d" && evt.metaKey && evt.shiftKey) {
 				console.log("d");
 				updateClipboard(true);
+				new Notice("Copied reference to clipboard");
 			}
 		});
 

@@ -49,11 +49,11 @@ export function processURI(
 }
 
 export function getPrefixAndSuffix(document: string, from: number, to: number) {
-	let prefix = document
-		.slice(from - 25 > 0 ? from - 25 : 0, from)
-		.split("\n")
-		.slice(-1)[0];
-	let suffix = document.slice(to, to + 25).split("\n")[0];
+	let prefix = document.slice(from - 25, from);
+	// .slice(from - 25 > 0 ? from - 25 : 0, from)
+	// .split("\n")
+	// .slice(-1)[0];
+	let suffix = document.slice(to, to + 25); //.split("\n")[0];
 	return { prefix, suffix };
 }
 
@@ -65,13 +65,14 @@ export function findTextPositions(
 ) {
 	let rollingIndex = 0;
 
-	// const text = view.getDisplayText();
 	const lines = text.split("\n").map((line: string, i: number) => {
 		let data = { line, index: rollingIndex, length: line.length + 1, i };
 		rollingIndex += data.length;
 		return data;
 	});
 
+	console.log(text.includes(prefix + searchTerm + suffix));
+	console.log(prefix + searchTerm + suffix);
 	if (text.includes(prefix + searchTerm + suffix)) {
 		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
 		let startIndex =
