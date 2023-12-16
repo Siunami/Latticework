@@ -104,9 +104,7 @@ function tempDirectionIndicator(
 	text: string,
 	prefix: string,
 	suffix: string,
-	temp: boolean,
 	dataString: string,
-	user: string = "",
 	originalTop?: number
 ) {
 	let positions = findTextPositions(
@@ -274,27 +272,28 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	});
 
 	console.log("span not found");
-	let referencingTFile = getMarkdownView(newLeaf).file;
-	if (!referencingTFile) throw new Error("Referencing TFile not found");
-	let referencingText = await getThat().vault.read(referencingTFile);
-	let positions = findTextPositions(
-		referencingText,
-		backlink.referencingLocation.text,
-		backlink.referencingLocation.prefix,
-		backlink.referencingLocation.suffix
-	);
-	console.log(positions);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
+	tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
+	// let referencingTFile = getMarkdownView(newLeaf).file;
+	// if (!referencingTFile) throw new Error("Referencing TFile not found");
+	// let referencingText = await getThat().vault.read(referencingTFile);
+	// let positions = findTextPositions(
+	// 	referencingText,
+	// 	backlink.referencingLocation.text,
+	// 	backlink.referencingLocation.prefix,
+	// 	backlink.referencingLocation.suffix
+	// );
+	// console.log(positions);
+	// if (!positions) throw new Error("Positions not found");
+	// let rangeStart = positions.rangeStart;
+	// let rangeEnd = positions.rangeEnd;
 
-	newLeaf.view.editor.scrollIntoView(
-		{
-			from: rangeStart,
-			to: rangeEnd,
-		},
-		true
-	);
+	// newLeaf.view.editor.scrollIntoView(
+	// 	{
+	// 		from: rangeStart,
+	// 		to: rangeEnd,
+	// 	},
+	// 	true
+	// );
 
 	const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -440,15 +439,7 @@ export async function startReferenceEffect(
 
 		highlightSelection(editorView, from, to);
 
-		tempDirectionIndicator(
-			newLeaf,
-			text,
-			prefix,
-			suffix,
-			temp,
-			dataString,
-			type
-		);
+		tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
