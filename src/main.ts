@@ -82,7 +82,7 @@ export default class ReferencePlugin extends Plugin {
 			) {
 				console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
-				span.style.backgroundColor = SVG_HOVER_COLOR;
+				// span.style.backgroundColor = SVG_HOVER_COLOR;
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");

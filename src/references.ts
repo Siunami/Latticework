@@ -91,6 +91,8 @@ export function createReferenceIcon(portalText: string | null = null): {
 		portal.classList.add("portal");
 		portal.innerHTML = portalText;
 		span.style.backgroundColor = "white";
+		portal.style.userSelect = "none";
+		portal.style.pointerEvents = "none";
 		span.appendChild(portal);
 	}
 
