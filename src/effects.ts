@@ -279,6 +279,9 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		peek: true,
 	});
 
+	// NEED TO GET TO SPAN BEFORE TRYING TO SELECT IT
+	// IT COULD NOT EXIST.
+
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);

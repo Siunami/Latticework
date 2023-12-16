@@ -10,7 +10,6 @@ import {
 // [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
 export async function updateClipboard(only: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-	console.log(view);
 	// Make sure the user is editing a Markdown file.
 	if (view) {
 		let selection = view.editor.getSelection();
@@ -23,7 +22,11 @@ export async function updateClipboard(only: boolean = false) {
 				prefix
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
-			)}:${encodeURIComponentString(view.file.path)}:${from}:${to})`;
+			)}:${encodeURIComponentString(
+				view.file.path
+			)}:${from}:${to}:${encodeURIComponentString(
+				only ? "portal" : "no-portal"
+			)})`;
 
 			if (!only) {
 				reference = '"' + selection + '" ' + reference;

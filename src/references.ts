@@ -24,14 +24,16 @@ import {
 } from "./utils";
 import {
 	ACTION_TYPE,
+	PORTAL_TEXT_SLICE_SIZE,
 	REFERENCE_ICON_HEIGHT,
 	REFERENCE_REGEX,
 	SVG_HOVER_COLOR,
+	SVG_HOVER_COLOR_LIGHT,
 } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 
-export function createReferenceIcon(): {
+export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
 	svg: SVGElement;
 } {
@@ -46,14 +48,15 @@ export function createReferenceIcon(): {
 	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 	svg.setAttribute("fill", "white");
 	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-	svg.style.border = "4px solid black";
+	svg.style.border = "3px solid grey";
 	svg.style.backgroundColor = "white";
+	svg.style.borderRadius = "3px";
 	svg.style.cursor = "pointer";
 
 	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
 	line.setAttribute("x1", "3");
 	line.setAttribute("y1", `${(height - 3) / 3}`);
-	line.setAttribute("x2", "14");
+	line.setAttribute("x2", "12");
 	line.setAttribute("y2", `${(height - 3) / 3}`);
 	line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line.setAttribute("stroke", "black"); // Set the stroke color to black
@@ -63,7 +66,7 @@ export function createReferenceIcon(): {
 	const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
 	line2.setAttribute("x1", "3");
 	line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
-	line2.setAttribute("x2", "17");
+	line2.setAttribute("x2", "15");
 	line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
 	line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line2.setAttribute("stroke", "black"); // Set the stroke color to black
@@ -73,7 +76,7 @@ export function createReferenceIcon(): {
 	const line3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
 	line3.setAttribute("x1", "3");
 	line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
-	line3.setAttribute("x2", "12");
+	line3.setAttribute("x2", "10");
 	line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
 	line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
 	line3.setAttribute("stroke", "black"); // Set the stroke color to black
@@ -81,6 +84,15 @@ export function createReferenceIcon(): {
 	svg.appendChild(line3);
 
 	span.appendChild(svg);
+
+	if (portalText != null) {
+		let portal = document.createElement("div");
+		portal.style.color = "black";
+		portal.classList.add("portal");
+		portal.innerHTML = portalText;
+		span.style.backgroundColor = "white";
+		span.appendChild(portal);
+	}
 
 	// let newSpan: HTMLSpanElement = document.createElement("span");
 	// newSpan.innerHTML = "📄";
@@ -91,9 +103,13 @@ export function createReferenceIcon(): {
 export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	// remove existing cursors
 	const svgElement = span.querySelector("svg");
+	const portal: HTMLElement | null = span.querySelector(".portal");
+
 	if (svgElement) {
 		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
 		svgElement.style.backgroundColor = SVG_HOVER_COLOR;
+		if (portal && portal.style.display == "inline")
+			span.style.backgroundColor = SVG_HOVER_COLOR;
 		updateHoveredCursor(svgElement, user); // add the currently hovered reference icon
 	}
 
@@ -179,8 +195,6 @@ export function updateBacklinkMarkPosition(
 			}
 		});
 
-	let lastYBottom = -Infinity; // for large documents 😁
-	let margin = REFERENCE_ICON_HEIGHT + 4;
 	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
 
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
@@ -209,6 +223,8 @@ export function updateBacklinkMarkPosition(
 		return referenceMarker;
 	});
 
+	let lastYBottom = -Infinity; // for large documents 😁
+	let margin = 4;
 	referenceMarkers
 		.sort(
 			(a, b) =>
@@ -216,9 +232,32 @@ export function updateBacklinkMarkPosition(
 		)
 		.forEach((marker) => {
 			if (!marker) return;
+			// toggle portals
+			const portal: HTMLElement | null = marker.querySelector(".portal");
+			const svg = marker.querySelector("svg");
+			if (showPortals) {
+				if (svg && !portal) svg.style.display = "inline";
+				else if (svg) svg.style.display = "none";
+
+				if (portal) {
+					portal.style.display = "inline";
+					marker.style.border = "3px solid grey";
+					marker.style.padding = "3px";
+					marker.style.borderRadius = "3px";
+				}
+			} else {
+				if (svg) svg.style.display = "inline";
+				if (portal) {
+					portal.style.display = "none";
+					marker.style.border = "none";
+					marker.style.padding = "0px";
+					marker.style.borderRadius = "0px";
+				}
+			}
+			// get positioning
 			let top = parseInt(marker!.getAttribute("top")!);
 			top = Math.max(top, lastYBottom + margin);
-			lastYBottom = top;
+			lastYBottom = top + marker.getBoundingClientRect().height + margin;
 			marker.setAttribute("top", top.toString());
 			marker.style.top = top - titleBbox.top + 32 + "px";
 			marker.style.left = lineBbox.width + 40 + "px";
@@ -251,7 +290,7 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 	//	  then, for the rest, set their top to max(bbox.top, lastYBottom + margin)
 	// think about the case where the backlink is to an isolated quote
 
-	let { span } = createReferenceIcon();
+	let { span } = createReferenceIcon(backlink.portalText);
 	span.style.position = "absolute";
 
 	span.id = getBacklinkID(backlink);
@@ -266,6 +305,11 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 		const svgElement = span.querySelector("svg");
 		if (svgElement) {
 			svgElement.style.backgroundColor = "white";
+		}
+
+		const portal: HTMLElement | null = span.querySelector(".portal");
+		if (portal && portal.style.display == "inline") {
+			span.style.backgroundColor = "white";
 		}
 		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 	});
@@ -341,17 +385,13 @@ function createBacklinkData(
 		// );
 
 		let index = referencingFileData.indexOf(match[0]);
-		let slice = referencingFileData.slice(index, index + match[0].length);
-		// console.log(slice);
 
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
 			index,
 			index + match[0].length
 		);
-		// console.log(match);
-		// console.log(referencingSurroundingStrings);
-		// console.log(text);
+
 		const referencingLocation: DocumentLocation = {
 			prefix: referencingSurroundingStrings.prefix,
 			text,
@@ -361,11 +401,34 @@ function createBacklinkData(
 			to: match.index! + match[0].length, // TODO do weird string format
 		};
 
-		backlinks.push({
-			referencedLocation,
-			referencingLocation,
-			dataString: match[1],
-		});
+		if (portal) {
+			// get all the text from the start of the line to the end of the line
+			const getLineText = (text: string, index: number): string => {
+				const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
+				const endOfLine = text.indexOf("\n", index);
+				return text.slice(
+					startOfLine,
+					endOfLine !== -1 ? endOfLine : undefined
+				);
+			};
+
+			let line = getLineText(referencingFileData, index);
+			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "");
+			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
+
+			backlinks.push({
+				referencedLocation,
+				referencingLocation,
+				dataString: match[1],
+				portalText: portalTextSlice,
+			});
+		} else {
+			backlinks.push({
+				referencedLocation,
+				referencingLocation,
+				dataString: match[1],
+			});
+		}
 	});
 	return backlinks;
 }

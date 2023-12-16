@@ -17,4 +17,5 @@ export interface Backlink {
 	referencedLocation: DocumentLocation;
 	referencingLocation: DocumentLocation;
 	dataString: string;
+	portalText?: string;
 }
