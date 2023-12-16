@@ -108,8 +108,7 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	if (svgElement) {
 		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
 		svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-		if (portal && portal.style.display == "inline")
-			span.style.backgroundColor = SVG_HOVER_COLOR;
+		if (portal) span.style.backgroundColor = SVG_HOVER_COLOR;
 		updateHoveredCursor(svgElement, user); // add the currently hovered reference icon
 	}
 
@@ -244,6 +243,7 @@ export function updateBacklinkMarkPosition(
 					marker.style.border = "3px solid grey";
 					marker.style.padding = "3px";
 					marker.style.borderRadius = "3px";
+					marker.style.backgroundColor = "white";
 				}
 			} else {
 				if (svg) svg.style.display = "inline";
@@ -252,6 +252,7 @@ export function updateBacklinkMarkPosition(
 					marker.style.border = "none";
 					marker.style.padding = "0px";
 					marker.style.borderRadius = "0px";
+					marker.style.backgroundColor = "";
 				}
 			}
 			// get positioning
@@ -308,7 +309,7 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 		}
 
 		const portal: HTMLElement | null = span.querySelector(".portal");
-		if (portal && portal.style.display == "inline") {
+		if (portal) {
 			span.style.backgroundColor = "white";
 		}
 		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);

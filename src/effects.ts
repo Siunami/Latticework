@@ -152,8 +152,6 @@ function tempDirectionIndicator(
 		}
 	}
 
-	console.log(visibleElements);
-
 	if (!visibleElements.includes(dataString)) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
 		// let startTop: number;
@@ -182,18 +180,14 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(leaf.containerEl.querySelector(".view-content"));
 			if (startTop < endTop) {
 				// show mark above
-				console.log("show mark above");
 				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
 				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
 			} else {
 				// show mark below
-				console.log("show mark below");
-
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
 			}
@@ -243,7 +237,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		const editorView: EditorView = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = backlinkLeaf.view.editor.getScrollInfo();
-		// highlightSelection(editorView, from, to);
+		highlightSelection(editorView, from, to);
 		// let positions = findTextPositions(
 		// 	backlinkLeaf.view.data,
 		// 	text,
@@ -255,7 +249,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
-			originalLeafId: backlinkLeafID,
+			backlinkLeafId: backlinkLeafID,
 		});
 	}
 
@@ -342,6 +336,10 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		});
 	}
 
+	// console.log(span);
+	// const portal = span.querySelector(".portal");
+	// if (portal) span.style.backgroundColor = SVG_HOVER_COLOR;
+
 	return;
 }
 
@@ -419,23 +417,6 @@ export async function startReferenceEffect(
 			dataString,
 			type
 		);
-		// console.log(newLeaf.view.containerEl.querySelector(".cm-scroller"));
-		// console.log(newLeaf.view.editor);
-		// console.log("Range start: " + newLeaf.view.editor.posToOffset(rangeStart));
-		// let rangeStartOffset = newLeaf.view.editor.posToOffset(rangeStart);
-		// console.log("Scroll top: " + scrollTop);
-		// console.log("Diff: " + (rangeStartOffset - scrollTop));
-		// console.log(
-		// 	newLeaf.view.containerEl
-		// 		.querySelector(".cm-scroller")
-		// 		.getBoundingClientRect().height
-		// );
-
-		// setTimeout(() => {
-		// 	console.log("Range start (post scroll): " + rangeStartOffset);
-		// 	console.log("Scroll top (post scroll): " + scrollTop);
-		// 	console.log("Diff (post scroll): " + (rangeStartOffset - scrollTop));
-		// }, 100);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -703,6 +684,7 @@ export async function endBacklinkHoverEffect() {
 		dataString,
 		leafId,
 		originalLeafId,
+		backlinkLeafId,
 		temp,
 		cursorViewport,
 		originalTab,
@@ -727,15 +709,15 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlights(editorView);
 
-	// // backlink effect
-	// const originalLeaf = workspace.getLeafById(originalLeafId);
-	// if (!originalLeaf) {
-	// 	resetBacklinkHover();
-	// 	throw new Error("Original leaf not found");
-	// }
-	// let originalEditorView: EditorView = getEditorView(originalLeaf);
+	// backlink effect
+	const originalLeaf = workspace.getLeafById(backlinkLeafId);
+	if (!originalLeaf) {
+		resetBacklinkHover();
+		throw new Error("Original leaf not found");
+	}
+	let originalEditorView: EditorView = getEditorView(originalLeaf);
 
-	// removeHighlights(originalEditorView);
+	removeHighlights(originalEditorView);
 
 	if (getCursor() != null) {
 		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();

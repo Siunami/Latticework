@@ -16,11 +16,10 @@ import {
 	endBacklinkHoverEffect,
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
-import { ACTION_TYPE } from "./constants";
+import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
-		// that = this;
 		setTimeout(() => {
 			generateBacklinks();
 		}, 4000);
@@ -83,7 +82,7 @@ export default class ReferencePlugin extends Plugin {
 			) {
 				console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
-
+				span.style.backgroundColor = SVG_HOVER_COLOR;
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
