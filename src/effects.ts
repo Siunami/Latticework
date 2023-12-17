@@ -681,7 +681,10 @@ export async function endReferenceHoverEffect() {
 
 	if (peek) {
 		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+		if (!originalLeaf) {
+			resetHover();
+			throw new Error("Original leaf not found");
+		}
 
 		workspace.revealLeaf(originalLeaf);
 	}
@@ -767,7 +770,10 @@ export async function endBacklinkHoverEffect() {
 
 	if (peek) {
 		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+		if (!originalLeaf) {
+			resetBacklinkHover();
+			throw new Error("Original leaf not found");
+		}
 
 		workspace.revealLeaf(originalLeaf);
 	}
