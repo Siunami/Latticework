@@ -401,14 +401,14 @@ function createBacklinkData(
 		// console.log(referencingFileData.slice(index, index + match[0].length));
 
 		const referencingLocation: DocumentLocation = {
-			prefix: referencingFileData.slice(index - 25, index),
-			// prefix: referencingSurroundingStrings.prefix,
+			// prefix: referencingFileData.slice(index - 25, index),
+			prefix: referencingSurroundingStrings.prefix,
 			text: referencingFileData.slice(index, index + match[0].length),
-			suffix: referencingFileData.slice(
-				index + match[0].length,
-				index + match[0].length + 25
-			),
-			// suffix: referencingSurroundingStrings.suffix,
+			// suffix: referencingFileData.slice(
+			// 	index + match[0].length,
+			// 	index + match[0].length + 25
+			// ),
+			suffix: referencingSurroundingStrings.suffix,
 			filename: referencingFile.path,
 			from: match.index!, // TODO do weird string format
 			to: match.index! + match[0].length, // TODO do weird string format

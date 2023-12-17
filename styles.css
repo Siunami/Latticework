@@ -12,3 +12,6 @@ If your plugin does not need CSS, delete this file.
   max-width: 600px !important;
 }
 
+.cm-formatting.cm-formatting-link-string.cm-string.cm-url.external-link {
+  display: none !important;
+}

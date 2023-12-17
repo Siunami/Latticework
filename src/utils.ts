@@ -49,11 +49,13 @@ export function processURI(
 }
 
 export function getPrefixAndSuffix(document: string, from: number, to: number) {
-	let prefix = document.slice(from - 25, from);
+	let prefix = document
+		.slice(from - 25, from)
+		.split("\n")
+		.slice(-1)[0];
 	// .slice(from - 25 > 0 ? from - 25 : 0, from)
-	// .split("\n")
-	// .slice(-1)[0];
-	let suffix = document.slice(to, to + 25); //.split("\n")[0];
+
+	let suffix = document.slice(to, to + 25).split("\n")[0];
 	return { prefix, suffix };
 }
 

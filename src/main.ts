@@ -114,10 +114,18 @@ export default class ReferencePlugin extends Plugin {
 				console.log("c");
 				updateClipboard();
 				new Notice("Copied reference and text to clipboard");
-			} else if (evt.key == "d" && evt.metaKey && evt.shiftKey) {
-				console.log("d");
+			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
+				console.log("r");
 				updateClipboard(true);
 				new Notice("Copied reference to clipboard");
+			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
+				// find the annotations file
+				// if it doesn't exist, create it
+				// if it exists, open it in adjacent panel
+				// add new annotation
+
+				console.log("e");
+				new Notice("New annotation");
 			}
 		});
 

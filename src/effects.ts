@@ -99,36 +99,16 @@ function delay(milliseconds: any) {
 	});
 }
 
-function tempDirectionIndicator(
-	leaf: any,
-	text: string,
-	prefix: string,
-	suffix: string,
-	dataString: string,
-	originalTop?: number
-) {
-	let positions = findTextPositions(
-		leaf.view.data,
-		text,
-		prefix.slice(0, prefix.length - 1),
-		suffix.slice(1, suffix.length)
-	);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
-
-	// Oh! I’d compare the bbox of the range
-	// (which I know you find in the mark layout routine)
-	// to the scrollTop + innerHeight
-	const editor = getMarkdownView(leaf).editor;
-	const backlinkContainer = getBacklinkContainer(editor);
-
+function getVisibleBacklinks(leaf: any) {
 	const windowHeight = leaf.view.containerEl
 		.querySelector(".cm-scroller")
 		.getBoundingClientRect().height;
 	const scrollTop =
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
+
+	const editor = getMarkdownView(leaf).editor;
+	const backlinkContainer = getBacklinkContainer(editor);
 
 	let visibleElements: string[] = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
@@ -149,47 +129,101 @@ function tempDirectionIndicator(
 			}
 		}
 	}
+	return visibleElements;
+}
 
-	if (!visibleElements.includes(dataString)) {
-		let startTop = leaf.view.editor.getScrollInfo().top;
-		// let startTop: number;
-		// if (originalTop) {
-		// 	startTop = originalTop;
-		// } else {
-		// 	startTop = leaf.view.editor.getScrollInfo().top;
-		// 	if (user == ACTION_TYPE.CURSOR) {
-		// 		updateCursor({
-		// 			originalTop: startTop,
-		// 		});
-		// 	} else if (user == ACTION_TYPE.MOUSE) {
-		// 		updateHover({
-		// 			originalTop: startTop,
-		// 		});
-		// 	}
-		// }
+function tempDirectionIndicator(
+	leaf: any,
+	text: string,
+	prefix: string,
+	suffix: string,
+	dataString: string,
+	user: string
+) {
+	let positions = findTextPositions(
+		leaf.view.data,
+		text,
+		prefix.slice(0, prefix.length - 1),
+		suffix.slice(1, suffix.length)
+	);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
 
-		leaf.view.editor.scrollIntoView(
-			{
-				from: rangeStart,
-				to: rangeEnd,
-			},
-			true
-		);
+	// Oh! I’d compare the bbox of the range
+	// (which I know you find in the mark layout routine)
+	// to the scrollTop + innerHeight
+	let visibleElements: string[] = [];
+
+	console.log(user);
+	// if (user === ACTION_TYPE.BACKLINK) {
+	// 	// visibleElements = getVisibleSpans(leaf);
+	// 	leaf.view.editor.scrollIntoView(
+	// 		{
+	// 			from: rangeStart,
+	// 			to: rangeEnd,
+	// 		},
+	// 		true
+	// 	);
+	// }
+	if (user === ACTION_TYPE.BACKLINK) {
 		setTimeout(() => {
-			// if (temp) return;
-			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (startTop < endTop) {
-				// show mark above
-				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
-			} else {
-				// show mark below
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
-			}
-		}, 10);
+			// console.log(leaf.view.editor.posToOffset(rangeStart));
+			// leaf.view.editor.scrollTo(0, leaf.view.editor.posToOffset(rangeStart));
+			leaf.view.editor.scrollIntoView(
+				{
+					from: rangeStart,
+					to: rangeEnd,
+				},
+				true
+			);
+		}, 0);
+	}
+
+	if (user === ACTION_TYPE.MOUSE) {
+		visibleElements = getVisibleBacklinks(leaf);
+
+		if (!visibleElements.includes(dataString)) {
+			let startTop = leaf.view.editor.getScrollInfo().top;
+			// let startTop: number;
+			// if (originalTop) {
+			// 	startTop = originalTop;
+			// } else {
+			// 	startTop = leaf.view.editor.getScrollInfo().top;
+			// 	if (user == ACTION_TYPE.CURSOR) {
+			// 		updateCursor({
+			// 			originalTop: startTop,
+			// 		});
+			// 	} else if (user == ACTION_TYPE.MOUSE) {
+			// 		updateHover({
+			// 			originalTop: startTop,
+			// 		});
+			// 	}
+			// }
+
+			leaf.view.editor.scrollIntoView(
+				{
+					from: rangeStart,
+					to: rangeEnd,
+				},
+				true
+			);
+			setTimeout(() => {
+				// if (temp) return;
+				let endTop = leaf.view.editor.getScrollInfo().top;
+				if (startTop < endTop) {
+					// show mark above
+					// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+					// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+					leaf.containerEl.querySelector(".view-content").style.boxShadow =
+						"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+				} else {
+					// show mark below
+					leaf.containerEl.querySelector(".view-content").style.boxShadow =
+						"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+				}
+			}, 10);
+		}
 	}
 }
 
@@ -272,7 +306,15 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	});
 
 	console.log("span not found");
-	tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
+	// Add the hyphens here because I don't format prefix suffix like a text fragment URI right now
+	tempDirectionIndicator(
+		newLeaf,
+		backlink.referencingLocation.text,
+		backlink.referencingLocation.prefix + "-",
+		"-" + backlink.referencingLocation.suffix,
+		dataString,
+		ACTION_TYPE.BACKLINK
+	);
 	// let referencingTFile = getMarkdownView(newLeaf).file;
 	// if (!referencingTFile) throw new Error("Referencing TFile not found");
 	// let referencingText = await getThat().vault.read(referencingTFile);
@@ -435,11 +477,17 @@ export async function startReferenceEffect(
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
-		const viewport = newLeaf.view.editor.getScrollInfo();
 
 		highlightSelection(editorView, from, to);
 
-		tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
+		tempDirectionIndicator(
+			newLeaf,
+			text,
+			prefix,
+			suffix,
+			dataString,
+			ACTION_TYPE.MOUSE
+		);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -767,7 +815,10 @@ export async function endBacklinkHoverEffect() {
 
 	if (peek) {
 		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+		if (!originalLeaf) {
+			resetBacklinkHover();
+			throw new Error("Original leaf not found");
+		}
 
 		workspace.revealLeaf(originalLeaf);
 	}
