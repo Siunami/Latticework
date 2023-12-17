@@ -12,7 +12,7 @@ import {
 	resetBacklinkHover,
 	updateHoveredCursor,
 } from "./state";
-import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
+import { ACTION_TYPE, REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
 import {
 	collectLeavesByTabHelper,
 	getCurrentTabIndex,
@@ -37,6 +37,7 @@ import { EditorView } from "@codemirror/view";
 import {
 	getBacklinkContainer,
 	getContainerElement,
+	getLeafBBoxElements,
 	getMarkdownView,
 	updateBacklinkMarkPosition,
 	updateBacklinkMarkPositions,
@@ -99,16 +100,65 @@ function delay(milliseconds: any) {
 	});
 }
 
-function getVisibleBacklinks(leaf: any) {
+function tempDirectionIndicator(
+	leaf: any,
+	text: string,
+	prefix: string,
+	suffix: string,
+	dataString: string,
+	user?: string
+) {
+	let positions = findTextPositions(
+		leaf.view.data,
+		text,
+		prefix.slice(0, prefix.length - 1),
+		suffix.slice(1, suffix.length)
+	);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
+
+	if (user === ACTION_TYPE.BACKLINK) {
+		let startTop = leaf.view.editor.getScrollInfo().top;
+
+		leaf.view.editor.scrollIntoView(
+			{
+				from: Object.assign(rangeStart, { ch: 0 }),
+				to: Object.assign(rangeEnd, { ch: 0 }),
+			},
+			true
+		);
+		setTimeout(() => {
+			// if (temp) return;
+			let endTop = leaf.view.editor.getScrollInfo().top;
+			if (startTop < endTop) {
+				// show mark above
+				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+			} else {
+				// show mark below
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+			}
+		}, 10);
+
+		return;
+	}
+
+	// Oh! I’d compare the bbox of the range
+	// (which I know you find in the mark layout routine)
+	// to the scrollTop + innerHeight
+	const editor = getMarkdownView(leaf).editor;
+	const backlinkContainer = getBacklinkContainer(editor);
+
 	const windowHeight = leaf.view.containerEl
 		.querySelector(".cm-scroller")
 		.getBoundingClientRect().height;
 	const scrollTop =
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
-
-	const editor = getMarkdownView(leaf).editor;
-	const backlinkContainer = getBacklinkContainer(editor);
 
 	let visibleElements: string[] = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
@@ -129,101 +179,48 @@ function getVisibleBacklinks(leaf: any) {
 			}
 		}
 	}
-	return visibleElements;
-}
 
-function tempDirectionIndicator(
-	leaf: any,
-	text: string,
-	prefix: string,
-	suffix: string,
-	dataString: string,
-	user: string
-) {
-	let positions = findTextPositions(
-		leaf.view.data,
-		text,
-		prefix.slice(0, prefix.length - 1),
-		suffix.slice(1, suffix.length)
-	);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
+	console.log(visibleElements);
+	if (!visibleElements.includes(dataString)) {
+		let startTop = leaf.view.editor.getScrollInfo().top;
+		// let startTop: number;
+		// if (originalTop) {
+		// 	startTop = originalTop;
+		// } else {
+		// 	startTop = leaf.view.editor.getScrollInfo().top;
+		// 	if (user == ACTION_TYPE.CURSOR) {
+		// 		updateCursor({
+		// 			originalTop: startTop,
+		// 		});
+		// 	} else if (user == ACTION_TYPE.MOUSE) {
+		// 		updateHover({
+		// 			originalTop: startTop,
+		// 		});
+		// 	}
+		// }
 
-	// Oh! I’d compare the bbox of the range
-	// (which I know you find in the mark layout routine)
-	// to the scrollTop + innerHeight
-	let visibleElements: string[] = [];
-
-	console.log(user);
-	// if (user === ACTION_TYPE.BACKLINK) {
-	// 	// visibleElements = getVisibleSpans(leaf);
-	// 	leaf.view.editor.scrollIntoView(
-	// 		{
-	// 			from: rangeStart,
-	// 			to: rangeEnd,
-	// 		},
-	// 		true
-	// 	);
-	// }
-	if (user === ACTION_TYPE.BACKLINK) {
+		leaf.view.editor.scrollIntoView(
+			{
+				from: rangeStart,
+				to: rangeEnd,
+			},
+			true
+		);
 		setTimeout(() => {
-			// console.log(leaf.view.editor.posToOffset(rangeStart));
-			// leaf.view.editor.scrollTo(0, leaf.view.editor.posToOffset(rangeStart));
-			leaf.view.editor.scrollIntoView(
-				{
-					from: rangeStart,
-					to: rangeEnd,
-				},
-				true
-			);
-		}, 0);
-	}
-
-	if (user === ACTION_TYPE.MOUSE) {
-		visibleElements = getVisibleBacklinks(leaf);
-
-		if (!visibleElements.includes(dataString)) {
-			let startTop = leaf.view.editor.getScrollInfo().top;
-			// let startTop: number;
-			// if (originalTop) {
-			// 	startTop = originalTop;
-			// } else {
-			// 	startTop = leaf.view.editor.getScrollInfo().top;
-			// 	if (user == ACTION_TYPE.CURSOR) {
-			// 		updateCursor({
-			// 			originalTop: startTop,
-			// 		});
-			// 	} else if (user == ACTION_TYPE.MOUSE) {
-			// 		updateHover({
-			// 			originalTop: startTop,
-			// 		});
-			// 	}
-			// }
-
-			leaf.view.editor.scrollIntoView(
-				{
-					from: rangeStart,
-					to: rangeEnd,
-				},
-				true
-			);
-			setTimeout(() => {
-				// if (temp) return;
-				let endTop = leaf.view.editor.getScrollInfo().top;
-				if (startTop < endTop) {
-					// show mark above
-					// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-					// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-					leaf.containerEl.querySelector(".view-content").style.boxShadow =
-						"inset 0px 20px 20px 0px rgba(248, 255, 255)";
-				} else {
-					// show mark below
-					leaf.containerEl.querySelector(".view-content").style.boxShadow =
-						"inset 0px -30px 20px 0px rgba(248, 255, 255)";
-				}
-			}, 10);
-		}
+			// if (temp) return;
+			let endTop = leaf.view.editor.getScrollInfo().top;
+			if (startTop < endTop) {
+				// show mark above
+				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
+				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+			} else {
+				// show mark below
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+			}
+		}, 10);
 	}
 }
 
@@ -306,17 +303,31 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	});
 
 	console.log("span not found");
-	// Add the hyphens here because I don't format prefix suffix like a text fragment URI right now
+	console.log(backlink.referencingLocation.prefix);
+
+	console.log(backlink.referencingLocation.text);
+
+	console.log(backlink.referencingLocation.suffix);
+	const matches = [
+		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
+	];
+	if (matches.length == 0) throw new Error("Matches not found");
+	// This one switch, this one does the correct scroll
+	// tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
+
+	// This one does the correct grabbing of span elements
 	tempDirectionIndicator(
 		newLeaf,
 		backlink.referencingLocation.text,
 		backlink.referencingLocation.prefix + "-",
 		"-" + backlink.referencingLocation.suffix,
-		dataString,
+		matches[0][1],
 		ACTION_TYPE.BACKLINK
 	);
+
 	// let referencingTFile = getMarkdownView(newLeaf).file;
 	// if (!referencingTFile) throw new Error("Referencing TFile not found");
+	// console.log(referencingTFile);
 	// let referencingText = await getThat().vault.read(referencingTFile);
 	// let positions = findTextPositions(
 	// 	referencingText,
@@ -324,10 +335,12 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	// 	backlink.referencingLocation.prefix,
 	// 	backlink.referencingLocation.suffix
 	// );
-	// console.log(positions);
+	// // console.log(positions);
 	// if (!positions) throw new Error("Positions not found");
 	// let rangeStart = positions.rangeStart;
 	// let rangeEnd = positions.rangeEnd;
+
+	// HTMLFormControlsCollection.lo
 
 	// newLeaf.view.editor.scrollIntoView(
 	// 	{
@@ -477,17 +490,11 @@ export async function startReferenceEffect(
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
+		const viewport = newLeaf.view.editor.getScrollInfo();
 
 		highlightSelection(editorView, from, to);
 
-		tempDirectionIndicator(
-			newLeaf,
-			text,
-			prefix,
-			suffix,
-			dataString,
-			ACTION_TYPE.MOUSE
-		);
+		tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -729,7 +736,10 @@ export async function endReferenceHoverEffect() {
 
 	if (peek) {
 		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
+		if (!originalLeaf) {
+			resetHover();
+			throw new Error("Original leaf not found");
+		}
 
 		workspace.revealLeaf(originalLeaf);
 	}
