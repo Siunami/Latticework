@@ -17,8 +17,6 @@ import {
 	createBacklinkMark,
 } from "../references";
 
-import { decodeURIComponentString } from "src/utils";
-
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
 	constructor(private name: string, private view: EditorView) {
@@ -32,8 +30,13 @@ class ReferenceWidget extends WidgetType {
 	toDOM() {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
+		if (!content) throw new Error("Invalid reference");
+		const [prefix, text, suffix, file, from, to, portal] =
+			content[1].split(":");
 
-		const { span, svg } = createReferenceIcon();
+		const { span, svg } = createReferenceIcon(
+			portal == "portal" ? "inline reference widget |*|" : null
+		);
 
 		if (content) span.setAttribute("data", content[1]);
 

@@ -106,7 +106,8 @@ function tempDirectionIndicator(
 	prefix: string,
 	suffix: string,
 	dataString: string,
-	user?: string
+	user?: string,
+	isSame?: boolean
 ) {
 	let positions = findTextPositions(
 		leaf.view.data,
@@ -131,7 +132,13 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (startTop < endTop) {
+			if (isSame) {
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"none";
+			} else if (startTop === endTop) {
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+			} else if (startTop < endTop) {
 				// show mark above
 				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
 				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
@@ -180,7 +187,6 @@ function tempDirectionIndicator(
 		}
 	}
 
-	console.log(visibleElements);
 	if (!visibleElements.includes(dataString)) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
 		// let startTop: number;
@@ -302,12 +308,8 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		peek: true,
 	});
 
-	console.log("span not found");
-	console.log(backlink.referencingLocation.prefix);
+	const originalLeafId = originalLeaf.id;
 
-	console.log(backlink.referencingLocation.text);
-
-	console.log(backlink.referencingLocation.suffix);
 	const matches = [
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
 	];
@@ -322,33 +324,9 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		backlink.referencingLocation.prefix + "-",
 		"-" + backlink.referencingLocation.suffix,
 		matches[0][1],
-		ACTION_TYPE.BACKLINK
+		ACTION_TYPE.BACKLINK,
+		id === originalLeafId
 	);
-
-	// let referencingTFile = getMarkdownView(newLeaf).file;
-	// if (!referencingTFile) throw new Error("Referencing TFile not found");
-	// console.log(referencingTFile);
-	// let referencingText = await getThat().vault.read(referencingTFile);
-	// let positions = findTextPositions(
-	// 	referencingText,
-	// 	backlink.referencingLocation.text,
-	// 	backlink.referencingLocation.prefix,
-	// 	backlink.referencingLocation.suffix
-	// );
-	// // console.log(positions);
-	// if (!positions) throw new Error("Positions not found");
-	// let rangeStart = positions.rangeStart;
-	// let rangeEnd = positions.rangeEnd;
-
-	// HTMLFormControlsCollection.lo
-
-	// newLeaf.view.editor.scrollIntoView(
-	// 	{
-	// 		from: rangeStart,
-	// 		to: rangeEnd,
-	// 	},
-	// 	true
-	// );
 
 	const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -356,63 +334,31 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		cursorViewport,
 	});
 
-	// NEED TO GET TO SPAN BEFORE TRYING TO SELECT IT
-	// IT COULD NOT EXIST.
-
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
-	console.log(backlinkSpan);
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
-		const editor = getMarkdownView(newLeaf).editor;
-		const backlinkContainer = getBacklinkContainer(editor);
-
-		// const windowHeight = newLeaf.view.containerEl
-		// 	.querySelector(".cm-scroller")
-		// 	.getBoundingClientRect().height;
-		// const scrollTop =
-		// 	newLeaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-		// const scrollBottom = scrollTop + windowHeight;
-		// // console.log("top: " + backlinkSpan.getBoundingClientRect().top);
-		// // console.log("scrollTop: " + scrollTop);
-		// // console.log("scrollBottom: " + scrollBottom);
-
-		// const spanTop = backlinkSpan.getBoundingClientRect().top - 88;
-
-		// // console.log(spanTop);
-		// // console.log(windowHeight);
-		// if (spanTop < 0) {
-		// 	editor.scrollTo(0, scrollTop - (windowHeight / 2 - spanTop));
-		// } else if (spanTop > windowHeight) {
-		// 	editor.scrollTo(0, scrollBottom - (windowHeight / 2 - spanTop));
-		// }
-
-		// backlinkSpan.scrollIntoView({
-		// 	behavior: "smooth",
-		// 	block: "center",
-		// 	inline: "center",
-		// });
 		const svgElement = backlinkSpan.querySelector("svg");
 		if (svgElement) {
 			svgElement.style.borderRadius = "5px";
 			svgElement.style.boxShadow = `0px 0px 10px 10px ${SVG_HOVER_COLOR}`;
 			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
 		}
-	} else {
 	}
 
-	const originalLeafId = originalLeaf.id;
+	console.log(id);
+	console.log(originalLeafId);
 
 	if (
-		id != originalLeafId &&
-		(newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
-			"none" ||
-			newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
+		id === originalLeafId
+		// &&
+		// (newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
+		// 	"none" ||
+		// 	newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
 	) {
-		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+		newLeaf.containerEl.querySelector(".view-content").style.boxShadow = "none";
 	}
 
 	// @ts-ignore
@@ -421,10 +367,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 			originalLeafId,
 		});
 	}
-
-	// console.log(span);
-	// const portal = span.querySelector(".portal");
-	// if (portal) span.style.backgroundColor = SVG_HOVER_COLOR;
 
 	return;
 }
@@ -463,9 +405,6 @@ export async function startReferenceEffect(
 	let currLeafID = currLeaf.id;
 	if (!currLeafID) throw new Error("currLeafID id not found");
 
-	// if (currTabIdx != -1) {
-	// && currTab != -1) {
-	// // Check adjacent tabs for file and open file if needed
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,

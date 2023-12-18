@@ -82,7 +82,6 @@ export default class ReferencePlugin extends Plugin {
 			) {
 				console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
-				// span.style.backgroundColor = SVG_HOVER_COLOR;
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
 				console.log("end hover reference effect");
@@ -117,7 +116,7 @@ export default class ReferencePlugin extends Plugin {
 			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
 				console.log("r");
 				updateClipboard(true);
-				new Notice("Copied reference to clipboard");
+				new Notice("Copied annotation icon");
 			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
 				// find the annotations file
 				// if it doesn't exist, create it

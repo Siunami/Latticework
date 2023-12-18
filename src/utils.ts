@@ -73,8 +73,6 @@ export function findTextPositions(
 		return data;
 	});
 
-	console.log(text.includes(prefix + searchTerm + suffix));
-	console.log(prefix + searchTerm + suffix);
 	if (text.includes(prefix + searchTerm + suffix)) {
 		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
 		let startIndex =
@@ -198,7 +196,15 @@ export function handleRemoveHoveredCursor(user: string) {
 			.filter((element: any) => element.user === user)
 			.forEach((element: any) => {
 				if (!nonCursors.includes(element.cursor.closest("span"))) {
-					element.cursor.style.backgroundColor = "white";
+					let svg = element.cursor;
+					if (!svg) throw new Error("SVG not found");
+					if (svg.classList.contains("reference-icon"))
+						svg.style.backgroundColor = "white";
+					else {
+						svg.setAttribute("fill", "white");
+						svg.style.backgroundColor = "";
+					}
+					// element.cursor.style.backgroundColor = "white";
 					element.cursor.style.boxShadow = "none";
 				}
 			});

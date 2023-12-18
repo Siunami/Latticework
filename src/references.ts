@@ -38,9 +38,63 @@ export function createReferenceIcon(portalText: string | null = null): {
 	svg: SVGElement;
 } {
 	const span = document.createElement("span");
+	span.style.cursor = "pointer";
 
 	const height = REFERENCE_ICON_HEIGHT;
 	const width = height * 0.9;
+
+	if (portalText == null) {
+		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+		svg.setAttribute("width", `${width}`);
+		svg.setAttribute("height", `${height}`);
+		svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+		svg.setAttribute("fill", "white");
+		svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+		svg.style.border = "3px solid grey";
+		svg.style.backgroundColor = "white";
+		svg.style.borderRadius = "3px";
+		svg.style.cursor = "pointer";
+		svg.classList.add("reference-icon");
+
+		const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+		line.setAttribute("x1", "3");
+		line.setAttribute("y1", `${(height - 3) / 3}`);
+		line.setAttribute("x2", "12");
+		line.setAttribute("y2", `${(height - 3) / 3}`);
+		line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		line.setAttribute("stroke", "grey"); // Set the stroke color to black
+
+		svg.appendChild(line);
+
+		const line2 = document.createElementNS(
+			"http://www.w3.org/2000/svg",
+			"line"
+		);
+		line2.setAttribute("x1", "3");
+		line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
+		line2.setAttribute("x2", "15");
+		line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
+		line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		line2.setAttribute("stroke", "grey"); // Set the stroke color to black
+
+		svg.appendChild(line2);
+
+		const line3 = document.createElementNS(
+			"http://www.w3.org/2000/svg",
+			"line"
+		);
+		line3.setAttribute("x1", "3");
+		line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
+		line3.setAttribute("x2", "10");
+		line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
+		line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		line3.setAttribute("stroke", "grey"); // Set the stroke color to black
+
+		svg.appendChild(line3);
+
+		span.appendChild(svg);
+		return { span: span, svg };
+	}
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
 	svg.setAttribute("width", `${width}`);
@@ -48,70 +102,54 @@ export function createReferenceIcon(portalText: string | null = null): {
 	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
 	svg.setAttribute("fill", "white");
 	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-	svg.style.border = "3px solid grey";
-	svg.style.backgroundColor = "white";
-	svg.style.borderRadius = "3px";
-	svg.style.cursor = "pointer";
+	// svg.style.backgroundColor = "white";
+	svg.classList.add("portal-icon");
 
-	const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line.setAttribute("x1", "3");
-	line.setAttribute("y1", `${(height - 3) / 3}`);
-	line.setAttribute("x2", "12");
-	line.setAttribute("y2", `${(height - 3) / 3}`);
-	line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-	line.setAttribute("stroke", "black"); // Set the stroke color to black
+	// <path d="M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z" stroke="black" stroke-width="2"/>
+	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	path.setAttribute(
+		"d",
+		"M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z"
+	);
+	path.setAttribute("stroke", "gray");
+	path.setAttribute("stroke-width", "2");
 
-	svg.appendChild(line);
+	span.style.backgroundColor = "";
 
-	const line2 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line2.setAttribute("x1", "3");
-	line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
-	line2.setAttribute("x2", "15");
-	line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
-	line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-	line2.setAttribute("stroke", "black"); // Set the stroke color to black
-
-	svg.appendChild(line2);
-
-	const line3 = document.createElementNS("http://www.w3.org/2000/svg", "line");
-	line3.setAttribute("x1", "3");
-	line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
-	line3.setAttribute("x2", "10");
-	line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
-	line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-	line3.setAttribute("stroke", "black"); // Set the stroke color to black
-
-	svg.appendChild(line3);
+	svg.appendChild(path);
 
 	span.appendChild(svg);
 
-	if (portalText != null) {
+	if (portalText != "inline reference widget |*|") {
 		let portal = document.createElement("div");
 		portal.style.color = "black";
 		portal.classList.add("portal");
 		portal.innerHTML = portalText;
-		span.style.backgroundColor = "white";
+		// span.style.backgroundColor = "white";
 		portal.style.userSelect = "none";
 		portal.style.pointerEvents = "none";
 		span.appendChild(portal);
 	}
 
+	return { span: span, svg };
+
 	// let newSpan: HTMLSpanElement = document.createElement("span");
 	// newSpan.innerHTML = "📄";
 	// newSpan.style.cursor = "pointer";
-	return { span: span, svg };
 }
 
 export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	// remove existing cursors
-	const svgElement = span.querySelector("svg");
+	const svg = span.querySelector("svg");
 	const portal: HTMLElement | null = span.querySelector(".portal");
 
-	if (svgElement) {
+	if (svg && !portal) {
 		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
-		svgElement.style.backgroundColor = SVG_HOVER_COLOR;
-		if (portal) span.style.backgroundColor = SVG_HOVER_COLOR;
-		updateHoveredCursor(svgElement, user); // add the currently hovered reference icon
+		if (svg.classList.contains("reference-icon"))
+			svg.style.backgroundColor = SVG_HOVER_COLOR;
+		else svg.setAttribute("fill", SVG_HOVER_COLOR);
+
+		updateHoveredCursor(svg, user); // add the currently hovered reference icon
 	}
 
 	// span.style.backgroundColor = SVG_HOVER_COLOR;
@@ -159,7 +197,7 @@ function getReferenceMarks(editor: Editor): HTMLElement[] {
 	return elements;
 }
 
-function getLeafBBoxElements(leaf: WorkspaceLeaf) {
+export function getLeafBBoxElements(leaf: WorkspaceLeaf) {
 	const title = getContainerElement(leaf).querySelector(".inline-title");
 	if (!title) {
 		throw new Error("Missing title");
@@ -245,7 +283,6 @@ export function updateBacklinkMarkPosition(
 					marker.style.border = "3px solid grey";
 					marker.style.padding = "3px";
 					marker.style.borderRadius = "3px";
-					marker.style.backgroundColor = "white";
 				}
 			} else {
 				if (svg) svg.style.display = "inline";
@@ -254,7 +291,6 @@ export function updateBacklinkMarkPosition(
 					marker.style.border = "none";
 					marker.style.padding = "0px";
 					marker.style.borderRadius = "0px";
-					marker.style.backgroundColor = "";
 				}
 			}
 			// get positioning
@@ -293,29 +329,52 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 	//	  then, for the rest, set their top to max(bbox.top, lastYBottom + margin)
 	// think about the case where the backlink is to an isolated quote
 
-	let { span } = createReferenceIcon(backlink.portalText);
+	let { span, svg } = createReferenceIcon(backlink.portalText);
+	const portal: HTMLElement | null = span.querySelector(".portal");
+
 	span.style.position = "absolute";
 
 	span.id = getBacklinkID(backlink);
 	span.setAttribute("reference", JSON.stringify(backlink));
 
 	span.addEventListener("mouseenter", async () => {
+		if (portal && portal.style.display != "none") {
+			span.style.backgroundColor = SVG_HOVER_COLOR;
+		} else {
+			span.style.backgroundColor = "";
+			svg.setAttribute("fill", SVG_HOVER_COLOR);
+		}
+
 		// remove existing cursors
 		updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 	});
 
 	span.addEventListener("mouseleave", async () => {
-		const svgElement = span.querySelector("svg");
-		if (svgElement) {
-			svgElement.style.backgroundColor = "white";
+		if (portal && portal.style.display != "none") {
+			span.style.backgroundColor = "white";
+			// svg.style.backgroundColor = "white";
+		} else {
+			span.style.backgroundColor = "";
+			if (portal) {
+				svg.setAttribute("fill", "white");
+			} else {
+				svg.style.backgroundColor = "white";
+			}
 		}
 
-		const portal: HTMLElement | null = span.querySelector(".portal");
-		if (portal) {
-			span.style.backgroundColor = "white";
-		}
 		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 	});
+
+	const resizeObserver = new ResizeObserver((entries) => {
+		if (portal && portal.style.display != "none") {
+			span.style.backgroundColor = "white";
+		} else {
+			span.style.backgroundColor = "";
+		}
+	});
+
+	// Start observing an element
+	resizeObserver.observe(span);
 
 	span.addEventListener("click", openBacklinkReference);
 
@@ -395,11 +454,6 @@ function createBacklinkData(
 			index + match[0].length
 		);
 
-		// console.log(match);
-		// console.log(text);
-		// console.log(referencingSurroundingStrings);
-		// console.log(referencingFileData.slice(index, index + match[0].length));
-
 		const referencingLocation: DocumentLocation = {
 			// prefix: referencingFileData.slice(index - 25, index),
 			prefix: referencingSurroundingStrings.prefix,
@@ -416,8 +470,7 @@ function createBacklinkData(
 
 		if (portal == "portal") {
 			// OR no-portal
-			// console.log("PORTAL");
-			// console.log(prefix, text, suffix, filename, from, to, portal);
+
 			// get all the text from the start of the line to the end of the line
 			const getLineText = (text: string, index: number): string => {
 				const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
