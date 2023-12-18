@@ -24,7 +24,7 @@ export default class ReferencePlugin extends Plugin {
 			generateBacklinks();
 			this.registerEvent(
 				this.app.workspace.on("active-leaf-change", (ev) => {
-					console.log("active-leaf-changed:");
+					// console.log("active-leaf-changed:");
 					// This should create referenceMarkers if they don't exist and update
 					// else update only
 
@@ -71,7 +71,7 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("data")
 			) {
-				console.log("start hover reference effect");
+				// console.log("start hover reference effect");
 				updateHoveredCursorColor(span, ACTION_TYPE.MOUSE);
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
@@ -79,15 +79,15 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
-				console.log("start backlink effect");
+				// console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
-				console.log("end hover reference effect");
+				// console.log("end hover reference effect");
 				endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
-				console.log("end backlink reference effect");
+				// console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
 			}
 		});
@@ -100,22 +100,22 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
-			console.log("keyup");
+			// console.log("keyup");
 			checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			console.log("keydown");
+			// console.log("keydown");
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
-				console.log("c");
+				// console.log("c");
 				updateClipboard();
 				new Notice("Copied reference and text to clipboard");
 			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
-				console.log("r");
+				// console.log("r");
 				updateClipboard(true);
-				new Notice("Copied annotation icon");
+				new Notice("Copied annotation to clipboard");
 			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
 				// find the annotations file
 				// if it doesn't exist, create it

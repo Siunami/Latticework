@@ -348,9 +348,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		}
 	}
 
-	console.log(id);
-	console.log(originalLeafId);
-
 	if (
 		id === originalLeafId
 		// &&
@@ -573,7 +570,7 @@ export async function endReferenceCursorEffect() {
 }
 
 export async function endReferenceHoverEffect() {
-	console.log("endReferenceHoverEffect");
+	// console.log("endReferenceHoverEffect");
 	if (!getHover() || Object.keys(getHover()).length == 0) {
 		// End mutex lock
 		resetHover();
@@ -583,7 +580,7 @@ export async function endReferenceHoverEffect() {
 	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
 		getHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
-		console.log("cursor reset");
+		// console.log("cursor reset");
 		// End mutex lock
 		resetHover();
 		return;

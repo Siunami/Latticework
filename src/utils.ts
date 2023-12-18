@@ -165,13 +165,13 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 						// find html span element in target that has a data attribute equal to contents
 						let span = activeLine.querySelector(`span[data="${dataString}"]`);
 						if (span && span instanceof HTMLSpanElement) {
-							console.log("Found span element:", span);
+							// console.log("Found span element:", span);
 							// Do something with the span element
 							matched = true;
 
 							matchSpan = span;
 						} else {
-							console.log("Span element not found");
+							// console.log("Span element not found");
 						}
 					}
 				}
