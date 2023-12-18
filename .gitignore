@@ -12,7 +12,7 @@ node_modules
 # They should be uploaded to GitHub releases instead.
 
 # temporarily will upload the main.js file
-# main.js
+main.js
 
 # Exclude sourcemaps
 *.map
