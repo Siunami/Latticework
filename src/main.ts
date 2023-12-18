@@ -22,29 +22,28 @@ export default class ReferencePlugin extends Plugin {
 	onload() {
 		setTimeout(() => {
 			generateBacklinks();
+			this.registerEvent(
+				this.app.workspace.on("active-leaf-change", (ev) => {
+					console.log("active-leaf-changed:");
+					// This should create referenceMarkers if they don't exist and update
+					// else update only
+
+					try {
+						const activeView =
+							this.app.workspace.getActiveViewOfType(MarkdownView);
+						if (activeView?.leaf != null) {
+							addReferencesToLeaf(activeView.leaf);
+						}
+					} catch (e) {
+						console.log(e);
+					}
+				})
+			);
 		}, 4000);
 
 		updateThat(this);
 
 		this.registerEditorExtension([highlights, referenceResources]);
-
-		this.registerEvent(
-			this.app.workspace.on("active-leaf-change", (ev) => {
-				console.log("active-leaf-changed:");
-				// This should create referenceMarkers if they don't exist and update
-				// else update only
-
-				try {
-					const activeView =
-						this.app.workspace.getActiveViewOfType(MarkdownView);
-					if (activeView?.leaf != null) {
-						addReferencesToLeaf(activeView.leaf);
-					}
-				} catch (e) {
-					console.log(e);
-				}
-			})
-		);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			let span;

@@ -1841,22 +1841,22 @@ var ReferencePlugin = class extends import_obsidian6.Plugin {
   onload() {
     setTimeout(() => {
       generateBacklinks();
+      this.registerEvent(
+        this.app.workspace.on("active-leaf-change", (ev) => {
+          console.log("active-leaf-changed:");
+          try {
+            const activeView = this.app.workspace.getActiveViewOfType(import_obsidian6.MarkdownView);
+            if ((activeView == null ? void 0 : activeView.leaf) != null) {
+              addReferencesToLeaf(activeView.leaf);
+            }
+          } catch (e) {
+            console.log(e);
+          }
+        })
+      );
     }, 4e3);
     updateThat(this);
     this.registerEditorExtension([highlights, referenceResources]);
-    this.registerEvent(
-      this.app.workspace.on("active-leaf-change", (ev) => {
-        console.log("active-leaf-changed:");
-        try {
-          const activeView = this.app.workspace.getActiveViewOfType(import_obsidian6.MarkdownView);
-          if ((activeView == null ? void 0 : activeView.leaf) != null) {
-            addReferencesToLeaf(activeView.leaf);
-          }
-        } catch (e) {
-          console.log(e);
-        }
-      })
-    );
     this.registerDomEvent(document, "mousemove", async (evt) => {
       let span;
       let dataString;
