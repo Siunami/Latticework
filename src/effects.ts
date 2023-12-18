@@ -132,10 +132,10 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (isSame) {
+			if (startTop === endTop && isSame) { 
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"none";
-			} else if (startTop === endTop) {
+			} else if (startTop === endTop || !isSame) {
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"inset 0px 0px 10px 10px rgba(248, 255, 255)";
 			} else if (startTop < endTop) {
