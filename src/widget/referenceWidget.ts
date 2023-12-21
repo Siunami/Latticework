@@ -28,6 +28,7 @@ class ReferenceWidget extends WidgetType {
 	}
 
 	toDOM() {
+		console.log(this.name);
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
@@ -55,7 +56,8 @@ const referenceDecoration = (match: RegExpExecArray, view: EditorView) => {
 
 const referenceMatcher = new MatchDecorator({
 	// regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
-	regexp: /\[\u2197\]\(urn:([^:]*:){5,6}[^:]*\)/g,
+	// regexp: /\[\u2197\]\(urn:([^:]*:){5,6}[^:]*\)/g,
+	regexp: /\[\u2197\]\(urn:([^:]*:){6}[^:)]*\)/g,
 	decoration: (match, view, pos) => {
 		return referenceDecoration(match, view);
 	},
