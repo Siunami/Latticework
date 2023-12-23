@@ -111,6 +111,9 @@ export async function openFileInAdjacentTab(
 		file
 	);
 
+	let allTabNames = leavesByTab.map((tab: WorkspaceLeaf[]) =>
+		tab.map((x: WorkspaceLeaf) => x.getViewState().state.file)
+	);
 	let rightAdjacentTabNames = rightAdjacentTab.map(
 		(x: WorkspaceLeaf) => x.getViewState().state.file
 	);
@@ -118,7 +121,34 @@ export async function openFileInAdjacentTab(
 		(x: WorkspaceLeaf) => x.getViewState().state.file
 	);
 	const { workspace } = getThat();
-	if (rightAdjacentTabNames.includes(file)) {
+	if (
+		allTabNames.flat().includes(file) &&
+		!rightAdjacentTabNames.includes(file) &&
+		!leftAdjacentTabNames.includes(file)
+	) {
+		// file exists, not left or right tab
+		let currentTabNames: any[] = [];
+		let currentTab: any[] = [];
+		allTabNames.forEach((tabNames, i) => {
+			if (
+				tabNames != rightAdjacentTabNames &&
+				tabNames != leftAdjacentTabNames
+			) {
+				if (tabNames.includes(file)) {
+					currentTabNames = tabNames;
+					currentTab = leavesByTab[i];
+				}
+			}
+		});
+
+		const originalLeaf = currentTab.filter(
+			(t) => t.containerEl.style.display != "none"
+		)[0];
+		let leaf = currentTab[currentTabNames.indexOf(file)];
+		workspace.revealLeaf(leaf);
+
+		return { newLeaf: leaf, temp: false, originalLeaf };
+	} else if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
 		const originalLeaf = rightAdjacentTab.filter(
 			(t) => t.containerEl.style.display != "none"

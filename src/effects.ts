@@ -132,7 +132,7 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (startTop === endTop && isSame) { 
+			if (startTop === endTop && isSame) {
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"none";
 			} else if (startTop === endTop || !isSame) {
@@ -272,6 +272,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		const editorView: EditorView = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = backlinkLeaf.view.editor.getScrollInfo();
+
 		highlightSelection(editorView, from, to);
 		// let positions = findTextPositions(
 		// 	backlinkLeaf.view.data,
@@ -412,7 +413,7 @@ export async function startReferenceEffect(
 	// 	resetState();
 	// 	return;
 	// }
-	await delay(100); // ensure new leaf has opened completely before doing checks below
+	await delay(50); // ensure new leaf has opened completely before doing checks below
 
 	// @ts-ignore
 	let id = newLeaf.id;
@@ -483,9 +484,24 @@ export async function endReferenceCursorEffect() {
 		throw new Error("Target leaf not found");
 	}
 
+	const activeLeaf = getThat().workspace.getLeaf();
+	// @ts-ignore id
+	const activeLeafId = activeLeaf.id;
+	console.log(activeLeaf);
+
 	let editorView = getEditorView(targetLeaf);
 
 	removeHighlights(editorView);
+
+	if (activeLeafId === leafId) {
+		resetCursor();
+		let containerEl: HTMLElement = getContainerElement(targetLeaf);
+		if (containerEl != null) {
+			// @ts-ignore
+			containerEl.querySelector(".view-content")?.setAttribute("style", "");
+		}
+		return;
+	}
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;

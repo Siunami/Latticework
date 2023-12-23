@@ -502,52 +502,53 @@ function createBacklinkData(
 	return backlinks;
 }
 
-let debounceTimer: NodeJS.Timeout;
+// let debounceTimer: NodeJS.Timeout;
 export function generateBacklinks() {
-	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(() => {
-		console.log("generating references");
-		let backlinks: Backlink[] = [];
-		let markdownFiles = this.app.vault.getMarkdownFiles();
+	// clearTimeout(debounceTimer);
+	// debounceTimer = setTimeout(() => {
+	console.log("generating references");
+	let backlinks: Backlink[] = [];
+	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-		Promise.all(
-			markdownFiles.map((file: TFile) => this.app.vault.read(file))
-		).then((files) => {
-			const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
-				markdownFile: file,
-				fileData: files[index],
-			}));
+	Promise.all(
+		markdownFiles.map((file: TFile) => this.app.vault.read(file))
+	).then((files) => {
+		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
+			markdownFile: file,
+			fileData: files[index],
+		}));
 
-			zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-				backlinks.push(...createBacklinkData(file.fileData, file.markdownFile));
-			});
-
-			updateBacklinks(backlinks);
-
-			const leaves = this.app.workspace.getLeavesOfType("markdown");
-
-			leaves.forEach((leaf: WorkspaceLeaf) => {
-				addReferencesToLeaf(leaf);
-			});
+		zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
+			backlinks.push(...createBacklinkData(file.fileData, file.markdownFile));
 		});
-	}, 100);
+
+		updateBacklinks(backlinks);
+
+		const leaves = this.app.workspace.getLeavesOfType("markdown");
+
+		leaves.forEach((leaf: WorkspaceLeaf) => {
+			addReferencesToLeaf(leaf);
+		});
+	});
+	// }, 100);
 }
 
+// Should only recompute for the particular page being opened or interacted with
 export async function recomputeReferencesForPage() {
-	setTimeout(async () => {
-		const leaves = this.app.workspace.getLeavesOfType("markdown");
-		leaves.forEach(async (leaf: WorkspaceLeaf) => {
-			// const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
-			// if (!activeLeaf) return;
-			const view = getMarkdownView(leaf);
-			const file = view.file;
-			if (!file) throw new Error("Missing file");
-			const fileData = await this.app.vault.read(file);
-			const references: Backlink[] = createBacklinkData(fileData, file);
+	// setTimeout(async () => {
+	const leaves = this.app.workspace.getLeavesOfType("markdown");
+	leaves.forEach(async (leaf: WorkspaceLeaf) => {
+		// const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
+		// if (!activeLeaf) return;
+		const view = getMarkdownView(leaf);
+		const file = view.file;
+		if (!file) throw new Error("Missing file");
+		const fileData = await this.app.vault.read(file);
+		const references: Backlink[] = createBacklinkData(fileData, file);
 
-			updateBacklinks(references);
-		});
-	}, 300);
+		updateBacklinks(references);
+	});
+	// }, 300);
 }
 
 export async function openBacklinkReference(ev: MouseEvent) {

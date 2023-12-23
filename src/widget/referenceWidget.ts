@@ -28,7 +28,6 @@ class ReferenceWidget extends WidgetType {
 	}
 
 	toDOM() {
-		console.log(this.name);
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
