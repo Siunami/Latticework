@@ -151,9 +151,6 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 
 		updateHoveredCursor(svg, user); // add the currently hovered reference icon
 	}
-
-	// span.style.backgroundColor = SVG_HOVER_COLOR;
-	// updateHoveredCursor(span, ACTION_TYPE.CURSOR);
 }
 
 function getCodeMirrorEditorView(editor: Editor): EditorView {
@@ -304,6 +301,7 @@ export function updateBacklinkMarkPosition(
 }
 
 export async function updateBacklinkMarkPositions() {
+	console.log("updateBacklinkMark");
 	await recomputeReferencesForPage();
 	const { workspace } = getThat();
 	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
@@ -382,6 +380,7 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 }
 
 export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
+	console.log("addReferencesToLeaf");
 	const markdownView = getMarkdownView(leaf);
 	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
 	if (!workspaceTabs) {

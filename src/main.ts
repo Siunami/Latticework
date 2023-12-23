@@ -1,6 +1,6 @@
 import { Plugin, MarkdownView, Notice } from "obsidian";
 
-import { updateThat, getHover, getBacklinks } from "./state";
+import { updateThat, getThat, getHover, getBacklinks } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -17,6 +17,7 @@ import {
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
+import { EditorView, ViewUpdate } from "@codemirror/view";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -43,7 +44,15 @@ export default class ReferencePlugin extends Plugin {
 
 		updateThat(this);
 
-		this.registerEditorExtension([highlights, referenceResources]);
+		this.registerEditorExtension([
+			highlights,
+			referenceResources,
+			EditorView.updateListener.of(function (e) {
+				if (Math.abs(e.changes.desc.newLength - e.changes.desc.length) > 1) {
+					updateBacklinkMarkPositions();
+				}
+			}),
+		]);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			let span;
@@ -65,7 +74,6 @@ export default class ReferencePlugin extends Plugin {
 				}
 			}
 
-			updateBacklinkMarkPositions();
 			if (
 				span &&
 				span instanceof HTMLSpanElement &&
@@ -102,6 +110,7 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "keyup", async (evt) => {
 			// console.log("keyup");
 			checkFocusCursor(evt);
+			// updateBacklinkMarkPositions();
 			updateBacklinkMarkPositions();
 		});
 
@@ -126,6 +135,10 @@ export default class ReferencePlugin extends Plugin {
 				new Notice("New annotation");
 			}
 		});
+
+		// getThat().workspace.on("editor-change", (ev) => {
+		// 	console.log(ev);
+		// });
 
 		// this.registerEvent(
 		// 	this.app.workspace.on("window-close", (ev) => {
