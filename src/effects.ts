@@ -487,7 +487,6 @@ export async function endReferenceCursorEffect() {
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
 	const activeLeafId = activeLeaf.id;
-	console.log(activeLeaf);
 
 	let editorView = getEditorView(targetLeaf);
 
