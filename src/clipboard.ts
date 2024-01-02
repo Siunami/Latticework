@@ -28,9 +28,9 @@ export async function updateClipboard(only: boolean = false) {
 				only ? "portal" : "no-portal"
 			)})`;
 
-			if (!only) {
-				reference = '"' + selection + '" ' + reference;
-			}
+			// if (!only) {
+			// 	reference = '"' + selection + '" ' + reference;
+			// }
 
 			// Write the selected text to the clipboard
 			await navigator.clipboard.writeText(reference);

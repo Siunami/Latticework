@@ -16,15 +16,39 @@ import {
 	generateBacklinks,
 	createBacklinkMark,
 } from "../references";
+import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
-	constructor(private name: string, private view: EditorView) {
+	constructor(
+		private name: string,
+		private view: EditorView,
+		private pos: number
+	) {
 		super();
 	}
 
 	eq(other: ReferenceWidget) {
 		return this.name === other.name;
+	}
+
+	/* 
+		Serializing the portal flip breaks the editor. I think references are out of line
+	*/
+	updateName(name: string) {
+		// const from = this.pos;
+		// const to = this.pos + this.name.length;
+		// console.log(from, to);
+		// const transaction = this.view.state.update({
+		// 	changes: { from, to, insert: name },
+		// });
+		// console.log(transaction);
+		// this.view.dispatch(transaction);
+		this.name = name;
+	}
+
+	getView() {
+		return this.view;
 	}
 
 	toDOM() {
@@ -40,15 +64,52 @@ class ReferenceWidget extends WidgetType {
 
 		if (content) span.setAttribute("data", content[1]);
 
-		span.addEventListener("click", openReference);
+		const containerSpan = document.createElement("span");
+		const referenceSpan = document.createElement("span");
 
-		return span;
+		referenceSpan.innerHTML = decodeURIComponentString(text);
+		referenceSpan.style.border = "1px solid white";
+		if (portal == "no-portal") referenceSpan.style.display = "none";
+
+		containerSpan.appendChild(referenceSpan);
+		containerSpan.appendChild(span);
+
+		span.addEventListener("click", (ev) => {
+			if (ev.metaKey || ev.ctrlKey) {
+				let newPortal = "";
+				if (referenceSpan.style.display === "none") {
+					referenceSpan.style.display = "inline";
+					newPortal = "portal";
+				} else {
+					referenceSpan.style.display = "none";
+					newPortal = "no-portal";
+				}
+				let reference = `[↗](urn:${encodeURIComponentString(
+					prefix
+				)}:${encodeURIComponentString(text)}:${encodeURIComponentString(
+					suffix
+				)}:${encodeURIComponentString(
+					file
+				)}:${from}:${to}:${encodeURIComponentString(newPortal)})`;
+
+				this.updateName(reference);
+			} else {
+				console.log("openReference");
+				openReference(ev);
+			}
+		});
+
+		return containerSpan;
 	}
 }
 
-const referenceDecoration = (match: RegExpExecArray, view: EditorView) => {
+const referenceDecoration = (
+	match: RegExpExecArray,
+	view: EditorView,
+	pos: number
+) => {
 	let decoration = Decoration.replace({
-		widget: new ReferenceWidget(match[0], view),
+		widget: new ReferenceWidget(match[0], view, pos),
 	});
 	return decoration;
 };
@@ -58,7 +119,7 @@ const referenceMatcher = new MatchDecorator({
 	// regexp: /\[\u2197\]\(urn:([^:]*:){5,6}[^:]*\)/g,
 	regexp: /\[\u2197\]\(urn:([^:]*:){6}[^:)]*\)/g,
 	decoration: (match, view, pos) => {
-		return referenceDecoration(match, view);
+		return referenceDecoration(match, view, pos);
 	},
 });
 

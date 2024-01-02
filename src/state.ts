@@ -3,10 +3,6 @@ import {
 	StateField,
 	Annotation,
 	StateEffect,
-	Extension,
-	RangeSetBuilder,
-	Transaction,
-	Text,
 } from "@codemirror/state";
 import { Backlink } from "./types";
 import { updateBacklinkMarkPositions } from "./references";
@@ -332,7 +328,6 @@ export function getBacklinks(): Backlink[] {
 	return state.field(backlinks);
 }
 
-// NOTE: I have no idea what this is doing.
 export function updateBacklinks(value: Backlink[]) {
 	state = state.update({
 		effects: backlinkEffect.of(

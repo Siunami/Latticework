@@ -55,6 +55,9 @@ export default class ReferencePlugin extends Plugin {
 		]);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
+
+			// const semiMode = evt.metaKey || evt.ctrlKey;
 			let span;
 			let dataString;
 			if (
@@ -103,11 +106,14 @@ export default class ReferencePlugin extends Plugin {
 		// on selection changes, event over click and keydown
 
 		this.registerDomEvent(document, "click", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
 			checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
+
 			// console.log("keyup");
 			checkFocusCursor(evt);
 			// updateBacklinkMarkPositions();
@@ -131,7 +137,6 @@ export default class ReferencePlugin extends Plugin {
 				// if it exists, open it in adjacent panel
 				// add new annotation
 
-				console.log("e");
 				new Notice("New annotation");
 			}
 		});
