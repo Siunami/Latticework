@@ -48,6 +48,12 @@ const highlightTheme = EditorView.baseTheme({
 		color: "black",
 	},
 });
+const defaultHighlightTheme = EditorView.baseTheme({
+	".default-highlight": {
+		"background-color": SVG_HOVER_COLOR,
+		color: "black",
+	},
+});
 
 export function highlightSelection(view: EditorView, from: number, to: number) {
 	console.log("highlightSelection");
@@ -58,21 +64,37 @@ export function highlightSelection(view: EditorView, from: number, to: number) {
 	if (!view.state.field(highlightField, false))
 		effects.push(StateEffect.appendConfig.of([highlightField, highlightTheme]));
 
-	console.log(effects);
+	view.dispatch({ effects });
+	return true;
+}
+
+// have a function that adds subtle highlights to state
+export function defaultHighlightSelection(
+	view: EditorView,
+	from: number,
+	to: number
+) {
+	console.log("defaultHighlightSelection");
+	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
+
+	if (!effects.length) return false;
+
+	if (!view.state.field(highlightField, false))
+		effects.push(
+			StateEffect.appendConfig.of([highlightField, defaultHighlightTheme])
+		);
 
 	view.dispatch({ effects });
 	return true;
 }
 
+// update remove highlights so that
 export function removeHighlights(view: EditorView) {
 	if (!view) return;
-	console.log("removeHighlights");
 
-	console.log(view.state.selection.ranges);
 	let effects: StateEffect<unknown>[] = view.state.selection.ranges.map(
 		({ from, to }) => resetHighlight.of({ from, to })
 	);
-	console.log(effects);
 	if (effects.length) {
 		view.dispatch({ effects });
 		return true;

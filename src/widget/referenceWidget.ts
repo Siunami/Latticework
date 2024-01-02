@@ -15,8 +15,10 @@ import {
 	createReferenceIcon,
 	generateBacklinks,
 	createBacklinkMark,
+	updateBacklinkMarkPositions,
 } from "../references";
 import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
+import { getBacklinks } from "src/state";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
@@ -32,18 +34,15 @@ class ReferenceWidget extends WidgetType {
 		return this.name === other.name;
 	}
 
-	/* 
-		Serializing the portal flip breaks the editor. I think references are out of line
-	*/
-	updateName(name: string) {
-		// const from = this.pos;
-		// const to = this.pos + this.name.length;
-		// console.log(from, to);
-		// const transaction = this.view.state.update({
-		// 	changes: { from, to, insert: name },
-		// });
-		// console.log(transaction);
-		// this.view.dispatch(transaction);
+	updateName(name: string, portal: string) {
+		const from = this.pos;
+		// text length for these two states is different
+		const to = this.pos + name.length + (portal == "portal" ? 3 : -3);
+		const transaction = this.view.state.update({
+			changes: { from, to, insert: name },
+		});
+		this.view.dispatch(transaction);
+		updateBacklinkMarkPositions();
 		this.name = name;
 	}
 
@@ -69,6 +68,7 @@ class ReferenceWidget extends WidgetType {
 
 		referenceSpan.innerHTML = decodeURIComponentString(text);
 		referenceSpan.style.border = "1px solid white";
+		referenceSpan.style.borderRadius = "3px";
 		if (portal == "no-portal") referenceSpan.style.display = "none";
 
 		containerSpan.appendChild(referenceSpan);
@@ -84,17 +84,15 @@ class ReferenceWidget extends WidgetType {
 					referenceSpan.style.display = "none";
 					newPortal = "no-portal";
 				}
-				let reference = `[↗](urn:${encodeURIComponentString(
-					prefix
-				)}:${encodeURIComponentString(text)}:${encodeURIComponentString(
-					suffix
-				)}:${encodeURIComponentString(
-					file
-				)}:${from}:${to}:${encodeURIComponentString(newPortal)})`;
+				// let reference = `[↗](urn:${encodeURIComponentString(
+				// 	prefix.slice(0, -1)
+				// )}-:${encodeURIComponentString(text)}:-${encodeURIComponentString(
+				// 	suffix.slice(1)
+				// )}:${file}:${from}:${to}:${encodeURIComponentString(newPortal)})`;
+				let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
 
-				this.updateName(reference);
+				this.updateName(reference, newPortal);
 			} else {
-				console.log("openReference");
 				openReference(ev);
 			}
 		});

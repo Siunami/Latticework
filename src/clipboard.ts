@@ -22,11 +22,9 @@ export async function updateClipboard(only: boolean = false) {
 				prefix
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
-			)}:${encodeURIComponentString(
-				view.file.path
-			)}:${from}:${to}:${encodeURIComponentString(
+			)}:${encodeURIComponentString(view.file.path)}:${from}:${to}:${
 				only ? "portal" : "no-portal"
-			)})`;
+			})`;
 
 			// if (!only) {
 			// 	reference = '"' + selection + '" ' + reference;
