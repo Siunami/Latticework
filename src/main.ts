@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView, Notice } from "obsidian";
+import { Plugin, MarkdownView, Notice, Editor } from "obsidian";
 
 import { updateThat, getThat, getHover, getBacklinks } from "./state";
 import { highlights, referenceResources } from "./widget";
@@ -138,6 +138,21 @@ export default class ReferencePlugin extends Plugin {
 				// add new annotation
 
 				new Notice("New annotation");
+			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
+				const editor: Editor | undefined =
+					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+				if (!editor) return;
+				const cursor = editor.getCursor();
+				const selectionLine = editor.getLine(cursor.line);
+
+				console.log(selectionLine);
+				console.log(editor.getDoc());
+				console.log(cursor.line);
+				// Find the element at line
+				// get all span elements, update their display style
+				// the appropriate updates to state will occur automatically via observer
+
+				new Notice("Search annotations");
 			}
 		});
 

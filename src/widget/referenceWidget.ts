@@ -74,24 +74,39 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.appendChild(referenceSpan);
 		containerSpan.appendChild(span);
 
+		const observer = new MutationObserver((mutationsList) => {
+			for (const mutation of mutationsList) {
+				if (
+					mutation.type === "attributes" &&
+					mutation.attributeName === "style"
+				) {
+					// Handle style changes here
+					console.log("referenceSpan style changed:", referenceSpan.style);
+					console.log(referenceSpan.style.display);
+					let newPortal =
+						referenceSpan.style.display === "none" ? "no-portal" : "portal";
+					let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
+
+					this.updateName(reference, newPortal);
+				}
+			}
+		});
+
+		observer.observe(referenceSpan, { attributes: true });
+
 		span.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
-				let newPortal = "";
+				// let newPortal = "";
 				if (referenceSpan.style.display === "none") {
 					referenceSpan.style.display = "inline";
-					newPortal = "portal";
+					// newPortal = "portal";
 				} else {
 					referenceSpan.style.display = "none";
-					newPortal = "no-portal";
+					// newPortal = "no-portal";
 				}
-				// let reference = `[↗](urn:${encodeURIComponentString(
-				// 	prefix.slice(0, -1)
-				// )}-:${encodeURIComponentString(text)}:-${encodeURIComponentString(
-				// 	suffix.slice(1)
-				// )}:${file}:${from}:${to}:${encodeURIComponentString(newPortal)})`;
-				let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
+				// let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
 
-				this.updateName(reference, newPortal);
+				// this.updateName(reference, newPortal);
 			} else {
 				openReference(ev);
 			}
