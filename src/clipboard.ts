@@ -24,7 +24,7 @@ export async function updateClipboard(only: boolean = false) {
 				suffix
 			)}:${encodeURIComponentString(view.file.path)}:${from}:${to}:${
 				only ? "portal" : "no-portal"
-			})`;
+			}:${"t"})`;
 
 			// if (!only) {
 			// 	reference = '"' + selection + '" ' + reference;

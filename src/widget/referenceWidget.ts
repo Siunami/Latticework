@@ -34,27 +34,17 @@ class ReferenceWidget extends WidgetType {
 		return this.name === other.name;
 	}
 
-	async updateName(name: string, portal: string, index: number) {
-		// console.log(this.view.contentDOM.innerText);
-		// const lines = Array.from(
-		// 	this.view.contentDOM.querySelectorAll(".cm-line")
-		// ).map((line: HTMLElement) => line.innerHTML.toString());
-		// let text = Array.from(lines).join("\n");
-		// let pos = text.indexOf(this.name);
-		// console.log(text);
-		// console.log(this.name);
-
-		// console.log(pos);
-		console.log(this.pos);
+	async updateName(name: string) {
 		const from = this.pos;
 		// text length for these two states is different
-		const to = this.pos + name.length + (portal == "portal" ? 3 : -3);
+		// const to = this.pos + name.length + (toggle == "t" ? 3 : -3);
+		const to = this.pos + name.length;
 		const transaction = this.view.state.update({
 			changes: { from, to, insert: name },
 		});
 		this.view.dispatch(transaction);
 
-		await updateBacklinkMarkPositions();
+		// await updateBacklinkMarkPositions();
 		this.name = name;
 	}
 
@@ -66,7 +56,7 @@ class ReferenceWidget extends WidgetType {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
-		const [prefix, text, suffix, file, from, to, portal] =
+		const [prefix, text, suffix, file, from, to, portal, toggle] =
 			content[1].split(":");
 
 		const { span, svg } = createReferenceIcon(
@@ -83,40 +73,22 @@ class ReferenceWidget extends WidgetType {
 		referenceSpan.innerHTML = decodeURIComponentString(text);
 		referenceSpan.style.border = "1px solid white";
 		referenceSpan.style.borderRadius = "3px";
-		if (portal == "no-portal") referenceSpan.style.display = "none";
+		if (toggle == "f") referenceSpan.style.display = "none";
 
 		containerSpan.appendChild(referenceSpan);
 		containerSpan.appendChild(span);
 
 		const observer = new MutationObserver(async (mutationsList) => {
-			// console.log(mutationsList[0].target);
-			const parentElement = containerSpan.parentElement;
-			if (!parentElement) return;
-			const otherReferenceSpans =
-				parentElement.querySelectorAll(".reference-span");
-			// console.log(otherReferenceSpans);
-			const index = Array.from(otherReferenceSpans).indexOf(referenceSpan);
-
-			const lines = parentElement.parentElement?.querySelectorAll(".line");
-			if (!lines) return;
-			// console.log(lines);
-			// console.log(parentElement);
-			const line = Array.from(lines).indexOf(parentElement);
-			// console.log(line);
-
 			for (const mutation of mutationsList) {
 				if (
 					mutation.type === "attributes" &&
 					mutation.attributeName === "style"
 				) {
 					// Handle style changes here
-					console.log("referenceSpan style changed:", referenceSpan.style);
-					console.log(referenceSpan.style.display);
-					let newPortal =
-						referenceSpan.style.display === "none" ? "no-portal" : "portal";
-					let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
+					let newToggle = referenceSpan.style.display === "none" ? "f" : "t";
+					let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
-					await this.updateName(reference, newPortal, index);
+					await this.updateName(reference);
 				}
 			}
 		});
@@ -163,7 +135,8 @@ const referenceDecoration = (
 const referenceMatcher = new MatchDecorator({
 	// regexp: /\[\u2197\]\(urn:[\s\S^\)]*\)/g,
 	// regexp: /\[\u2197\]\(urn:([^:]*:){5,6}[^:]*\)/g,
-	regexp: /\[\u2197\]\(urn:([^:]*:){6}[^:)]*\)/g,
+	// regexp: /\[\u2197\]\(urn:([^:]*:){6}[^:)]*\)/g,
+	regexp: /\[\u2197\]\(urn:([^:]*:){7}[^:)]*\)/g,
 	decoration: (match, view, pos) => {
 		return referenceDecoration(match, view, pos);
 	},

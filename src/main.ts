@@ -143,39 +143,35 @@ export default class ReferencePlugin extends Plugin {
 					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 				if (!editor) return;
 				const cursor = editor.getCursor();
-				const selectionLine = editor.getLine(cursor.line);
-
-				// console.log(selectionLine);
-				// console.log(editor.getDoc());
-				// console.log(cursor.line);
 
 				// @ts-ignore
 				const element = editor.getDoc().cm.contentDOM;
 				const lines = element.querySelectorAll(".cm-line");
 				// console.log(lines);
 				const currentLine = lines[cursor.line];
-
-				// console.log(currentLine);
 				const spans = currentLine.querySelectorAll(".reference-span");
-				// console.log(spans);
-				const spansStates = Array.from(spans).map(
+				const spanStates = Array.from(spans).map(
 					(span: HTMLSpanElement) => span.style.display
 				);
-				console.log(spansStates);
-				if (!spansStates.every((state) => state === "")) {
+
+				if (
+					spanStates.every((state) => state === "inline") ||
+					spanStates.every((state) => state === "")
+				) {
 					spans.forEach((span: HTMLSpanElement) => {
-						if (span.style.display !== "") span.style.display = "inline";
+						span.style.display = "none";
 					});
 				} else {
 					spans.forEach((span: HTMLSpanElement) => {
-						span.style.display = "none";
+						console.log(span.style.display);
+						if (span.style.display === "" || span.style.display === "none")
+							span.style.display = "inline";
 					});
 				}
 
 				// Find the element at line
 				// get all span elements, update their display style
 				// the appropriate updates to state will occur automatically via observer
-
 				new Notice("Search annotations");
 			}
 		});
