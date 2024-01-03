@@ -145,9 +145,33 @@ export default class ReferencePlugin extends Plugin {
 				const cursor = editor.getCursor();
 				const selectionLine = editor.getLine(cursor.line);
 
-				console.log(selectionLine);
-				console.log(editor.getDoc());
-				console.log(cursor.line);
+				// console.log(selectionLine);
+				// console.log(editor.getDoc());
+				// console.log(cursor.line);
+
+				// @ts-ignore
+				const element = editor.getDoc().cm.contentDOM;
+				const lines = element.querySelectorAll(".cm-line");
+				// console.log(lines);
+				const currentLine = lines[cursor.line];
+
+				// console.log(currentLine);
+				const spans = currentLine.querySelectorAll(".reference-span");
+				// console.log(spans);
+				const spansStates = Array.from(spans).map(
+					(span: HTMLSpanElement) => span.style.display
+				);
+				console.log(spansStates);
+				if (!spansStates.every((state) => state === "")) {
+					spans.forEach((span: HTMLSpanElement) => {
+						if (span.style.display !== "") span.style.display = "inline";
+					});
+				} else {
+					spans.forEach((span: HTMLSpanElement) => {
+						span.style.display = "none";
+					});
+				}
+
 				// Find the element at line
 				// get all span elements, update their display style
 				// the appropriate updates to state will occur automatically via observer

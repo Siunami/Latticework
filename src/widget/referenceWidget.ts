@@ -34,7 +34,18 @@ class ReferenceWidget extends WidgetType {
 		return this.name === other.name;
 	}
 
-	updateName(name: string, portal: string) {
+	async updateName(name: string, portal: string, index: number) {
+		// console.log(this.view.contentDOM.innerText);
+		// const lines = Array.from(
+		// 	this.view.contentDOM.querySelectorAll(".cm-line")
+		// ).map((line: HTMLElement) => line.innerHTML.toString());
+		// let text = Array.from(lines).join("\n");
+		// let pos = text.indexOf(this.name);
+		// console.log(text);
+		// console.log(this.name);
+
+		// console.log(pos);
+		console.log(this.pos);
 		const from = this.pos;
 		// text length for these two states is different
 		const to = this.pos + name.length + (portal == "portal" ? 3 : -3);
@@ -42,7 +53,8 @@ class ReferenceWidget extends WidgetType {
 			changes: { from, to, insert: name },
 		});
 		this.view.dispatch(transaction);
-		updateBacklinkMarkPositions();
+
+		await updateBacklinkMarkPositions();
 		this.name = name;
 	}
 
@@ -65,6 +77,8 @@ class ReferenceWidget extends WidgetType {
 
 		const containerSpan = document.createElement("span");
 		const referenceSpan = document.createElement("span");
+		// add class
+		referenceSpan.classList.add("reference-span");
 
 		referenceSpan.innerHTML = decodeURIComponentString(text);
 		referenceSpan.style.border = "1px solid white";
@@ -74,7 +88,22 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.appendChild(referenceSpan);
 		containerSpan.appendChild(span);
 
-		const observer = new MutationObserver((mutationsList) => {
+		const observer = new MutationObserver(async (mutationsList) => {
+			// console.log(mutationsList[0].target);
+			const parentElement = containerSpan.parentElement;
+			if (!parentElement) return;
+			const otherReferenceSpans =
+				parentElement.querySelectorAll(".reference-span");
+			// console.log(otherReferenceSpans);
+			const index = Array.from(otherReferenceSpans).indexOf(referenceSpan);
+
+			const lines = parentElement.parentElement?.querySelectorAll(".line");
+			if (!lines) return;
+			// console.log(lines);
+			// console.log(parentElement);
+			const line = Array.from(lines).indexOf(parentElement);
+			// console.log(line);
+
 			for (const mutation of mutationsList) {
 				if (
 					mutation.type === "attributes" &&
@@ -87,7 +116,7 @@ class ReferenceWidget extends WidgetType {
 						referenceSpan.style.display === "none" ? "no-portal" : "portal";
 					let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
 
-					this.updateName(reference, newPortal);
+					await this.updateName(reference, newPortal, index);
 				}
 			}
 		});
@@ -97,6 +126,10 @@ class ReferenceWidget extends WidgetType {
 		span.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
 				// let newPortal = "";
+				console.log(
+					"referenceSpan style changed:",
+					referenceSpan.style.display
+				);
 				if (referenceSpan.style.display === "none") {
 					referenceSpan.style.display = "inline";
 					// newPortal = "portal";
