@@ -42,6 +42,7 @@ import {
 	updateBacklinkMarkPosition,
 	updateBacklinkMarkPositions,
 } from "./references";
+import { start } from "repl";
 
 function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
@@ -106,8 +107,8 @@ function tempDirectionIndicator(
 	prefix: string,
 	suffix: string,
 	dataString: string,
-	user?: string,
-	isSame?: boolean
+	isSame: boolean,
+	user?: string
 ) {
 	let positions = findTextPositions(
 		leaf.view.data,
@@ -132,6 +133,7 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
+			console.log(startTop, endTop, isSame);
 			if (startTop === endTop && isSame) {
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"none";
@@ -189,21 +191,6 @@ function tempDirectionIndicator(
 
 	if (!visibleElements.includes(dataString)) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
-		// let startTop: number;
-		// if (originalTop) {
-		// 	startTop = originalTop;
-		// } else {
-		// 	startTop = leaf.view.editor.getScrollInfo().top;
-		// 	if (user == ACTION_TYPE.CURSOR) {
-		// 		updateCursor({
-		// 			originalTop: startTop,
-		// 		});
-		// 	} else if (user == ACTION_TYPE.MOUSE) {
-		// 		updateHover({
-		// 			originalTop: startTop,
-		// 		});
-		// 	}
-		// }
 
 		leaf.view.editor.scrollIntoView(
 			{
@@ -215,7 +202,14 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (startTop < endTop) {
+			console.log(startTop, endTop);
+			if (startTop == endTop && isSame) {
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 20px 20px 0px rgba(248, 255, 255, 0)";
+			} else if (startTop === endTop || !isSame) {
+				leaf.containerEl.querySelector(".view-content").style.boxShadow =
+					"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+			} else if (startTop < endTop) {
 				// show mark above
 				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
 				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
@@ -325,8 +319,8 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		backlink.referencingLocation.prefix + "-",
 		"-" + backlink.referencingLocation.suffix,
 		matches[0][1],
-		ACTION_TYPE.BACKLINK,
-		id === originalLeafId
+		id === originalLeafId,
+		ACTION_TYPE.BACKLINK
 	);
 
 	const cursorViewport = newLeaf.view.editor.getScrollInfo();
@@ -424,6 +418,10 @@ export async function startReferenceEffect(
 		peek: true,
 	});
 
+	console.log(originalLeaf);
+	// @ts-ignore
+	const originalLeafId = originalLeaf.id;
+
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -431,7 +429,14 @@ export async function startReferenceEffect(
 
 		highlightSelection(editorView, from, to);
 
-		tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
+		tempDirectionIndicator(
+			newLeaf,
+			text,
+			prefix,
+			suffix,
+			dataString,
+			id === originalLeafId
+		);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -442,8 +447,6 @@ export async function startReferenceEffect(
 			cursorViewport,
 		});
 	}
-
-	const originalLeafId = originalLeaf.id;
 
 	if (
 		id != originalLeafId &&

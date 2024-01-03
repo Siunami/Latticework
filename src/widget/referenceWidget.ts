@@ -44,7 +44,7 @@ class ReferenceWidget extends WidgetType {
 		});
 		this.view.dispatch(transaction);
 
-		// await updateBacklinkMarkPositions();
+		await updateBacklinkMarkPositions();
 		this.name = name;
 	}
 

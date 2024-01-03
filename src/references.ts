@@ -303,24 +303,29 @@ export function updateBacklinkMarkPosition(
 		});
 }
 
+let debounceTimer: NodeJS.Timeout;
+
 export async function updateBacklinkMarkPositions() {
-	const leaves = getThat().workspace.getLeavesOfType(
-		"markdown"
-	) as WorkspaceLeaf[];
+	clearTimeout(debounceTimer);
+	debounceTimer = setTimeout(() => {
+		const leaves = getThat().workspace.getLeavesOfType(
+			"markdown"
+		) as WorkspaceLeaf[];
 
-	setTimeout(async () => {
-		const allBacklinks: Backlink[] = await recomputeReferencesForPage();
+		setTimeout(async () => {
+			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
 
-		leaves.forEach((leaf) => {
-			const backlinksToLeaf = allBacklinks.filter(
-				// @ts-ignore
-				(b) => b.referencedLocation.filename == leaf.view.file.path
-			);
-			// width 900, show the reference
-			const showPortals = getContainerElement(leaf).innerWidth > 900;
-			updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
-		});
-	}, 500);
+			leaves.forEach((leaf) => {
+				const backlinksToLeaf = allBacklinks.filter(
+					// @ts-ignore
+					(b) => b.referencedLocation.filename == leaf.view.file.path
+				);
+				// width 900, show the reference
+				const showPortals = getContainerElement(leaf).innerWidth > 900;
+				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+			});
+		}, 500);
+	}, 100);
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {

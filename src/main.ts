@@ -147,7 +147,6 @@ export default class ReferencePlugin extends Plugin {
 				// @ts-ignore
 				const element = editor.getDoc().cm.contentDOM;
 				const lines = element.querySelectorAll(".cm-line");
-				// console.log(lines);
 				const currentLine = lines[cursor.line];
 				const spans = currentLine.querySelectorAll(".reference-span");
 				const spanStates = Array.from(spans).map(
@@ -163,7 +162,6 @@ export default class ReferencePlugin extends Plugin {
 					});
 				} else {
 					spans.forEach((span: HTMLSpanElement) => {
-						console.log(span.style.display);
 						if (span.style.display === "" || span.style.display === "none")
 							span.style.display = "inline";
 					});
