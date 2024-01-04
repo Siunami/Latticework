@@ -15,8 +15,3 @@ If your plugin does not need CSS, delete this file.
 .cm-formatting.cm-formatting-link-string.cm-string.cm-url.external-link {
   display: none !important;
 }
-
-#referenceMarkContainer {
-  border-left: 1px solid gray;
-  height: 100%;
-}

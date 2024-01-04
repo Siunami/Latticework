@@ -8,7 +8,10 @@ import {
 
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
 // [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
-export async function updateClipboard(only: boolean = false) {
+export async function updateClipboard(
+	toggle: boolean = false,
+	only: boolean = false
+) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	// Make sure the user is editing a Markdown file.
 	if (view) {
@@ -22,15 +25,9 @@ export async function updateClipboard(only: boolean = false) {
 				prefix
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
-			)}:${encodeURIComponentString(
-				view.file.path
-			)}:${from}:${to}:${encodeURIComponentString(
+			)}:${encodeURIComponentString(view.file.path)}:${from}:${to}:${
 				only ? "portal" : "no-portal"
-			)})`;
-
-			if (!only) {
-				reference = '"' + selection + '" ' + reference;
-			}
+			}:${toggle ? "t" : "f"})`;
 
 			// Write the selected text to the clipboard
 			await navigator.clipboard.writeText(reference);
