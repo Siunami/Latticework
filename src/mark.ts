@@ -56,7 +56,6 @@ const defaultHighlightTheme = EditorView.baseTheme({
 });
 
 export function highlightSelection(view: EditorView, from: number, to: number) {
-	console.log("highlightSelection");
 	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
 
 	if (!effects.length) return false;
@@ -74,7 +73,6 @@ export function defaultHighlightSelection(
 	from: number,
 	to: number
 ) {
-	console.log("defaultHighlightSelection");
 	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
 
 	if (!effects.length) return false;

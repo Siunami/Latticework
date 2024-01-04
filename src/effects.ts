@@ -133,7 +133,6 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(startTop, endTop, isSame);
 			if (startTop === endTop && isSame) {
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"none";
@@ -202,7 +201,6 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(startTop, endTop);
 			if (startTop == endTop && isSame) {
 				leaf.containerEl.querySelector(".view-content").style.boxShadow =
 					"inset 0px 20px 20px 0px rgba(248, 255, 255, 0)";
@@ -418,7 +416,6 @@ export async function startReferenceEffect(
 		peek: true,
 	});
 
-	console.log(originalLeaf);
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
@@ -588,7 +585,6 @@ export async function endReferenceCursorEffect() {
 }
 
 export async function endReferenceHoverEffect() {
-	// console.log("endReferenceHoverEffect");
 	if (!getHover() || Object.keys(getHover()).length == 0) {
 		// End mutex lock
 		resetHover();

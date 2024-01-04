@@ -125,18 +125,18 @@ export default class ReferencePlugin extends Plugin {
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
 				// console.log("c");
-				updateClipboard();
-				new Notice("Copied reference and text to clipboard");
+				updateClipboard(true);
+				new Notice("Copied reference to clipboard");
 			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
 				// console.log("r");
-				updateClipboard(true);
-				new Notice("Copied annotation to clipboard");
+				updateClipboard(false);
+				new Notice("Copied reference to clipboard");
 			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
 				// find the annotations file
 				// if it doesn't exist, create it
 				// if it exists, open it in adjacent panel
 				// add new annotation
-
+				updateClipboard(false, true);
 				new Notice("New annotation");
 			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
 				const editor: Editor | undefined =
@@ -160,17 +160,18 @@ export default class ReferencePlugin extends Plugin {
 					spans.forEach((span: HTMLSpanElement) => {
 						span.style.display = "none";
 					});
+					new Notice("Toggle annotations off");
 				} else {
 					spans.forEach((span: HTMLSpanElement) => {
 						if (span.style.display === "" || span.style.display === "none")
 							span.style.display = "inline";
 					});
+					new Notice("Toggle annotations on");
 				}
 
 				// Find the element at line
 				// get all span elements, update their display style
 				// the appropriate updates to state will occur automatically via observer
-				new Notice("Search annotations");
 			}
 		});
 

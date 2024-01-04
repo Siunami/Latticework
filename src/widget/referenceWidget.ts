@@ -56,7 +56,7 @@ class ReferenceWidget extends WidgetType {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
-		const [prefix, text, suffix, file, from, to, portal, toggle] =
+		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			content[1].split(":");
 
 		const { span, svg } = createReferenceIcon(
@@ -72,6 +72,8 @@ class ReferenceWidget extends WidgetType {
 
 		referenceSpan.innerHTML = decodeURIComponentString(text);
 		referenceSpan.style.border = "1px solid white";
+		referenceSpan.style.paddingLeft = "2px";
+		referenceSpan.style.paddingRight = "2px";
 		referenceSpan.style.borderRadius = "3px";
 		if (toggle == "f") referenceSpan.style.display = "none";
 
@@ -97,21 +99,11 @@ class ReferenceWidget extends WidgetType {
 
 		span.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
-				// let newPortal = "";
-				console.log(
-					"referenceSpan style changed:",
-					referenceSpan.style.display
-				);
 				if (referenceSpan.style.display === "none") {
 					referenceSpan.style.display = "inline";
-					// newPortal = "portal";
 				} else {
 					referenceSpan.style.display = "none";
-					// newPortal = "no-portal";
 				}
-				// let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${newPortal})`;
-
-				// this.updateName(reference, newPortal);
 			} else {
 				openReference(ev);
 			}
