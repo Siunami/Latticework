@@ -1,7 +1,11 @@
 {
 	"id": "reference-plugin",
 	"name": "Reference plugin",
+<<<<<<< Updated upstream
 	"version": "0.1.0",
+=======
+	"version": "0.1.2",
+>>>>>>> Stashed changes
 	"minAppVersion": "0.15.0",
 	"description": "Reference plugin",
 	"author": "Obsidian",
