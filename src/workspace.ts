@@ -122,17 +122,21 @@ export async function openFileInAdjacentTab(
 	);
 	const { workspace } = getThat();
 	if (
-		allTabNames.flat().includes(file) &&
+		allTabNames
+			.filter((v, i) => i != currTabIdx)
+			.flat()
+			.includes(file) &&
 		!rightAdjacentTabNames.includes(file) &&
 		!leftAdjacentTabNames.includes(file)
 	) {
-		// file exists, not left or right tab
+		// file exists, not adjacent left or right tab
 		let currentTabNames: any[] = [];
 		let currentTab: any[] = [];
 		allTabNames.forEach((tabNames, i) => {
 			if (
 				tabNames != rightAdjacentTabNames &&
-				tabNames != leftAdjacentTabNames
+				tabNames != leftAdjacentTabNames &&
+				currTabIdx != i
 			) {
 				if (tabNames.includes(file)) {
 					currentTabNames = tabNames;

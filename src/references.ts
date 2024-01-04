@@ -32,6 +32,8 @@ import {
 } from "./constants";
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
+import { endReferenceCursorEffect } from "./effects";
+import { create } from "domain";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -222,6 +224,7 @@ export function updateBacklinkMarkPosition(
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
 	}
 	let backlinkIds: string[] = backlinksToLeaf.map((x) => getBacklinkID(x));
+
 	backlinks
 		.map((x: HTMLSpanElement) => x.id)
 		.forEach((id) => {
@@ -300,22 +303,29 @@ export function updateBacklinkMarkPosition(
 		});
 }
 
-export async function updateBacklinkMarkPositions() {
-	console.log("updateBacklinkMark");
-	await recomputeReferencesForPage();
-	const { workspace } = getThat();
-	const leaves = workspace.getLeavesOfType("markdown") as WorkspaceLeaf[];
+let debounceTimer: NodeJS.Timeout;
 
-	const allBacklinks: Backlink[] = getBacklinks();
-	leaves.forEach((leaf) => {
-		const backlinksToLeaf = allBacklinks.filter(
-			// @ts-ignore
-			(b) => b.referencedLocation.filename == leaf.view.file.path
-		);
-		// width 900, show the reference
-		const showPortals = getContainerElement(leaf).innerWidth > 900;
-		updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
-	});
+export async function updateBacklinkMarkPositions() {
+	clearTimeout(debounceTimer);
+	debounceTimer = setTimeout(() => {
+		const leaves = getThat().workspace.getLeavesOfType(
+			"markdown"
+		) as WorkspaceLeaf[];
+
+		setTimeout(async () => {
+			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
+
+			leaves.forEach((leaf) => {
+				const backlinksToLeaf = allBacklinks.filter(
+					// @ts-ignore
+					(b) => b.referencedLocation.filename == leaf.view.file.path
+				);
+				// width 900, show the reference
+				const showPortals = getContainerElement(leaf).innerWidth > 900;
+				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+			});
+		}, 500);
+	}, 100);
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {
@@ -380,7 +390,6 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 }
 
 export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	console.log("addReferencesToLeaf");
 	const markdownView = getMarkdownView(leaf);
 	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
 	if (!workspaceTabs) {
@@ -518,10 +527,11 @@ export function generateBacklinks() {
 		}));
 
 		zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-			backlinks.push(...createBacklinkData(file.fileData, file.markdownFile));
-		});
+			let fileBacklinks = createBacklinkData(file.fileData, file.markdownFile);
+			updateBacklinks(fileBacklinks);
 
-		updateBacklinks(backlinks);
+			backlinks.push(...fileBacklinks);
+		});
 
 		const leaves = this.app.workspace.getLeavesOfType("markdown");
 
@@ -533,21 +543,50 @@ export function generateBacklinks() {
 }
 
 // Should only recompute for the particular page being opened or interacted with
-export async function recomputeReferencesForPage() {
-	// setTimeout(async () => {
-	const leaves = this.app.workspace.getLeavesOfType("markdown");
-	leaves.forEach(async (leaf: WorkspaceLeaf) => {
-		// const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
-		// if (!activeLeaf) return;
-		const view = getMarkdownView(leaf);
-		const file = view.file;
-		if (!file) throw new Error("Missing file");
-		const fileData = await this.app.vault.read(file);
-		const references: Backlink[] = createBacklinkData(fileData, file);
+export async function recomputeReferencesForPage(): Promise<Backlink[]> {
+	const leaves = getThat().workspace.getLeavesOfType("markdown");
+	let references: Backlink[] = [];
+	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-		updateBacklinks(references);
+	let promises = markdownFiles.map((file: TFile) => this.app.vault.read(file));
+	// let promises = leaves.map((leaf: WorkspaceLeaf) => {
+	// 	// const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
+	// 	// if (!activeLeaf) return;
+	// 	const view = getMarkdownView(leaf);
+	// 	const file = view.file;
+	// 	if (!file) throw new Error("Missing file");
+	// 	return this.app.vault.read(file);
+	// });
+	let files = await Promise.all(promises);
+	const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
+		markdownFile: file,
+		fileData: files[index],
+	}));
+	zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
+		let fileBacklinks = createBacklinkData(file.fileData, file.markdownFile);
+		updateBacklinks(fileBacklinks);
+
+		references.push(...fileBacklinks);
 	});
-	// }, 300);
+	// files.forEach((file, i) => {
+	// 	let fileBacklinks = createBacklinkData(file, file);
+	// 	updateBacklinks(fileBacklinks);
+
+	// 	references = [...references, ...fileBacklinks];
+	// });
+	// leaves.forEach((leaf: WorkspaceLeaf, i) => {
+	// 	const view = getMarkdownView(leaf);
+	// 	const file = view.file;
+	// 	if (!file) throw new Error("Missing file");
+	// 	let fileBacklinks = createBacklinkData(files[i], file);
+	// 	updateBacklinks(fileBacklinks);
+
+	// 	references = [...references, ...fileBacklinks];
+	// });
+
+	// console.log(references);
+	// updateBacklinks(references);
+	return references;
 }
 
 export async function openBacklinkReference(ev: MouseEvent) {

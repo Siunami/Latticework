@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView, Notice } from "obsidian";
+import { Plugin, MarkdownView, Notice, Editor } from "obsidian";
 
 import { updateThat, getThat, getHover, getBacklinks } from "./state";
 import { highlights, referenceResources } from "./widget";
@@ -55,6 +55,9 @@ export default class ReferencePlugin extends Plugin {
 		]);
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
+
+			// const semiMode = evt.metaKey || evt.ctrlKey;
 			let span;
 			let dataString;
 			if (
@@ -103,11 +106,14 @@ export default class ReferencePlugin extends Plugin {
 		// on selection changes, event over click and keydown
 
 		this.registerDomEvent(document, "click", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
 			checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) return;
+
 			// console.log("keyup");
 			checkFocusCursor(evt);
 			// updateBacklinkMarkPositions();
@@ -119,20 +125,53 @@ export default class ReferencePlugin extends Plugin {
 
 			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
 				// console.log("c");
-				updateClipboard();
-				new Notice("Copied reference and text to clipboard");
+				updateClipboard(true);
+				new Notice("Copied reference to clipboard");
 			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
 				// console.log("r");
-				updateClipboard(true);
-				new Notice("Copied annotation to clipboard");
+				updateClipboard(false);
+				new Notice("Copied reference to clipboard");
 			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
 				// find the annotations file
 				// if it doesn't exist, create it
 				// if it exists, open it in adjacent panel
 				// add new annotation
-
-				console.log("e");
+				updateClipboard(false, true);
 				new Notice("New annotation");
+			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
+				const editor: Editor | undefined =
+					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
+				if (!editor) return;
+				const cursor = editor.getCursor();
+
+				// @ts-ignore
+				const element = editor.getDoc().cm.contentDOM;
+				const lines = element.querySelectorAll(".cm-line");
+				const currentLine = lines[cursor.line];
+				const spans = currentLine.querySelectorAll(".reference-span");
+				const spanStates = Array.from(spans).map(
+					(span: HTMLSpanElement) => span.style.display
+				);
+
+				if (
+					spanStates.every((state) => state === "inline") ||
+					spanStates.every((state) => state === "")
+				) {
+					spans.forEach((span: HTMLSpanElement) => {
+						span.style.display = "none";
+					});
+					new Notice("Toggle annotations off");
+				} else {
+					spans.forEach((span: HTMLSpanElement) => {
+						if (span.style.display === "" || span.style.display === "none")
+							span.style.display = "inline";
+					});
+					new Notice("Toggle annotations on");
+				}
+
+				// Find the element at line
+				// get all span elements, update their display style
+				// the appropriate updates to state will occur automatically via observer
 			}
 		});
 
