@@ -42,7 +42,6 @@ import {
 	updateBacklinkMarkPosition,
 	updateBacklinkMarkPositions,
 } from "./references";
-import { start } from "repl";
 
 function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
@@ -120,8 +119,11 @@ function tempDirectionIndicator(
 	let rangeStart = positions.rangeStart;
 	let rangeEnd = positions.rangeEnd;
 
+	console.log(user);
 	if (user === ACTION_TYPE.BACKLINK) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
+
+		console.log(rangeStart);
 
 		leaf.view.editor.scrollIntoView(
 			{
@@ -193,8 +195,8 @@ function tempDirectionIndicator(
 
 		leaf.view.editor.scrollIntoView(
 			{
-				from: rangeStart,
-				to: rangeEnd,
+				from: Object.assign(rangeStart, { ch: 0 }),
+				to: Object.assign(rangeEnd, { ch: 0 }),
 			},
 			true
 		);
@@ -333,12 +335,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
-		const svgElement = backlinkSpan.querySelector("svg");
-		if (svgElement) {
-			svgElement.style.borderRadius = "5px";
-			svgElement.style.boxShadow = `0px 0px 10px 10px ${SVG_HOVER_COLOR}`;
-			updateHoveredCursor(svgElement, ACTION_TYPE.BACKLINK);
-		}
+		backlinkSpan.classList.add("reference-data-span-hovered");
 	}
 
 	if (
@@ -362,7 +359,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 }
 
 export async function startReferenceEffect(
-	span: HTMLSpanElement,
+	span: HTMLSpanElement | null | undefined,
 	type: string
 ) {
 	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
@@ -374,6 +371,13 @@ export async function startReferenceEffect(
 	updateState({
 		type: `${type}-start`,
 	});
+
+	if (!span) return;
+	span.parentElement
+		?.querySelector(".reference-span")
+		?.classList.add("reference-span-selected");
+
+	span.classList.add("reference-data-span-selected");
 
 	const dataString = span.getAttribute("data");
 	if (!dataString) return;
@@ -499,6 +503,18 @@ export async function endReferenceCursorEffect() {
 			// @ts-ignore
 			containerEl.querySelector(".view-content")?.setAttribute("style", "");
 		}
+		// Toggling visual hover state
+		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
+
+		if (activeContainerEl != null) {
+			activeContainerEl
+				.querySelector(".reference-span-selected")
+				?.classList.remove("reference-span-selected");
+
+			activeContainerEl
+				.querySelector(".reference-data-span-selected")
+				?.classList.remove("reference-data-span-selected");
+		}
 		return;
 	}
 
@@ -561,6 +577,18 @@ export async function endReferenceCursorEffect() {
 				containerEl.querySelector(".view-content")?.setAttribute("style", "");
 			}
 		}
+		// Toggling visual hover state
+		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
+
+		if (activeContainerEl != null) {
+			activeContainerEl
+				.querySelector(".reference-span-selected")
+				?.classList.remove("reference-span-selected");
+
+			activeContainerEl
+				.querySelector(".reference-data-span-selected")
+				?.classList.remove("reference-data-span-selected");
+		}
 	}
 
 	if (temp && targetLeaf) {
@@ -606,6 +634,9 @@ export async function endReferenceHoverEffect() {
 		resetHover();
 		throw new Error("Target leaf not found");
 	}
+
+	const activeLeaf = getThat().workspace.getLeaf();
+	// @ts-ignore id
 
 	let editorView = getEditorView(targetLeaf);
 
@@ -673,6 +704,18 @@ export async function endReferenceHoverEffect() {
 				containerEl.querySelector(".view-content")?.setAttribute("style", "");
 			}
 		}
+		// Toggling visual hover state
+		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
+
+		if (activeContainerEl != null) {
+			activeContainerEl
+				.querySelector(".reference-span-selected")
+				?.classList.remove("reference-span-selected");
+
+			activeContainerEl
+				.querySelector(".reference-data-span-selected")
+				?.classList.remove("reference-data-span-selected");
+		}
 	}
 
 	if (temp && targetLeaf) {
@@ -732,6 +775,15 @@ export async function endBacklinkHoverEffect() {
 	if (!targetLeaf) {
 		resetBacklinkHover();
 		throw new Error("Target leaf not found");
+	}
+
+	// @ts-ignore
+	let backlinkSpan: HTMLSpanElement = targetLeaf.containerEl.querySelector(
+		`span[data="${dataString}"]`
+	);
+
+	if (backlinkSpan) {
+		backlinkSpan.classList.remove("reference-data-span-hovered");
 	}
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {

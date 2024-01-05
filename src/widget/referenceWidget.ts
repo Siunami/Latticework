@@ -64,18 +64,16 @@ class ReferenceWidget extends WidgetType {
 		);
 
 		if (content) span.setAttribute("data", content[1]);
+		span.classList.add("reference-data-span");
 
 		const containerSpan = document.createElement("span");
+		containerSpan.classList.add("reference-container-span");
 		const referenceSpan = document.createElement("span");
 		// add class
 		referenceSpan.classList.add("reference-span");
 
 		referenceSpan.innerHTML = decodeURIComponentString(text);
-		referenceSpan.style.border = "1px solid white";
-		referenceSpan.style.paddingLeft = "2px";
-		referenceSpan.style.paddingRight = "2px";
-		referenceSpan.style.borderRadius = "3px";
-		if (toggle == "f") referenceSpan.style.display = "none";
+		referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
 
 		containerSpan.appendChild(referenceSpan);
 		containerSpan.appendChild(span);
@@ -84,10 +82,14 @@ class ReferenceWidget extends WidgetType {
 			for (const mutation of mutationsList) {
 				if (
 					mutation.type === "attributes" &&
-					mutation.attributeName === "style"
+					mutation.attributeName === "class"
 				) {
 					// Handle style changes here
-					let newToggle = referenceSpan.style.display === "none" ? "f" : "t";
+					let newToggle = referenceSpan.classList.contains(
+						"reference-span-hidden"
+					)
+						? "f"
+						: "t";
 					let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
 					await this.updateName(reference);
@@ -97,13 +99,9 @@ class ReferenceWidget extends WidgetType {
 
 		observer.observe(referenceSpan, { attributes: true });
 
-		span.addEventListener("click", (ev) => {
+		containerSpan.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
-				if (referenceSpan.style.display === "none") {
-					referenceSpan.style.display = "inline";
-				} else {
-					referenceSpan.style.display = "none";
-				}
+				referenceSpan.classList.toggle("reference-span-hidden");
 			} else {
 				openReference(ev);
 			}

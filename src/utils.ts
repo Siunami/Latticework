@@ -204,8 +204,8 @@ export function handleRemoveHoveredCursor(user: string) {
 						svg.setAttribute("fill", "white");
 						svg.style.backgroundColor = "";
 					}
-					// element.cursor.style.backgroundColor = "white";
-					element.cursor.style.boxShadow = "none";
+					element.cursor.style.backgroundColor = "white";
+					// element.cursor.style.boxShadow = "none";
 				}
 			});
 
@@ -215,6 +215,8 @@ export function handleRemoveHoveredCursor(user: string) {
 
 export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
+
+	console.log(span);
 
 	if (matched && span) {
 		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);

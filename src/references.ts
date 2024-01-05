@@ -145,11 +145,15 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	const svg = span.querySelector("svg");
 	const portal: HTMLElement | null = span.querySelector(".portal");
 
-	if (svg && !portal) {
+	if (span && svg && !portal) {
 		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
 		if (svg.classList.contains("reference-icon"))
 			svg.style.backgroundColor = SVG_HOVER_COLOR;
-		else svg.setAttribute("fill", SVG_HOVER_COLOR);
+		else {
+			// svg.setAttribute("fill", SVG_HOVER_COLOR);
+			span = span.querySelector("span") as HTMLSpanElement;
+			span.style.backgroundColor = SVG_HOVER_COLOR;
+		}
 
 		updateHoveredCursor(svg, user); // add the currently hovered reference icon
 	}

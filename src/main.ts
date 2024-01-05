@@ -77,11 +77,25 @@ export default class ReferencePlugin extends Plugin {
 				}
 			}
 
+			console.log(span);
+
 			if (
 				span &&
 				span instanceof HTMLSpanElement &&
-				span.getAttribute("data")
+				span?.parentElement &&
+				span?.parentElement.classList.contains("reference-container-span")
 			) {
+				console.log("start hover effect");
+
+				if (!span.getAttribute("data")) {
+					span = span.parentElement;
+					span = span.querySelector(".reference-data-span") as HTMLSpanElement;
+					if (!span) throw new Error("Span element not found");
+				}
+				// span = span.parentElement;
+				// if (!span) throw new Error("Span element not found");
+				// console.log(span);
+
 				// console.log("start hover reference effect");
 				updateHoveredCursorColor(span, ACTION_TYPE.MOUSE);
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
@@ -100,6 +114,10 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getBacklinks() != null) {
 				// console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
+			} else {
+				// console.log("end hover reference effect");
+				endReferenceHoverEffect();
+				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			}
 		});
 
@@ -123,22 +141,24 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			// console.log("keydown");
 
-			if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
+			if (evt.key == "Ç" && evt.metaKey && evt.shiftKey && evt.altKey) {
 				// console.log("c");
-				updateClipboard(true);
-				new Notice("Copied reference to clipboard");
-			} else if (evt.key == "r" && evt.metaKey && evt.shiftKey) {
-				// console.log("r");
 				updateClipboard(false);
 				new Notice("Copied reference to clipboard");
-			} else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
-				// find the annotations file
-				// if it doesn't exist, create it
-				// if it exists, open it in adjacent panel
-				// add new annotation
-				updateClipboard(false, true);
-				new Notice("New annotation");
-			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
+			} else if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
+				// console.log("r");
+				updateClipboard(true);
+				new Notice("Copied reference to clipboard");
+			}
+			// else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
+			// 	// find the annotations file
+			// 	// if it doesn't exist, create it
+			// 	// if it exists, open it in adjacent panel
+			// 	// add new annotation
+			// 	updateClipboard(false, true);
+			// 	new Notice("New annotation");
+			// }
+			else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
 				const editor: Editor | undefined =
 					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 				if (!editor) return;
@@ -148,23 +168,25 @@ export default class ReferencePlugin extends Plugin {
 				const element = editor.getDoc().cm.contentDOM;
 				const lines = element.querySelectorAll(".cm-line");
 				const currentLine = lines[cursor.line];
-				const spans = currentLine.querySelectorAll(".reference-span");
-				const spanStates = Array.from(spans).map(
-					(span: HTMLSpanElement) => span.style.display
+
+				const spans = Array.from<HTMLSpanElement>(
+					currentLine.querySelectorAll(".reference-span")
 				);
 
 				if (
-					spanStates.every((state) => state === "inline") ||
-					spanStates.every((state) => state === "")
+					spans.every((span) =>
+						span.classList.contains("reference-span-hidden")
+					)
 				) {
-					spans.forEach((span: HTMLSpanElement) => {
-						span.style.display = "none";
+					spans.forEach((span) => {
+						span.classList.toggle("reference-span-hidden", false);
 					});
-					new Notice("Toggle annotations off");
+					new Notice("Toggle annotations on");
 				} else {
 					spans.forEach((span: HTMLSpanElement) => {
-						if (span.style.display === "" || span.style.display === "none")
-							span.style.display = "inline";
+						spans.forEach((span) => {
+							span.classList.toggle("reference-span-hidden", true);
+						});
 					});
 					new Notice("Toggle annotations on");
 				}

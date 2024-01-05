@@ -8,10 +8,91 @@ If your plugin does not need CSS, delete this file.
 */
 
 .markdown-source-view.mod-cm6.is-readable-line-width .cm-sizer {
-  margin-left:0px !important;
-  max-width: 600px !important;
+	margin-left: 0px !important;
+	max-width: 600px !important;
 }
 
 .cm-formatting.cm-formatting-link-string.cm-string.cm-url.external-link {
-  display: none !important;
+	display: none !important;
+}
+
+.reference-span {
+	background-color: var(--background-secondary);
+	/*border-bottom: var(--background-modifier-border) 1px solid;*/
+	cursor: alias;
+	color: color-mix(in srgb, var(--text-normal) 45%, var(--text-muted) 55%);
+	padding-left: 3px;
+	padding-right: 3px;
+	border-top-left-radius: 3px;
+	border-bottom-left-radius: 3px;
+}
+
+.reference-data-span::after {
+	content: "↗";
+	background-color: color-mix(in srgb, var(--color-base-20) 50%, var(--color-base-30) 50%);
+	/*border-bottom: var(--color-base-20) 1px solid;*/
+	color: var(--text-accent);
+	padding-left: 3px;
+	padding-right: 3px;
+	border-top-right-radius: 3px;
+	border-bottom-right-radius: 3px;
+	/*width: 16px;*/
+	/*height: 16px;*/
+}
+
+/* .reference-span:hover {
+	color: black;
+	background-color: var(--color-base-70);
+} */
+
+/* .reference-data-span:hover::after .reference-span {
+	color: black !important;
+	background-color: var(--color-base-70) !important;
+} */
+
+/* .reference-container-span:hover .reference-span,
+.reference-container-span:hover .reference-data-span {
+	color: black !important;
+	background-color: var(--color-base-70) !important;
+} */
+
+.reference-container-span:hover .reference-span {
+	color: black !important;
+	background-color: var(--color-base-70) !important;
+}
+
+.reference-container-span:hover .reference-data-span::after {
+	background-color: var(--color-base-70);
+}
+
+.reference-span-selected {
+	color: black !important;
+	background-color: var(--color-base-70) !important;
+}
+
+.reference-data-span-selected::after {
+	background-color: var(--color-base-70) !important;
+}
+/* 
+.reference-data-span:hover::after {
+	background-color: var(--color-base-70);
+} */
+
+
+.reference-span-hidden+.reference-data-span::after {
+	border-top-left-radius: 3px;
+	border-bottom-left-radius: 3px;
+}
+
+.reference-data-span svg {
+	display: none;
+}
+
+.reference-span.reference-span-hidden {
+	display: none;
+}
+
+/* `0px 0px 10px 10px ${SVG_HOVER_COLOR}` */
+.reference-data-span-hovered {
+  box-shadow: 0px 0px 10px 10px var(--color-base-70);
 }
