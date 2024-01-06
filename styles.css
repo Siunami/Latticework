@@ -17,10 +17,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 .reference-span {
-	background-color: var(--background-secondary);
+	/* background-color: var(--background-secondary); */
+	background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%);
+
 	/*border-bottom: var(--background-modifier-border) 1px solid;*/
 	cursor: alias;
-	color: color-mix(in srgb, var(--text-normal) 45%, var(--text-muted) 55%);
+	/* color: color-mix(in srgb, var(--text-normal) 45%, var(--text-muted) 55%); */
+	color: var(--text-normal);
 	padding-left: 3px;
 	padding-right: 3px;
 	border-top-left-radius: 3px;
@@ -29,7 +32,8 @@ If your plugin does not need CSS, delete this file.
 
 .reference-data-span::after {
 	content: "↗";
-	background-color: color-mix(in srgb, var(--color-base-20) 50%, var(--color-base-30) 50%);
+	/* background-color: var(--background-secondary); */
+	background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%);
 	/*border-bottom: var(--color-base-20) 1px solid;*/
 	color: var(--text-accent);
 	padding-left: 3px;
@@ -56,23 +60,24 @@ If your plugin does not need CSS, delete this file.
 	background-color: var(--color-base-70) !important;
 } */
 
-.reference-container-span:hover .reference-span {
+/* .reference-container-span:hover .reference-span {
 	color: black !important;
-	background-color: var(--color-base-70) !important;
+	background-color: var(--color-base-70);
 }
 
 .reference-container-span:hover .reference-data-span::after {
 	background-color: var(--color-base-70);
-}
+} */
 
 .reference-span-selected {
 	color: black !important;
-	background-color: var(--color-base-70) !important;
+	background-color: var(--color-base-100) !important;
 }
 
 .reference-data-span-selected::after {
-	background-color: var(--color-base-70) !important;
+	background-color: var(--color-base-100) !important;
 }
+
 /* 
 .reference-data-span:hover::after {
 	background-color: var(--color-base-70);

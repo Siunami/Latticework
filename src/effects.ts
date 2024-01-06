@@ -119,7 +119,6 @@ function tempDirectionIndicator(
 	let rangeStart = positions.rangeStart;
 	let rangeEnd = positions.rangeEnd;
 
-	console.log(user);
 	if (user === ACTION_TYPE.BACKLINK) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
 
@@ -229,6 +228,13 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let destination = getCursor();
 	let updateState = updateBacklinkHover;
 
+	if (!span) return;
+	span.parentElement
+		?.querySelector(".reference-span")
+		?.classList.add("reference-span-selected");
+
+	span.classList.add("reference-data-span-selected");
+
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
 	updateState({
@@ -335,7 +341,14 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
-		backlinkSpan.classList.add("reference-data-span-hovered");
+		// backlinkSpan.classList.add("reference-data-span-hovered");
+		// backlinkSpan.classList.add("reference-span-selected");
+		backlinkSpan.parentElement
+			?.querySelector(".reference-span")
+			?.classList.add("reference-span-selected");
+
+		backlinkSpan.classList.add("reference-data-span-selected");
+		console.log(backlinkSpan);
 	}
 
 	if (
@@ -679,10 +692,11 @@ export async function endReferenceHoverEffect() {
 		// });
 
 		// if the cursor is active, highlight the selection
-		if (getCursor() != null) {
+		if (getCursor() != null && getCursor().dataString) {
 			const { dataString, cursorViewport, leafId, originalLeafId } =
 				getCursor();
-			let [prefix, text, suffix, file, from, to] = processURI(dataString);
+			let [prefix, text, suffix, file, from, to, portal, toggle] =
+				processURI(dataString);
 			const cursorLeaf = workspace.getLeafById(leafId);
 			workspace.revealLeaf(cursorLeaf);
 			const editorView: EditorView = getEditorView(cursorLeaf);
@@ -700,8 +714,10 @@ export async function endReferenceHoverEffect() {
 		} else {
 			let containerEl: HTMLElement = getContainerElement(targetLeaf);
 			if (containerEl != null) {
-				// @ts-ignore
-				containerEl.querySelector(".view-content")?.setAttribute("style", "");
+				setTimeout(() => {
+					// @ts-ignore
+					containerEl.querySelector(".view-content")?.setAttribute("style", "");
+				}, 50);
 			}
 		}
 		// Toggling visual hover state
@@ -777,24 +793,48 @@ export async function endBacklinkHoverEffect() {
 		throw new Error("Target leaf not found");
 	}
 
+	const activeLeaf = getThat().workspace.getLeaf();
+
 	// @ts-ignore
 	let backlinkSpan: HTMLSpanElement = targetLeaf.containerEl.querySelector(
 		`span[data="${dataString}"]`
 	);
 
 	if (backlinkSpan) {
-		backlinkSpan.classList.remove("reference-data-span-hovered");
+		// backlinkSpan.classList.remove("reference-data-span-hovered");
+		backlinkSpan
+			.querySelector(".reference-span-selected")
+			?.classList.remove("reference-span-selected");
+
+		backlinkSpan
+			.querySelector(".reference-data-span-selected")
+			?.classList.remove("reference-data-span-selected");
 	}
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
+
+		// Toggling visual hover state
+		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
+
+		if (activeContainerEl != null) {
+			activeContainerEl
+				.querySelector(".reference-span-selected")
+				?.classList.remove("reference-span-selected");
+
+			activeContainerEl
+				.querySelector(".reference-data-span-selected")
+				?.classList.remove("reference-data-span-selected");
+		}
 	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
 	if (containerEl != null) {
-		// @ts-ignore
-		containerEl.querySelector(".view-content")?.setAttribute("style", "");
+		setTimeout(() => {
+			// @ts-ignore
+			containerEl.querySelector(".view-content")?.setAttribute("style", "");
+		}, 50);
 	}
 
 	let editorView: EditorView = getEditorView(targetLeaf);

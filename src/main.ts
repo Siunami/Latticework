@@ -54,6 +54,7 @@ export default class ReferencePlugin extends Plugin {
 			}),
 		]);
 
+		let lastSpan;
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 
@@ -77,16 +78,13 @@ export default class ReferencePlugin extends Plugin {
 				}
 			}
 
-			console.log(span);
-
 			if (
 				span &&
 				span instanceof HTMLSpanElement &&
 				span?.parentElement &&
 				span?.parentElement.classList.contains("reference-container-span")
 			) {
-				console.log("start hover effect");
-
+				if (getHover() != null) return;
 				if (!span.getAttribute("data")) {
 					span = span.parentElement;
 					span = span.querySelector(".reference-data-span") as HTMLSpanElement;
@@ -104,6 +102,7 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
+				// if (getBacklinks() != null) return;
 				// console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 				startBacklinkEffect(span);
@@ -115,10 +114,12 @@ export default class ReferencePlugin extends Plugin {
 				// console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
 			} else {
-				// console.log("end hover reference effect");
-				endReferenceHoverEffect();
-				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			}
+			// else {
+			// 	// console.log("end hover reference effect");
+			// 	endReferenceHoverEffect();
+			// 	handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
+			// }
 		});
 
 		// on selection changes, event over click and keydown

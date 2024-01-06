@@ -64,7 +64,6 @@ class ReferenceWidget extends WidgetType {
 		);
 
 		if (content) span.setAttribute("data", content[1]);
-		span.classList.add("reference-data-span");
 
 		const containerSpan = document.createElement("span");
 		containerSpan.classList.add("reference-container-span");

@@ -33,7 +33,6 @@ import {
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 import { endReferenceCursorEffect } from "./effects";
-import { create } from "domain";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -41,6 +40,7 @@ export function createReferenceIcon(portalText: string | null = null): {
 } {
 	const span = document.createElement("span");
 	span.style.cursor = "pointer";
+	span.classList.add("reference-data-span");
 
 	const height = REFERENCE_ICON_HEIGHT;
 	const width = height * 0.9;
@@ -94,33 +94,33 @@ export function createReferenceIcon(portalText: string | null = null): {
 
 		svg.appendChild(line3);
 
-		span.appendChild(svg);
+		// span.appendChild(svg);
 		return { span: span, svg };
 	}
 
 	const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-	svg.setAttribute("width", `${width}`);
-	svg.setAttribute("height", `${height}`);
-	svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-	svg.setAttribute("fill", "white");
-	svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-	// svg.style.backgroundColor = "white";
-	svg.classList.add("portal-icon");
+	// svg.setAttribute("width", `${width}`);
+	// svg.setAttribute("height", `${height}`);
+	// svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+	// svg.setAttribute("fill", "white");
+	// svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+	// // svg.style.backgroundColor = "white";
+	// svg.classList.add("portal-icon");
 
-	// <path d="M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z" stroke="black" stroke-width="2"/>
-	const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
-	path.setAttribute(
-		"d",
-		"M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z"
-	);
-	path.setAttribute("stroke", "gray");
-	path.setAttribute("stroke-width", "2");
+	// // <path d="M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z" stroke="black" stroke-width="2"/>
+	// const path = document.createElementNS("http://www.w3.org/2000/svg", "path");
+	// path.setAttribute(
+	// 	"d",
+	// 	"M4 6H13M4 10H14M3.99643 1.00037C7.0853 0.999923 11.1618 0.999881 14.0043 1.00025C15.6603 1.00046 17 2.34315 17 3.99923V11.3601C17 12.9951 15.6909 14.3276 14.0563 14.3582L7.34301 14.4842C6.79168 14.4945 6.25387 14.6566 5.78866 14.9527L2.53688 17.022C1.87115 17.4456 1 16.9674 1 16.1783V3.99993C1 2.34351 2.34001 1.0006 3.99643 1.00037Z"
+	// );
+	// path.setAttribute("stroke", "gray");
+	// path.setAttribute("stroke-width", "2");
 
-	span.style.backgroundColor = "";
+	// span.style.backgroundColor = "";
 
-	svg.appendChild(path);
+	// svg.appendChild(path);
 
-	span.appendChild(svg);
+	// span.appendChild(svg);
 
 	if (portalText != "inline reference widget |*|") {
 		let portal = document.createElement("div");
@@ -275,9 +275,12 @@ export function updateBacklinkMarkPosition(
 		)
 		.forEach((marker) => {
 			if (!marker) return;
+			console.log(marker);
 			// toggle portals
 			const portal: HTMLElement | null = marker.querySelector(".portal");
 			const svg = marker.querySelector("svg");
+
+			console.log(showPortals);
 			if (showPortals) {
 				if (svg && !portal) svg.style.display = "inline";
 				else if (svg) svg.style.display = "none";
@@ -438,7 +441,8 @@ function createBacklinkData(
 
 	let matches = [...referencingFileData.matchAll(REFERENCE_REGEX)];
 	matches.forEach((match) => {
-		let [prefix, text, suffix, filename, from, to, portal] = processURI(
+		if (match[1].split(":").length != 8) return;
+		let [prefix, text, suffix, filename, from, to, portal, toggle] = processURI(
 			match[1]
 		);
 		const referencedLocation: DocumentLocation = {
@@ -448,6 +452,8 @@ function createBacklinkData(
 			filename,
 			from,
 			to,
+			portal,
+			toggle,
 		};
 
 		// 1. find the line which includes match.index
@@ -478,6 +484,8 @@ function createBacklinkData(
 			filename: referencingFile.path,
 			from: match.index!, // TODO do weird string format
 			to: match.index! + match[0].length, // TODO do weird string format
+			portal,
+			toggle,
 		};
 
 		if (portal == "portal") {
@@ -494,7 +502,10 @@ function createBacklinkData(
 			};
 
 			let line = getLineText(referencingFileData, index);
-			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "");
+			console.log(line);
+			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
+			console.log(portalText);
+			console.log(text);
 			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
 
 			backlinks.push({

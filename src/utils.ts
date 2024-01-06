@@ -35,9 +35,11 @@ export function processURI(
 	file: string,
 	from: number,
 	to: number,
-	portal?: string
+	portal: string,
+	toggle: string
 ] {
-	let [prefix, text, suffix, file, from, to, portal] = dataString.split(":");
+	let [prefix, text, suffix, file, from, to, portal, toggle] =
+		dataString.split(":");
 	prefix = decodeURIComponentString(prefix);
 	text = decodeURIComponentString(text);
 	suffix = decodeURIComponentString(suffix);
@@ -45,7 +47,18 @@ export function processURI(
 	from = decodeURIComponentString(from);
 	to = decodeURIComponentString(to);
 	if (portal) portal = decodeURIComponentString(portal);
-	return [prefix, text, suffix, file, parseInt(from), parseInt(to), portal];
+	toggle = decodeURIComponentString(toggle);
+
+	return [
+		prefix,
+		text,
+		suffix,
+		file,
+		parseInt(from),
+		parseInt(to),
+		portal,
+		toggle,
+	];
 }
 
 export function getPrefixAndSuffix(document: string, from: number, to: number) {
