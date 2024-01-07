@@ -21,6 +21,8 @@ import {
 	getPrefixAndSuffix,
 	handleRemoveHoveredCursor,
 	checkFocusCursor,
+	encodeURIComponentString,
+	decodeURIComponentString,
 } from "./utils";
 import {
 	ACTION_TYPE,
@@ -126,7 +128,15 @@ export function createReferenceIcon(portalText: string | null = null): {
 		let portal = document.createElement("div");
 		// portal.style.color = "black";
 		portal.classList.add("portal");
-		portal.innerHTML = portalText;
+
+		portalText.split(":").forEach((text, index) => {
+			if (index === 0 || index === 2)
+				portal.innerHTML += decodeURIComponentString(text);
+			else if (index === 1) {
+				portal.innerHTML += `<span class="text-accent";>${text}</span>`;
+			}
+		});
+
 		// span.style.backgroundColor = "white";
 		portal.style.userSelect = "none";
 		portal.style.pointerEvents = "none";
@@ -511,11 +521,49 @@ function createBacklinkData(
 			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
 			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
 
+			console.log(line);
+			console.log(portalText);
+			console.log(index);
+
+			let portalTextIndex = line.indexOf(match[0]);
+
+			portalTextSlice = "↗";
+
+			let startPortalText = portalText.substring(
+				Math.max(portalTextIndex - 25, 0),
+				portalTextIndex
+			);
+			if (
+				portalText.substring(Math.max(portalTextIndex - 25, 0), portalTextIndex)
+					.length > 0 &&
+				portalTextIndex - 25 > 0
+			)
+				startPortalText = "..." + startPortalText;
+
+			let endPortalText = portalText.substring(
+				portalTextIndex + 1,
+				Math.max(portalTextIndex + 25, portalText.length)
+			);
+
+			if (
+				portalText.substring(
+					portalTextIndex + 1,
+					Math.max(portalTextIndex + 25, portalText.length)
+				).length > 0 &&
+				portalTextIndex + 25 < portalText.length
+			)
+				endPortalText = endPortalText + "...";
+
 			backlinks.push({
 				referencedLocation,
 				referencingLocation,
 				dataString: match[1],
-				portalText: portalTextSlice,
+				portalText:
+					encodeURIComponentString(startPortalText) +
+					":" +
+					portalTextSlice +
+					":" +
+					encodeURIComponentString(endPortalText),
 			});
 		} else {
 			backlinks.push({

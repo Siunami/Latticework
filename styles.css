@@ -49,6 +49,10 @@ If your plugin does not need CSS, delete this file.
 	border-bottom-left-radius: 3px;
 }
 
+.text-accent {
+	color: var(--text-accent);
+}
+
 
 
 /* .reference-span:hover {
