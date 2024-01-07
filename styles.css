@@ -44,6 +44,13 @@ If your plugin does not need CSS, delete this file.
 	/*height: 16px;*/
 }
 
+.backlink-data-span::after  {
+	border-top-left-radius: 3px;
+	border-bottom-left-radius: 3px;
+}
+
+
+
 /* .reference-span:hover {
 	color: black;
 	background-color: var(--color-base-70);
@@ -71,12 +78,33 @@ If your plugin does not need CSS, delete this file.
 
 .reference-span-selected {
 	color: black !important;
-	background-color: var(--color-base-100) !important;
+	background-color: var(--color-base-100);
 }
 
 .reference-data-span-selected::after {
-	background-color: var(--color-base-100) !important;
+	background-color: var(--color-base-100);
+	/* background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%) !important; */
 }
+
+.backlink-hide-after::after {
+	display:none;
+}
+
+.backlink-span {
+	background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%) ;
+	border-radius: 3px;
+	color: var(--text-normal);
+}
+
+.backlink-span:hover {
+	background-color: var(--color-base-100) !important;
+	color:black !important
+}
+
+.backlink-span::after {
+	display:none !important
+}
+
 
 /* 
 .reference-data-span:hover::after {

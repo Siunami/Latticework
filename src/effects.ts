@@ -42,6 +42,7 @@ import {
 	updateBacklinkMarkPosition,
 	updateBacklinkMarkPositions,
 } from "./references";
+import { v4 as uuidv4 } from "uuid";
 
 function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
@@ -228,17 +229,28 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let destination = getCursor();
 	let updateState = updateBacklinkHover;
 
-	if (!span) return;
-	span.parentElement
-		?.querySelector(".reference-span")
-		?.classList.add("reference-span-selected");
-
-	span.classList.add("reference-data-span-selected");
-
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) return;
 	updateState({
 		type: `${ACTION_TYPE.BACKLINK}-start`,
+	});
+
+	if (!span) return;
+	const uuid = uuidv4();
+	const uuid2 = uuidv4();
+	span.parentElement
+		?.querySelector(".reference-span")
+		?.classList.add("reference-span-selected");
+	span.parentElement
+		?.querySelector(".reference-span")
+		?.classList.add("uuid-" + uuid);
+
+	span.classList.add("reference-data-span-selected");
+	span.classList.add("uuid-" + uuid2);
+
+	updateState({
+		uuid,
+		uuid2,
 	});
 
 	const referenceData = span.getAttribute("reference");
@@ -343,12 +355,22 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	if (backlinkSpan) {
 		// backlinkSpan.classList.add("reference-data-span-hovered");
 		// backlinkSpan.classList.add("reference-span-selected");
+		const backlinkUUID = uuidv4();
+		const backlinkUUID2 = uuidv4();
 		backlinkSpan.parentElement
 			?.querySelector(".reference-span")
 			?.classList.add("reference-span-selected");
+		backlinkSpan.parentElement
+			?.querySelector(".reference-span")
+			?.classList.add("uuid-" + backlinkUUID);
 
 		backlinkSpan.classList.add("reference-data-span-selected");
-		console.log(backlinkSpan);
+		backlinkSpan.classList.add("uuid-" + backlinkUUID2);
+
+		updateState({
+			backlinkUUID,
+			backlinkUUID2,
+		});
 	}
 
 	if (
@@ -386,11 +408,22 @@ export async function startReferenceEffect(
 	});
 
 	if (!span) return;
+	const uuid = uuidv4();
+	const uuid2 = uuidv4();
 	span.parentElement
 		?.querySelector(".reference-span")
 		?.classList.add("reference-span-selected");
+	span.parentElement
+		?.querySelector(".reference-span")
+		?.classList.add("uuid-" + uuid);
 
 	span.classList.add("reference-data-span-selected");
+	span.classList.add("uuid-" + uuid2);
+
+	updateState({
+		uuid,
+		uuid2,
+	});
 
 	const dataString = span.getAttribute("data");
 	if (!dataString) return;
@@ -486,8 +519,16 @@ export async function endReferenceCursorEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
-		getCursor();
+	const {
+		dataString,
+		leafId,
+		originalLeafId,
+		temp,
+		cursorViewport,
+		peek,
+		uuid,
+		uuid2,
+	} = getCursor();
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();
@@ -500,6 +541,17 @@ export async function endReferenceCursorEffect() {
 		resetHover();
 		throw new Error("Target leaf not found");
 	}
+
+	const workspaceContainer = workspace.containerEl;
+	const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
+	firstSpanPart?.classList.remove("reference-span-selected");
+	firstSpanPart?.classList.remove(uuid);
+
+	const secondSpanPart = workspaceContainer.querySelector(
+		"." + "uuid-" + uuid2
+	);
+	secondSpanPart?.classList.remove("reference-data-span-selected");
+	secondSpanPart?.classList.remove("uuid-" + uuid2);
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
@@ -519,15 +571,15 @@ export async function endReferenceCursorEffect() {
 		// Toggling visual hover state
 		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
 
-		if (activeContainerEl != null) {
-			activeContainerEl
-				.querySelector(".reference-span-selected")
-				?.classList.remove("reference-span-selected");
+		// if (activeContainerEl != null) {
+		// 	activeContainerEl
+		// 		.querySelector(".reference-span-selected")
+		// 		?.classList.remove("reference-span-selected");
 
-			activeContainerEl
-				.querySelector(".reference-data-span-selected")
-				?.classList.remove("reference-data-span-selected");
-		}
+		// 	activeContainerEl
+		// 		.querySelector(".reference-data-span-selected")
+		// 		?.classList.remove("reference-data-span-selected");
+		// }
 		return;
 	}
 
@@ -590,18 +642,18 @@ export async function endReferenceCursorEffect() {
 				containerEl.querySelector(".view-content")?.setAttribute("style", "");
 			}
 		}
-		// Toggling visual hover state
-		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
+		// // Toggling visual hover state
+		// let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
 
-		if (activeContainerEl != null) {
-			activeContainerEl
-				.querySelector(".reference-span-selected")
-				?.classList.remove("reference-span-selected");
+		// if (activeContainerEl != null) {
+		// 	activeContainerEl
+		// 		.querySelector(".reference-span-selected")
+		// 		?.classList.remove("reference-span-selected");
 
-			activeContainerEl
-				.querySelector(".reference-data-span-selected")
-				?.classList.remove("reference-data-span-selected");
-		}
+		// 	activeContainerEl
+		// 		.querySelector(".reference-data-span-selected")
+		// 		?.classList.remove("reference-data-span-selected");
+		// }
 	}
 
 	if (temp && targetLeaf) {
@@ -632,8 +684,16 @@ export async function endReferenceHoverEffect() {
 		return;
 	}
 
-	const { dataString, leafId, originalLeafId, temp, cursorViewport, peek } =
-		getHover();
+	const {
+		dataString,
+		leafId,
+		originalLeafId,
+		temp,
+		cursorViewport,
+		peek,
+		uuid,
+		uuid2,
+	} = getHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// console.log("cursor reset");
 		// End mutex lock
@@ -642,11 +702,23 @@ export async function endReferenceHoverEffect() {
 	}
 
 	const { workspace } = getThat();
+
 	let targetLeaf = workspace.getLeafById(leafId);
 	if (!targetLeaf) {
 		resetHover();
 		throw new Error("Target leaf not found");
 	}
+
+	const workspaceContainer = workspace.containerEl;
+	const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
+	firstSpanPart?.classList.remove("reference-span-selected");
+	firstSpanPart?.classList.remove(uuid);
+
+	const secondSpanPart = workspaceContainer.querySelector(
+		"." + "uuid-" + uuid2
+	);
+	secondSpanPart?.classList.remove("reference-data-span-selected");
+	secondSpanPart?.classList.remove("uuid-" + uuid2);
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
@@ -779,6 +851,10 @@ export async function endBacklinkHoverEffect() {
 		cursorViewport,
 		originalTab,
 		peek,
+		uuid,
+		uuid2,
+		backlinkUUID,
+		backlinkUUID2,
 	} = getBacklinkHover();
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
@@ -793,23 +869,32 @@ export async function endBacklinkHoverEffect() {
 		throw new Error("Target leaf not found");
 	}
 
-	const activeLeaf = getThat().workspace.getLeaf();
+	// Remove all highlights
+	const workspaceContainer = workspace.containerEl;
+	const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
+	firstSpanPart?.classList.remove("reference-span-selected");
+	firstSpanPart?.classList.remove(uuid);
 
-	// @ts-ignore
-	let backlinkSpan: HTMLSpanElement = targetLeaf.containerEl.querySelector(
-		`span[data="${dataString}"]`
+	const secondSpanPart = workspaceContainer.querySelector(
+		"." + "uuid-" + uuid2
 	);
+	secondSpanPart?.classList.remove("reference-data-span-selected");
+	secondSpanPart?.classList.remove("uuid-" + uuid2);
 
-	if (backlinkSpan) {
-		// backlinkSpan.classList.remove("reference-data-span-hovered");
-		backlinkSpan
-			.querySelector(".reference-span-selected")
-			?.classList.remove("reference-span-selected");
+	const firstBacklinkSpanPart = workspaceContainer.querySelector(
+		"." + "uuid-" + backlinkUUID
+	);
+	console.log(firstBacklinkSpanPart);
+	firstBacklinkSpanPart?.classList.remove("reference-span-selected");
+	firstBacklinkSpanPart?.classList.remove(backlinkUUID);
 
-		backlinkSpan
-			.querySelector(".reference-data-span-selected")
-			?.classList.remove("reference-data-span-selected");
-	}
+	const secondBacklinkSpanPart = workspaceContainer.querySelector(
+		"." + "uuid-" + backlinkUUID2
+	);
+	secondBacklinkSpanPart?.classList.remove("reference-data-span-selected");
+	secondBacklinkSpanPart?.classList.remove("uuid-" + backlinkUUID2);
+
+	const activeLeaf = getThat().workspace.getLeaf();
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -818,15 +903,15 @@ export async function endBacklinkHoverEffect() {
 		// Toggling visual hover state
 		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
 
-		if (activeContainerEl != null) {
-			activeContainerEl
-				.querySelector(".reference-span-selected")
-				?.classList.remove("reference-span-selected");
+		// if (activeContainerEl != null) {
+		// 	activeContainerEl
+		// 		.querySelector(".reference-span-selected")
+		// 		?.classList.remove("reference-span-selected");
 
-			activeContainerEl
-				.querySelector(".reference-data-span-selected")
-				?.classList.remove("reference-data-span-selected");
-		}
+		// 	activeContainerEl
+		// 		.querySelector(".reference-data-span-selected")
+		// 		?.classList.remove("reference-data-span-selected");
+		// }
 	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
@@ -851,7 +936,7 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlights(originalEditorView);
 
-	if (getCursor() != null) {
+	if (getCursor() != null && getCursor().dataString) {
 		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();
 		let [prefix, text, suffix, file, from, to] = processURI(dataString);
 		const cursorLeaf = workspace.getLeafById(leafId);

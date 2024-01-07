@@ -13,12 +13,9 @@ import {
 import {
 	openReference,
 	createReferenceIcon,
-	generateBacklinks,
-	createBacklinkMark,
 	updateBacklinkMarkPositions,
 } from "../references";
 import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
-import { getBacklinks } from "src/state";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {

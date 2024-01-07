@@ -1,5 +1,5 @@
 import { Editor, TFile, WorkspaceLeaf, MarkdownView } from "obsidian";
-import { EditorView } from "@codemirror/view";
+import { EditorView, scrollPastEnd } from "@codemirror/view";
 import { v5 as uuidv5 } from "uuid";
 
 import {
@@ -47,52 +47,52 @@ export function createReferenceIcon(portalText: string | null = null): {
 
 	if (portalText == null) {
 		const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
-		svg.setAttribute("width", `${width}`);
-		svg.setAttribute("height", `${height}`);
-		svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-		svg.setAttribute("fill", "white");
-		svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
-		svg.style.border = "3px solid grey";
-		svg.style.backgroundColor = "white";
-		svg.style.borderRadius = "3px";
-		svg.style.cursor = "pointer";
-		svg.classList.add("reference-icon");
+		// svg.setAttribute("width", `${width}`);
+		// svg.setAttribute("height", `${height}`);
+		// svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+		// svg.setAttribute("fill", "white");
+		// svg.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+		// svg.style.border = "3px solid grey";
+		// svg.style.backgroundColor = "white";
+		// svg.style.borderRadius = "3px";
+		// svg.style.cursor = "pointer";
+		// svg.classList.add("reference-icon");
 
-		const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
-		line.setAttribute("x1", "3");
-		line.setAttribute("y1", `${(height - 3) / 3}`);
-		line.setAttribute("x2", "12");
-		line.setAttribute("y2", `${(height - 3) / 3}`);
-		line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-		line.setAttribute("stroke", "grey"); // Set the stroke color to black
+		// const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+		// line.setAttribute("x1", "3");
+		// line.setAttribute("y1", `${(height - 3) / 3}`);
+		// line.setAttribute("x2", "12");
+		// line.setAttribute("y2", `${(height - 3) / 3}`);
+		// line.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		// line.setAttribute("stroke", "grey"); // Set the stroke color to black
 
-		svg.appendChild(line);
+		// svg.appendChild(line);
 
-		const line2 = document.createElementNS(
-			"http://www.w3.org/2000/svg",
-			"line"
-		);
-		line2.setAttribute("x1", "3");
-		line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
-		line2.setAttribute("x2", "15");
-		line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
-		line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-		line2.setAttribute("stroke", "grey"); // Set the stroke color to black
+		// const line2 = document.createElementNS(
+		// 	"http://www.w3.org/2000/svg",
+		// 	"line"
+		// );
+		// line2.setAttribute("x1", "3");
+		// line2.setAttribute("y1", `${((height - 3) / 3) * 2}`);
+		// line2.setAttribute("x2", "15");
+		// line2.setAttribute("y2", `${((height - 3) / 3) * 2}`);
+		// line2.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		// line2.setAttribute("stroke", "grey"); // Set the stroke color to black
 
-		svg.appendChild(line2);
+		// svg.appendChild(line2);
 
-		const line3 = document.createElementNS(
-			"http://www.w3.org/2000/svg",
-			"line"
-		);
-		line3.setAttribute("x1", "3");
-		line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
-		line3.setAttribute("x2", "10");
-		line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
-		line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
-		line3.setAttribute("stroke", "grey"); // Set the stroke color to black
+		// const line3 = document.createElementNS(
+		// 	"http://www.w3.org/2000/svg",
+		// 	"line"
+		// );
+		// line3.setAttribute("x1", "3");
+		// line3.setAttribute("y1", `${((height - 3) / 3) * 3}`);
+		// line3.setAttribute("x2", "10");
+		// line3.setAttribute("y2", `${((height - 3) / 3) * 3}`);
+		// line3.setAttribute("stroke-width", "2"); // Set the stroke weight to 1
+		// line3.setAttribute("stroke", "grey"); // Set the stroke color to black
 
-		svg.appendChild(line3);
+		// svg.appendChild(line3);
 
 		// span.appendChild(svg);
 		return { span: span, svg };
@@ -124,7 +124,7 @@ export function createReferenceIcon(portalText: string | null = null): {
 
 	if (portalText != "inline reference widget |*|") {
 		let portal = document.createElement("div");
-		portal.style.color = "black";
+		// portal.style.color = "black";
 		portal.classList.add("portal");
 		portal.innerHTML = portalText;
 		// span.style.backgroundColor = "white";
@@ -240,6 +240,7 @@ export function updateBacklinkMarkPosition(
 
 	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
 
+	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
 		const { from } = backlink.referencedLocation;
 
@@ -266,6 +267,8 @@ export function updateBacklinkMarkPosition(
 		return referenceMarker;
 	});
 
+	// Now account for possible position overlaps and shift downwards
+	// also consider whether the portals should be shown or not.
 	let lastYBottom = -Infinity; // for large documents 😁
 	let margin = 4;
 	referenceMarkers
@@ -275,30 +278,24 @@ export function updateBacklinkMarkPosition(
 		)
 		.forEach((marker) => {
 			if (!marker) return;
-			console.log(marker);
 			// toggle portals
 			const portal: HTMLElement | null = marker.querySelector(".portal");
 			const svg = marker.querySelector("svg");
 
-			console.log(showPortals);
 			if (showPortals) {
-				if (svg && !portal) svg.style.display = "inline";
-				else if (svg) svg.style.display = "none";
+				// if (svg && !portal) svg.style.display = "inline";
+				// else if (svg) svg.style.display = "none";
 
 				if (portal) {
 					portal.style.display = "inline";
-					marker.style.border = "3px solid grey";
-					marker.style.padding = "3px";
-					marker.style.borderRadius = "3px";
+					marker.classList.add("backlink-span");
 				}
 			} else {
-				if (svg) svg.style.display = "inline";
+				// if (svg) svg.style.display = "inline";
 				if (portal) {
 					portal.style.display = "none";
-					marker.style.border = "none";
-					marker.style.padding = "0px";
-					marker.style.borderRadius = "0px";
 				}
+				marker.classList.remove("backlink-span");
 			}
 			// get positioning
 			let top = parseInt(marker!.getAttribute("top")!);
@@ -345,6 +342,8 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 	// think about the case where the backlink is to an isolated quote
 
 	let { span, svg } = createReferenceIcon(backlink.portalText);
+	span.classList.add("backlink-data-span");
+
 	const portal: HTMLElement | null = span.querySelector(".portal");
 
 	span.style.position = "absolute";
@@ -353,38 +352,45 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 	span.setAttribute("reference", JSON.stringify(backlink));
 
 	span.addEventListener("mouseenter", async () => {
-		if (portal && portal.style.display != "none") {
-			span.style.backgroundColor = SVG_HOVER_COLOR;
-		} else {
-			span.style.backgroundColor = "";
-			svg.setAttribute("fill", SVG_HOVER_COLOR);
-		}
+		// span.classList.add("reference-data-span-selected");
+		// if (portal && portal.style.display != "none") {
+		// 	// span.style.backgroundColor = SVG_HOVER_COLOR;
+		// 	span.classList.add("reference-data-span-selected");
+		// } else {
+		// 	span.classList.remove("reference-data-span-selected");
+
+		// 	// span.style.backgroundColor = "";
+		// 	// svg.setAttribute("fill", SVG_HOVER_COLOR);
+		// }
 
 		// remove existing cursors
 		updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 	});
 
 	span.addEventListener("mouseleave", async () => {
-		if (portal && portal.style.display != "none") {
-			span.style.backgroundColor = "white";
-			// svg.style.backgroundColor = "white";
-		} else {
-			span.style.backgroundColor = "";
-			if (portal) {
-				svg.setAttribute("fill", "white");
-			} else {
-				svg.style.backgroundColor = "white";
-			}
-		}
+		// if (portal && portal.style.display != "none") {
+		// 	// span.style.backgroundColor = "white";
+		// 	// svg.style.backgroundColor = "white";
+		// } else {
+		// 	// span.style.backgroundColor = "";
+		// 	// if (portal) {
+		// 	// 	svg.setAttribute("fill", "white");
+		// 	// } else {
+		// 	// 	svg.style.backgroundColor = "white";
+		// 	// }
+		// 	span.classList.remove("backlink-span");
+		// }
 
 		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
 	});
 
 	const resizeObserver = new ResizeObserver((entries) => {
 		if (portal && portal.style.display != "none") {
-			span.style.backgroundColor = "white";
+			// span.style.backgroundColor = "white";
+			span.classList.add("backlink-portal-open");
 		} else {
-			span.style.backgroundColor = "";
+			// span.style.backgroundColor = "";
+			span.classList.remove("backlink-portal-open");
 		}
 	});
 
@@ -502,10 +508,7 @@ function createBacklinkData(
 			};
 
 			let line = getLineText(referencingFileData, index);
-			console.log(line);
 			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
-			console.log(portalText);
-			console.log(text);
 			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
 
 			backlinks.push({
