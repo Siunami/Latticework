@@ -1,11 +1,7 @@
 {
 	"id": "reference-plugin",
 	"name": "Reference plugin",
-<<<<<<< HEAD
 	"version": "0.1.2",
-=======
-	"version": "0.1.1",
->>>>>>> 2b74265534c8dd8e51eab50db0595478b7406895
 	"minAppVersion": "0.15.0",
 	"description": "Reference plugin",
 	"author": "Obsidian",
