@@ -54,7 +54,6 @@ export default class ReferencePlugin extends Plugin {
 			}),
 		]);
 
-		let lastSpan;
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 

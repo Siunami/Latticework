@@ -343,14 +343,6 @@ export async function updateBacklinkMarkPositions() {
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {
-	// Andy's notes on laying out the references so that they don't collide
-	// 1. in this function, store the bbox.top in an attribute so that you can use it later
-	// 2. separately, do a global layout pass whenever the geometry changes or also on edits (With debounce)
-	//    in that global layout pass, sort all the references by bbox.top (via the attribute), then greedily layout
-	//	  let lastYBottom; for the first one, place it where it wants to be. then set lastYBottom to that bbox.top plus its height
-	//	  then, for the rest, set their top to max(bbox.top, lastYBottom + margin)
-	// think about the case where the backlink is to an isolated quote
-
 	let { span, svg } = createReferenceIcon(backlink.portalText);
 	span.classList.add("backlink-data-span");
 
@@ -360,39 +352,6 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 
 	span.id = getBacklinkID(backlink);
 	span.setAttribute("reference", JSON.stringify(backlink));
-
-	span.addEventListener("mouseenter", async () => {
-		// span.classList.add("reference-data-span-selected");
-		// if (portal && portal.style.display != "none") {
-		// 	// span.style.backgroundColor = SVG_HOVER_COLOR;
-		// 	span.classList.add("reference-data-span-selected");
-		// } else {
-		// 	span.classList.remove("reference-data-span-selected");
-
-		// 	// span.style.backgroundColor = "";
-		// 	// svg.setAttribute("fill", SVG_HOVER_COLOR);
-		// }
-
-		// remove existing cursors
-		updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
-	});
-
-	span.addEventListener("mouseleave", async () => {
-		// if (portal && portal.style.display != "none") {
-		// 	// span.style.backgroundColor = "white";
-		// 	// svg.style.backgroundColor = "white";
-		// } else {
-		// 	// span.style.backgroundColor = "";
-		// 	// if (portal) {
-		// 	// 	svg.setAttribute("fill", "white");
-		// 	// } else {
-		// 	// 	svg.style.backgroundColor = "white";
-		// 	// }
-		// 	span.classList.remove("backlink-span");
-		// }
-
-		handleRemoveHoveredCursor(ACTION_TYPE.BACKLINK);
-	});
 
 	const resizeObserver = new ResizeObserver((entries) => {
 		if (portal && portal.style.display != "none") {
@@ -472,14 +431,6 @@ function createBacklinkData(
 			toggle,
 		};
 
-		// 1. find the line which includes match.index
-		// 2. strip out all the links in that line
-		// 3. extract the first N characters of the line
-		// const portalText = referencingFileData.slice(
-		// 	match.index! - PORTAL_TEXT_SLICE_SIZE,
-		// 	PORTAL_TEXT_SLICE_SIZE
-		// );
-
 		let index = referencingFileData.indexOf(match[0]);
 
 		const referencingSurroundingStrings = getPrefixAndSuffix(
@@ -521,12 +472,9 @@ function createBacklinkData(
 			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
 			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
 
-			console.log(line);
-			console.log(portalText);
-			console.log(index);
-
 			let portalTextIndex = line.indexOf(match[0]);
 
+			// getting the portal text selection around the reference
 			portalTextSlice = "↗";
 
 			let startPortalText = portalText.substring(
@@ -544,7 +492,6 @@ function createBacklinkData(
 				portalTextIndex + 1,
 				Math.max(portalTextIndex + 25, portalText.length)
 			);
-
 			if (
 				portalText.substring(
 					portalTextIndex + 1,
@@ -610,19 +557,11 @@ export function generateBacklinks() {
 
 // Should only recompute for the particular page being opened or interacted with
 export async function recomputeReferencesForPage(): Promise<Backlink[]> {
-	const leaves = getThat().workspace.getLeavesOfType("markdown");
 	let references: Backlink[] = [];
 	let markdownFiles = this.app.vault.getMarkdownFiles();
 
 	let promises = markdownFiles.map((file: TFile) => this.app.vault.read(file));
-	// let promises = leaves.map((leaf: WorkspaceLeaf) => {
-	// 	// const activeLeaf = this.app.workspace.getActiveViewOfType(MarkdownView);
-	// 	// if (!activeLeaf) return;
-	// 	const view = getMarkdownView(leaf);
-	// 	const file = view.file;
-	// 	if (!file) throw new Error("Missing file");
-	// 	return this.app.vault.read(file);
-	// });
+
 	let files = await Promise.all(promises);
 	const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
 		markdownFile: file,
@@ -634,24 +573,6 @@ export async function recomputeReferencesForPage(): Promise<Backlink[]> {
 
 		references.push(...fileBacklinks);
 	});
-	// files.forEach((file, i) => {
-	// 	let fileBacklinks = createBacklinkData(file, file);
-	// 	updateBacklinks(fileBacklinks);
-
-	// 	references = [...references, ...fileBacklinks];
-	// });
-	// leaves.forEach((leaf: WorkspaceLeaf, i) => {
-	// 	const view = getMarkdownView(leaf);
-	// 	const file = view.file;
-	// 	if (!file) throw new Error("Missing file");
-	// 	let fileBacklinks = createBacklinkData(files[i], file);
-	// 	updateBacklinks(fileBacklinks);
-
-	// 	references = [...references, ...fileBacklinks];
-	// });
-
-	// console.log(references);
-	// updateBacklinks(references);
 	return references;
 }
 

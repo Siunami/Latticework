@@ -568,18 +568,6 @@ export async function endReferenceCursorEffect() {
 			// @ts-ignore
 			containerEl.querySelector(".view-content")?.setAttribute("style", "");
 		}
-		// Toggling visual hover state
-		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
-
-		// if (activeContainerEl != null) {
-		// 	activeContainerEl
-		// 		.querySelector(".reference-span-selected")
-		// 		?.classList.remove("reference-span-selected");
-
-		// 	activeContainerEl
-		// 		.querySelector(".reference-data-span-selected")
-		// 		?.classList.remove("reference-data-span-selected");
-		// }
 		return;
 	}
 
@@ -642,18 +630,6 @@ export async function endReferenceCursorEffect() {
 				containerEl.querySelector(".view-content")?.setAttribute("style", "");
 			}
 		}
-		// // Toggling visual hover state
-		// let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
-
-		// if (activeContainerEl != null) {
-		// 	activeContainerEl
-		// 		.querySelector(".reference-span-selected")
-		// 		?.classList.remove("reference-span-selected");
-
-		// 	activeContainerEl
-		// 		.querySelector(".reference-data-span-selected")
-		// 		?.classList.remove("reference-data-span-selected");
-		// }
 	}
 
 	if (temp && targetLeaf) {
@@ -894,24 +870,9 @@ export async function endBacklinkHoverEffect() {
 	secondBacklinkSpanPart?.classList.remove("reference-data-span-selected");
 	secondBacklinkSpanPart?.classList.remove("uuid-" + backlinkUUID2);
 
-	const activeLeaf = getThat().workspace.getLeaf();
-
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
-
-		// Toggling visual hover state
-		let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
-
-		// if (activeContainerEl != null) {
-		// 	activeContainerEl
-		// 		.querySelector(".reference-span-selected")
-		// 		?.classList.remove("reference-span-selected");
-
-		// 	activeContainerEl
-		// 		.querySelector(".reference-data-span-selected")
-		// 		?.classList.remove("reference-data-span-selected");
-		// }
 	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
