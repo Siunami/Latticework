@@ -35,6 +35,7 @@ import {
 import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
 import { endReferenceCursorEffect } from "./effects";
+import { v4 as uuidv4 } from "uuid";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -43,6 +44,7 @@ export function createReferenceIcon(portalText: string | null = null): {
 	const span = document.createElement("span");
 	span.style.cursor = "pointer";
 	span.classList.add("reference-data-span");
+	span.classList.add("uuid-" + uuidv4());
 
 	const height = REFERENCE_ICON_HEIGHT;
 	const width = height * 0.9;
@@ -500,6 +502,10 @@ function createBacklinkData(
 				portalTextIndex + 25 < portalText.length
 			)
 				endPortalText = endPortalText + "...";
+
+			console.log(
+				startPortalText + ":" + portalTextSlice + ":" + endPortalText
+			);
 
 			backlinks.push({
 				referencedLocation,

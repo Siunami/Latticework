@@ -99,3 +99,6 @@ export function removeHighlights(view: EditorView) {
 	}
 	return false;
 }
+
+// I want to add a bunch of highlights to the state that use some lighter highlight theme
+// And then remove them and update the highlights on each generation of backlinkMarkPositions

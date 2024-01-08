@@ -14,6 +14,7 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
+	delay,
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
@@ -54,6 +55,7 @@ export default class ReferencePlugin extends Plugin {
 			}),
 		]);
 
+		let startEffectLast = new Date().getTime();
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 
@@ -84,6 +86,7 @@ export default class ReferencePlugin extends Plugin {
 				span?.parentElement.classList.contains("reference-container-span")
 			) {
 				if (getHover() != null) return;
+				startEffectLast = new Date().getTime();
 				if (!span.getAttribute("data")) {
 					span = span.parentElement;
 					span = span.querySelector(".reference-data-span") as HTMLSpanElement;
@@ -101,18 +104,24 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
+				startEffectLast = new Date().getTime();
+
 				// if (getBacklinks() != null) return;
 				// console.log("start backlink effect");
 				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
+				if (Object.keys(getHover()).length == 2) await delay(50); // startReferenceEffect has a 50ms delay that might need to be accounted for if mouse moves rapidly
+				console.log(getHover());
 				// console.log("end hover reference effect");
 				endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
+				// console.log(getBacklinks());
+
+				if (new Date().getTime() - startEffectLast < 50) await delay(50);
 				// console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
-			} else {
 			}
 			// else {
 			// 	// console.log("end hover reference effect");
