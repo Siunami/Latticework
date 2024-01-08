@@ -10,32 +10,32 @@ import { SVG_HOVER_COLOR } from "./constants";
 import { deflate } from "zlib";
 import { delay } from "./effects";
 
-const addHighlight = StateEffect.define<{ from: number; to: number }>({
+const addDefaultHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({
 		from: change.mapPos(from),
 		to: change.mapPos(to),
 	}),
 });
 
-const resetHighlight = StateEffect.define<{ from: number; to: number }>({
+const resetDefaultHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({
 		from: change.mapPos(from),
 		to: change.mapPos(to),
 	}),
 });
 
-const highlightField = StateField.define<DecorationSet>({
+const defaultHighlightField = StateField.define<DecorationSet>({
 	create() {
 		return Decoration.none;
 	},
 	update(higlights, tr) {
 		higlights = higlights.map(tr.changes);
 		for (let e of tr.effects)
-			if (e.is(addHighlight)) {
+			if (e.is(addDefaultHighlight)) {
 				higlights = higlights.update({
 					add: [highlightMark.range(e.value.from, e.value.to)],
 				});
-			} else if (e.is(resetHighlight)) {
+			} else if (e.is(resetDefaultHighlight)) {
 				higlights = higlights.update({ filter: (from, to) => false });
 			}
 		return higlights;
@@ -57,51 +57,60 @@ const defaultHighlightTheme = EditorView.baseTheme({
 	},
 });
 
-export function highlightSelection(view: EditorView, from: number, to: number) {
-	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
-
-	if (!effects.length) return false;
-
-	if (!view.state.field(highlightField, false))
-		effects.push(StateEffect.appendConfig.of([highlightField, highlightTheme]));
-
-	view.dispatch({ effects });
-	return true;
-}
-
-// have a function that adds subtle highlights to state
-export async function defaultHighlightSelection(
+export function highlightDefaultSelection(
 	view: EditorView,
 	from: number,
 	to: number
 ) {
-	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
+	let effects: StateEffect<unknown>[] = [addDefaultHighlight.of({ from, to })];
 
 	if (!effects.length) return false;
 
-	if (!view.state.field(highlightField, false))
+	if (!view.state.field(defaultHighlightField, false))
 		effects.push(
-			StateEffect.appendConfig.of([highlightField, defaultHighlightTheme])
+			StateEffect.appendConfig.of([
+				defaultHighlightField,
+				defaultHighlightTheme,
+			])
 		);
 
 	view.dispatch({ effects });
-
-	// try {
-	// 	view.dispatch({ effects });
-	// } catch (e) {
-	// 	await delay(1000);
-	// 	view.dispatch({ effects });
-	// }
-
 	return true;
 }
 
+// // have a function that adds subtle highlights to state
+// export async function defaultHighlightSelection(
+// 	view: EditorView,
+// 	from: number,
+// 	to: number
+// ) {
+// 	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
+
+// 	if (!effects.length) return false;
+
+// 	if (!view.state.field(highlightField, false))
+// 		effects.push(
+// 			StateEffect.appendConfig.of([highlightField, defaultHighlightTheme])
+// 		);
+
+// 	view.dispatch({ effects });
+
+// 	// try {
+// 	// 	view.dispatch({ effects });
+// 	// } catch (e) {
+// 	// 	await delay(1000);
+// 	// 	view.dispatch({ effects });
+// 	// }
+
+// 	return true;
+// }
+
 // update remove highlights so that
-export function removeHighlights(view: EditorView) {
+export function removeDefaultHighlights(view: EditorView) {
 	if (!view) return;
 
 	let effects: StateEffect<unknown>[] = view.state.selection.ranges.map(
-		({ from, to }) => resetHighlight.of({ from, to })
+		({ from, to }) => resetDefaultHighlight.of({ from, to })
 	);
 	if (effects.length) {
 		view.dispatch({ effects });

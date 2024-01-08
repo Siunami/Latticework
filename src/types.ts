@@ -11,6 +11,8 @@ export interface DocumentLocation {
 	filename: string;
 	from: number; // document offsets
 	to: number; // document offsets
+	portal: string;
+	toggle: string;
 }
 
 export interface Backlink {

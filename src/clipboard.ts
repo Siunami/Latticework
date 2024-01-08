@@ -26,7 +26,8 @@ export async function updateClipboard(
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
 			)}:${encodeURIComponentString(view.file.path)}:${from}:${to}:${
-				only ? "portal" : "no-portal"
+				// only ? "portal" : "no-portal"
+				"portal"
 			}:${toggle ? "t" : "f"})`;
 
 			// Write the selected text to the clipboard

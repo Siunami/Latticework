@@ -35,9 +35,11 @@ export function processURI(
 	file: string,
 	from: number,
 	to: number,
-	portal?: string
+	portal: string,
+	toggle: string
 ] {
-	let [prefix, text, suffix, file, from, to, portal] = dataString.split(":");
+	let [prefix, text, suffix, file, from, to, portal, toggle] =
+		dataString.split(":");
 	prefix = decodeURIComponentString(prefix);
 	text = decodeURIComponentString(text);
 	suffix = decodeURIComponentString(suffix);
@@ -45,7 +47,18 @@ export function processURI(
 	from = decodeURIComponentString(from);
 	to = decodeURIComponentString(to);
 	if (portal) portal = decodeURIComponentString(portal);
-	return [prefix, text, suffix, file, parseInt(from), parseInt(to), portal];
+	toggle = decodeURIComponentString(toggle);
+
+	return [
+		prefix,
+		text,
+		suffix,
+		file,
+		parseInt(from),
+		parseInt(to),
+		portal,
+		toggle,
+	];
 }
 
 export function getPrefixAndSuffix(document: string, from: number, to: number) {
@@ -204,8 +217,8 @@ export function handleRemoveHoveredCursor(user: string) {
 						svg.setAttribute("fill", "white");
 						svg.style.backgroundColor = "";
 					}
-					// element.cursor.style.backgroundColor = "white";
-					element.cursor.style.boxShadow = "none";
+					element.cursor.style.backgroundColor = "white";
+					// element.cursor.style.boxShadow = "none";
 				}
 			});
 
@@ -215,6 +228,8 @@ export function handleRemoveHoveredCursor(user: string) {
 
 export function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
+
+	console.log(span);
 
 	if (matched && span) {
 		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
