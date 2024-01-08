@@ -16,6 +16,8 @@ import {
 	updateBacklinkMarkPositions,
 } from "../references";
 import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
+import { defaultHighlightSelection } from "src/mark";
+import { highlightDefaultSelection } from "src/defaultMark";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
@@ -55,6 +57,8 @@ class ReferenceWidget extends WidgetType {
 		if (!content) throw new Error("Invalid reference");
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			content[1].split(":");
+
+		// highlightDefaultSelection(this.view, parseFloat(from), parseFloat(to));
 
 		const { span, svg } = createReferenceIcon(
 			portal == "portal" ? "inline reference widget |*|" : null

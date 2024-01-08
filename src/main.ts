@@ -194,7 +194,7 @@ export default class ReferencePlugin extends Plugin {
 							span.classList.toggle("reference-span-hidden", true);
 						});
 					});
-					new Notice("Toggle annotations on");
+					new Notice("Toggle annotations off");
 				}
 
 				// Find the element at line
