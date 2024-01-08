@@ -410,6 +410,19 @@ function getFilename(leaf: WorkspaceLeaf): string {
 	return file.name;
 }
 
+function findMatchPositions(line: string, regex: RegExp) {
+	let match;
+	const positions = [];
+	while ((match = regex.exec(line)) !== null) {
+		positions.push({
+			match: match[0],
+			start: match.index,
+			end: match.index + match[0].length,
+		});
+	}
+	return positions;
+}
+
 function createBacklinkData(
 	referencingFileData: string,
 	referencingFile: TFile
@@ -471,10 +484,24 @@ function createBacklinkData(
 			};
 
 			let line = getLineText(referencingFileData, index);
+			let matchPositions = findMatchPositions(
+				line,
+				new RegExp(REFERENCE_REGEX)
+			);
+
+			let matchIndex = 0;
+			for (let i = 0; i < matchPositions.length; i++) {
+				if (matchPositions[i].match == match[0]) {
+					break;
+				} else {
+					matchIndex += matchPositions[i].end - matchPositions[i].start - 1; // -1 because the line is replaced by a single character
+				}
+			}
+
 			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
 			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
 
-			let portalTextIndex = line.indexOf(match[0]);
+			let portalTextIndex = line.indexOf(match[0]) - matchIndex;
 
 			// getting the portal text selection around the reference
 			portalTextSlice = "↗";
@@ -502,10 +529,6 @@ function createBacklinkData(
 				portalTextIndex + 25 < portalText.length
 			)
 				endPortalText = endPortalText + "...";
-
-			console.log(
-				startPortalText + ":" + portalTextSlice + ":" + endPortalText
-			);
 
 			backlinks.push({
 				referencedLocation,

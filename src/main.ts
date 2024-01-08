@@ -113,12 +113,9 @@ export default class ReferencePlugin extends Plugin {
 			} else if (getHover() != null) {
 				if (Object.keys(getHover()).length == 2) await delay(50); // startReferenceEffect has a 50ms delay that might need to be accounted for if mouse moves rapidly
 				console.log(getHover());
-				// console.log("end hover reference effect");
 				endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
-				// console.log(getBacklinks());
-
 				if (new Date().getTime() - startEffectLast < 50) await delay(50);
 				// console.log("end backlink reference effect");
 				endBacklinkHoverEffect();
