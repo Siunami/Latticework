@@ -19,6 +19,106 @@ import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
 import { getThat } from "src/state";
 import { Editor, MarkdownView } from "obsidian";
 
+function processLine(line: Element) {
+	let lineCopy = line?.cloneNode(true) as HTMLElement;
+	lineCopy?.querySelectorAll(".reference-span").forEach((span) => {
+		span.innerHTML = "↗";
+	});
+
+	return lineCopy;
+}
+
+export async function serializeReference(
+	content: any,
+	referenceSpan: Element,
+	view: EditorView
+) {
+	const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+		content[1].split(":");
+	// Serialize the toggle state for reference into file
+	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
+	referenceSpan.classList.toggle("reference-span-hidden");
+
+	let newToggle = referenceSpan.classList.contains("reference-span-hidden")
+		? "f"
+		: "t";
+	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
+
+	let lines = view.contentDOM.querySelectorAll(".cm-line");
+
+	// get the index of the activeLine
+	let activeLineIndex;
+	let seenActive = false;
+	lines.forEach((line, i) => {
+		if (seenActive) return;
+		if (line.classList.contains("cm-active")) {
+			seenActive = true;
+			activeLineIndex = i;
+		}
+	});
+
+	// const editor: Editor | undefined =
+	// 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
+	// if (!editor) return;
+	// const cursor = editor.getCursor();
+	// console.log(cursor);
+	// console.log(activeLineIndex);
+
+	if (activeLineIndex === undefined) return;
+	let activeLine = lines[activeLineIndex];
+	// make copy of activeLine element
+	let activeLineCopy = processLine(activeLine);
+	// non-referenced parts of the text
+	let parts = activeLineCopy.innerText.split("↗");
+
+	// get all references
+	let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
+
+	// get the full serialized version for these references
+	let lineReferencesData = Array.from(lineReferences || []).map(
+		(span) => "[↗](urn:" + span.getAttribute("data") + ")"
+	);
+	if (content && content[1]) {
+		// identify which reference is being toggled
+		let index = lineReferencesData.indexOf(content[0]);
+		if (index == -1) throw new Error("Reference not found");
+
+		// get the text before the reference
+		let startText = [
+			...parts.slice(0, index + 1),
+			...lineReferencesData.slice(0, index),
+		];
+
+		// get all the prior lines to active line and the length of the text
+		let prevLineCharCount = Array.from(lines)
+			.slice(0, activeLineIndex)
+			.reduce((acc, line) => {
+				let processedLine = processLine(line);
+				let parts = processedLine.innerText.split("↗");
+
+				let lineReferences = line?.querySelectorAll(".reference-data-span");
+				let lineReferencesData = Array.from(lineReferences || []).map(
+					(span) => "[↗](urn:" + span.getAttribute("data") + ")"
+				);
+				let allSerializedText =
+					[...parts, ...lineReferencesData].join("") + "\n";
+				return allSerializedText.length + acc;
+			}, 0);
+
+		// set range to replace with new reference serialization
+		let from = prevLineCharCount + startText.join("").length;
+		let to = from + reference.length;
+
+		const transaction = view.state.update({
+			changes: { from, to, insert: content[0] },
+		});
+		view.dispatch(transaction);
+		await updateBacklinkMarkPositions();
+
+		// await this.updateName(reference, from, to);
+	}
+}
+
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
 	constructor(
@@ -34,11 +134,11 @@ class ReferenceWidget extends WidgetType {
 	}
 
 	async updateName(name: string, from: number, to: number) {
-		const transaction = this.view.state.update({
-			changes: { from, to, insert: name },
-		});
-		this.view.dispatch(transaction);
-		await updateBacklinkMarkPositions();
+		// const transaction = this.view.state.update({
+		// 	changes: { from, to, insert: name },
+		// });
+		// this.view.dispatch(transaction);
+		// await updateBacklinkMarkPositions();
 		this.name = name;
 	}
 
@@ -74,99 +174,93 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.appendChild(referenceSpan);
 		containerSpan.appendChild(span);
 
-		function processLine(line: Element) {
-			let lineCopy = line?.cloneNode(true) as HTMLElement;
-			lineCopy?.querySelectorAll(".reference-span").forEach((span) => {
-				span.innerHTML = "↗";
-			});
-
-			return lineCopy;
-		}
-
-		containerSpan.addEventListener("click", (ev) => {
+		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
-				// Serialize the toggle state for reference into file
-				// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
-				referenceSpan.classList.toggle("reference-span-hidden");
+				await serializeReference(content, referenceSpan, this.view);
+				if (content) this.name = content[0];
 
-				let newToggle = referenceSpan.classList.contains(
-					"reference-span-hidden"
-				)
-					? "f"
-					: "t";
-				let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
+				// // Serialize the toggle state for reference into file
+				// // KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
+				// referenceSpan.classList.toggle("reference-span-hidden");
 
-				let lines = this.getView().contentDOM.querySelectorAll(".cm-line");
+				// let newToggle = referenceSpan.classList.contains(
+				// 	"reference-span-hidden"
+				// )
+				// 	? "f"
+				// 	: "t";
+				// let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
-				// get the index of the activeLine
-				let activeLineIndex;
-				let seenActive = false;
-				lines.forEach((line, i) => {
-					if (seenActive) return;
-					if (line.classList.contains("cm-active")) {
-						seenActive = true;
-						activeLineIndex = i;
-					}
-				});
+				// let lines = this.getView().contentDOM.querySelectorAll(".cm-line");
 
-				// const editor: Editor | undefined =
-				// 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
-				// if (!editor) return;
-				// const cursor = editor.getCursor();
-				// console.log(cursor);
-				// console.log(activeLineIndex);
+				// // get the index of the activeLine
+				// let activeLineIndex;
+				// let seenActive = false;
+				// lines.forEach((line, i) => {
+				// 	if (seenActive) return;
+				// 	if (line.classList.contains("cm-active")) {
+				// 		seenActive = true;
+				// 		activeLineIndex = i;
+				// 	}
+				// });
 
-				if (activeLineIndex === undefined) return;
-				let activeLine = lines[activeLineIndex];
-				// make copy of activeLine element
-				let activeLineCopy = processLine(activeLine);
-				// non-referenced parts of the text
-				let parts = activeLineCopy.innerText.split("↗");
+				// // const editor: Editor | undefined =
+				// // 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
+				// // if (!editor) return;
+				// // const cursor = editor.getCursor();
+				// // console.log(cursor);
+				// // console.log(activeLineIndex);
 
-				// get all references
-				let lineReferences = activeLine?.querySelectorAll(
-					".reference-data-span"
-				);
+				// if (activeLineIndex === undefined) return;
+				// let activeLine = lines[activeLineIndex];
+				// // make copy of activeLine element
+				// let activeLineCopy = processLine(activeLine);
+				// // non-referenced parts of the text
+				// let parts = activeLineCopy.innerText.split("↗");
 
-				// get the full serialized version for these references
-				let lineReferencesData = Array.from(lineReferences || []).map(
-					(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-				);
-				if (content && content[1]) {
-					// identify which reference is being toggled
-					let index = lineReferencesData.indexOf(content[0]);
-					if (index == -1) throw new Error("Reference not found");
+				// // get all references
+				// let lineReferences = activeLine?.querySelectorAll(
+				// 	".reference-data-span"
+				// );
 
-					// get the text before the reference
-					let startText = [
-						...parts.slice(0, index + 1),
-						...lineReferencesData.slice(0, index),
-					];
+				// // get the full serialized version for these references
+				// let lineReferencesData = Array.from(lineReferences || []).map(
+				// 	(span) => "[↗](urn:" + span.getAttribute("data") + ")"
+				// );
+				// if (content && content[1]) {
+				// 	// identify which reference is being toggled
+				// 	let index = lineReferencesData.indexOf(content[0]);
+				// 	if (index == -1) throw new Error("Reference not found");
 
-					// get all the prior lines to active line and the length of the text
-					let prevLineCharCount = Array.from(lines)
-						.slice(0, activeLineIndex)
-						.reduce((acc, line) => {
-							let processedLine = processLine(line);
-							let parts = processedLine.innerText.split("↗");
+				// 	// get the text before the reference
+				// 	let startText = [
+				// 		...parts.slice(0, index + 1),
+				// 		...lineReferencesData.slice(0, index),
+				// 	];
 
-							let lineReferences = line?.querySelectorAll(
-								".reference-data-span"
-							);
-							let lineReferencesData = Array.from(lineReferences || []).map(
-								(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-							);
-							let allSerializedText =
-								[...parts, ...lineReferencesData].join("") + "\n";
-							return allSerializedText.length + acc;
-						}, 0);
+				// 	// get all the prior lines to active line and the length of the text
+				// 	let prevLineCharCount = Array.from(lines)
+				// 		.slice(0, activeLineIndex)
+				// 		.reduce((acc, line) => {
+				// 			let processedLine = processLine(line);
+				// 			let parts = processedLine.innerText.split("↗");
 
-					// set range to replace with new reference serialization
-					let from = prevLineCharCount + startText.join("").length;
-					let to = from + reference.length;
+				// 			let lineReferences = line?.querySelectorAll(
+				// 				".reference-data-span"
+				// 			);
+				// 			let lineReferencesData = Array.from(lineReferences || []).map(
+				// 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
+				// 			);
+				// 			let allSerializedText =
+				// 				[...parts, ...lineReferencesData].join("") + "\n";
+				// 			return allSerializedText.length + acc;
+				// 		}, 0);
 
-					this.updateName(reference, from, to);
-				}
+				// 	// set range to replace with new reference serialization
+				// 	let from = prevLineCharCount + startText.join("").length;
+				// 	let to = from + reference.length;
+
+				// 	await this.updateName(reference, from, to);
+				// }
 			} else {
 				openReference(ev);
 			}

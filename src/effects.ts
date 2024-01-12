@@ -12,38 +12,21 @@ import {
 	resetBacklinkHover,
 	updateHoveredCursor,
 } from "./state";
-import { ACTION_TYPE, REFERENCE_REGEX, SVG_HOVER_COLOR } from "./constants";
+import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import {
 	collectLeavesByTabHelper,
 	getCurrentTabIndex,
 	openFileInAdjacentTab,
 } from "./workspace";
-import {
-	processURI,
-	decodeURIComponentString,
-	findTextPositions,
-	listItemLength,
-	handleRemoveHoveredCursor,
-} from "./utils";
-import {
-	Editor,
-	MarkdownEditView,
-	MarkdownView,
-	WorkspaceItem,
-	WorkspaceLeaf,
-} from "obsidian";
+import { processURI, findTextPositions } from "./utils";
+import { MarkdownView, WorkspaceLeaf } from "obsidian";
 import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
 	getBacklinkContainer,
 	getContainerElement,
-	getLeafBBoxElements,
 	getMarkdownView,
-	updateBacklinkMarkPosition,
-	updateBacklinkMarkPositions,
 } from "./references";
-import { v4 as uuidv4 } from "uuid";
-import { listenerCount } from "process";
 
 function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
@@ -406,7 +389,13 @@ export async function startReferenceEffect(
 	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
 
 	// Mutex, prevent concurrent access to following section of code
-	if (source != null) return;
+	if (source != null) {
+		if (ACTION_TYPE.CURSOR == type) {
+			await endReferenceCursorEffect();
+		} else {
+			return;
+		}
+	}
 	updateState({
 		type: `${type}-start`,
 	});
@@ -447,7 +436,7 @@ export async function startReferenceEffect(
 	const dataString = span.getAttribute("data");
 	if (!dataString) throw new Error("Data string not found");
 
-	if (destination != null && destination.dataString == dataString) {
+	if (destination != null && destination.dataString == dataString && ACTION_TYPE.CURSOR != type) {
 		updateHover(destination);
 		return;
 	}
@@ -547,6 +536,8 @@ export async function endReferenceCursorEffect() {
 		peek,
 		uuid,
 	} = getCursor();
+	resetCursor();
+
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();
@@ -554,12 +545,6 @@ export async function endReferenceCursorEffect() {
 	}
 
 	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		resetHover();
-		throw new Error("Target leaf not found");
-	}
-
 	const workspaceContainer = workspace.containerEl;
 	const span = workspaceContainer.querySelector("." + uuid);
 
@@ -569,15 +554,11 @@ export async function endReferenceCursorEffect() {
 	// firstSpanPart?.classList.remove(uuid);
 	span?.classList.remove("reference-data-span-selected");
 
-	// const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
-	// firstSpanPart?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
-
-	// const secondSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + uuid2
-	// );
-	// secondSpanPart?.classList.remove("reference-data-span-selected");
-	// secondSpanPart?.classList.remove("uuid-" + uuid2);
+	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) {
+		resetCursor();
+		throw new Error("Target leaf not found");
+	}
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
@@ -686,16 +667,10 @@ export async function endReferenceHoverEffect() {
 		return;
 	}
 
-	let {
-		dataString,
-		leafId,
-		originalLeafId,
-		temp,
-		cursorViewport,
-		peek,
-		uuid,
-		uuid2,
-	} = getHover();
+	let { dataString, leafId, originalLeafId, temp, cursorViewport, peek, uuid } =
+		getHover();
+	resetHover();
+
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// console.log("cursor reset");
 		// End mutex lock
@@ -858,13 +833,12 @@ export async function endBacklinkHoverEffect() {
 		backlinkLeafId,
 		temp,
 		cursorViewport,
-		originalTab,
 		peek,
 		uuid,
-		// uuid2,
 		backlinkUUID,
-		// backlinkUUID2,
 	} = getBacklinkHover();
+	resetBacklinkHover();
+
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
 		resetBacklinkHover();
