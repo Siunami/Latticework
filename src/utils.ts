@@ -233,7 +233,7 @@ export async function checkFocusCursor(evt: Event) {
 
 	if (matched && span) {
 		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
-		await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
+		// await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
 		await startReferenceEffect(span, ACTION_TYPE.CURSOR);
 	} else {
 		await endReferenceCursorEffect();

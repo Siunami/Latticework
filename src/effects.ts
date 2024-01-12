@@ -530,6 +530,8 @@ export async function endReferenceCursorEffect() {
 		peek,
 		uuid,
 	} = getCursor();
+	resetCursor();
+
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();
@@ -551,16 +553,6 @@ export async function endReferenceCursorEffect() {
 		?.classList.remove("reference-span-selected");
 	// firstSpanPart?.classList.remove(uuid);
 	span?.classList.remove("reference-data-span-selected");
-
-	// const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
-	// firstSpanPart?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
-
-	// const secondSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + uuid2
-	// );
-	// secondSpanPart?.classList.remove("reference-data-span-selected");
-	// secondSpanPart?.classList.remove("uuid-" + uuid2);
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
@@ -671,6 +663,8 @@ export async function endReferenceHoverEffect() {
 
 	let { dataString, leafId, originalLeafId, temp, cursorViewport, peek, uuid } =
 		getHover();
+	resetHover();
+
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// console.log("cursor reset");
 		// End mutex lock
@@ -837,6 +831,8 @@ export async function endBacklinkHoverEffect() {
 		uuid,
 		backlinkUUID,
 	} = getBacklinkHover();
+	resetBacklinkHover();
+
 	if (getCursor() != null && getCursor().dataString == dataString) {
 		// End mutex lock
 		resetBacklinkHover();

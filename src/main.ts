@@ -87,6 +87,7 @@ export default class ReferencePlugin extends Plugin {
 				span?.parentElement &&
 				span?.parentElement.classList.contains("reference-container-span")
 			) {
+				console.log("start hover reference effect");
 				if (getHover() != null) return;
 
 				if (!span.getAttribute("data")) {
@@ -102,10 +103,13 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
+				console.log("start hover backlink effect");
 				if (getBacklinkHover() != null) return;
 
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
+				console.log("end hover reference effect");
+
 				// Define the keys you're waiting for
 				const requiredKeys = [
 					"dataString",
@@ -129,6 +133,8 @@ export default class ReferencePlugin extends Plugin {
 				await endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
+				console.log("end hover backlink effect");
+
 				// Define the keys you're waiting for
 				const requiredKeys = [
 					"dataString",
@@ -166,7 +172,7 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "click", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 			await checkFocusCursor(evt);
-			updateBacklinkMarkPositions();
+			// updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
@@ -175,7 +181,7 @@ export default class ReferencePlugin extends Plugin {
 			// console.log("keyup");
 			await checkFocusCursor(evt);
 			// updateBacklinkMarkPositions();
-			updateBacklinkMarkPositions();
+			// updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
