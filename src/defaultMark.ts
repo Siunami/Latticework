@@ -7,8 +7,6 @@ import {
 	ChangeDesc,
 } from "@codemirror/state";
 import { SVG_HOVER_COLOR } from "./constants";
-import { deflate } from "zlib";
-import { delay } from "./effects";
 
 const addDefaultHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({

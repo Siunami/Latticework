@@ -474,7 +474,7 @@ export async function startReferenceEffect(
 	// 	resetState();
 	// 	return;
 	// }
-	await delay(50); // ensure new leaf has opened completely before doing checks below
+	// await delay(50); // ensure new leaf has opened completely before doing checks below
 
 	// @ts-ignore
 	let id = newLeaf.id;
