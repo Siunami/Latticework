@@ -164,19 +164,24 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 							throw new Error("Element not instance of Element");
 						let container = evt.target as Element;
 
-						let activeLine;
-						if (container.classList.contains("cm-active")) {
-							activeLine = container;
-						}
-						// else if (container.closest(".cm-active")) {
-						// 	activeLine = container.closest(".cm-active");
+						// let activeLine;
+						// if (container.classList.contains("cm-active")) {
+						// 	activeLine = container;
 						// }
-						else {
-							activeLine = container.querySelector(".cm-active");
-						}
-						if (!activeLine) throw new Error("Element not instance of Element");
+						// // else if (container.closest(".cm-active")) {
+						// // 	activeLine = container.closest(".cm-active");
+						// // }
+						// else {
+						// 	activeLine = container.querySelector(".cm-active");
+						// }
+						// if (!activeLine) throw new Error("Element not instance of Element");
 						// find html span element in target that has a data attribute equal to contents
-						let span = activeLine.querySelector(`span[data="${dataString}"]`);
+						let span = container;
+						if (!span.getAttribute("data"))
+							span = container.querySelector(
+								`span[data="${dataString}"]`
+							) as HTMLSpanElement;
+
 						if (span && span instanceof HTMLSpanElement) {
 							// console.log("Found span element:", span);
 							// Do something with the span element
@@ -194,7 +199,7 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 	return { matched, span: matchSpan };
 }
 
-// Remove an existing higlighted reference
+// Remove an existmaining higlighted reference
 export function handleRemoveHoveredCursor(user: string) {
 	if (getHoveredCursor()) {
 		// cursors not associated with the user action
@@ -229,11 +234,13 @@ export function handleRemoveHoveredCursor(user: string) {
 export async function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
+	console.log(matched);
 	console.log(span);
 
 	if (matched && span) {
+		await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
+		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
-		// await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
 		await startReferenceEffect(span, ACTION_TYPE.CURSOR);
 	} else {
 		await endReferenceCursorEffect();

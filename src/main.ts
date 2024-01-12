@@ -1,6 +1,13 @@
 import { Plugin, MarkdownView, Notice } from "obsidian";
 
-import { updateThat, getHover, getBacklinks, getBacklinkHover } from "./state";
+import {
+	updateThat,
+	getHover,
+	getBacklinks,
+	getBacklinkHover,
+	getThat,
+	getCursor,
+} from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -14,10 +21,12 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
+	endReferenceCursorEffect,
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
+import { serializeReference } from "./widget/referenceWidget";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -62,6 +71,9 @@ export default class ReferencePlugin extends Plugin {
 
 			console.log("backlink hover");
 			console.log(getBacklinkHover());
+
+			console.log("cursor");
+			console.log(getCursor());
 
 			let span;
 			if (
@@ -132,7 +144,7 @@ export default class ReferencePlugin extends Plugin {
 
 				await endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
-			} else if (getBacklinks() != null) {
+			} else if (getBacklinkHover() != null) {
 				console.log("end hover backlink effect");
 
 				// Define the keys you're waiting for
@@ -150,12 +162,14 @@ export default class ReferencePlugin extends Plugin {
 
 				// Function to check if all required keys are present
 				const allKeysPresent = () =>
-					requiredKeys.every((key) => key in getBacklinks());
+					requiredKeys.every((key) => key in getBacklinkHover());
 
 				// Wait until all keys are present
 				while (!allKeysPresent()) {
 					await new Promise((resolve) => setTimeout(resolve, 50));
 				}
+
+				console.log("start end backlink effect!!!!!");
 
 				await endBacklinkHoverEffect();
 			} else {
@@ -170,9 +184,12 @@ export default class ReferencePlugin extends Plugin {
 		// on selection changes, event over click and keydown
 
 		this.registerDomEvent(document, "click", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey) return;
+			console.log("click");
 			await checkFocusCursor(evt);
-			// updateBacklinkMarkPositions();
+			updateBacklinkMarkPositions();
+
+			// if (evt.metaKey || evt.ctrlKey) return;
+			// await endReferenceCursorEffect();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
@@ -180,7 +197,7 @@ export default class ReferencePlugin extends Plugin {
 
 			// console.log("keyup");
 			await checkFocusCursor(evt);
-			// updateBacklinkMarkPositions();
+			updateBacklinkMarkPositions();
 			// updateBacklinkMarkPositions();
 		});
 
@@ -220,6 +237,11 @@ export default class ReferencePlugin extends Plugin {
 				) {
 					spans.forEach((span) => {
 						span.classList.toggle("reference-span-hidden", false);
+						// Want to serialize references at some point
+						// console.log(span);
+						// getThat().workspace.getLeaf().view;
+
+						// serializeReference(span)
 					});
 					new Notice("Toggle annotations on");
 				} else {

@@ -389,7 +389,13 @@ export async function startReferenceEffect(
 	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
 
 	// Mutex, prevent concurrent access to following section of code
-	if (source != null) return;
+	if (source != null) {
+		if (ACTION_TYPE.CURSOR == type) {
+			await endReferenceCursorEffect();
+		} else {
+			return;
+		}
+	}
 	updateState({
 		type: `${type}-start`,
 	});
@@ -430,7 +436,7 @@ export async function startReferenceEffect(
 	const dataString = span.getAttribute("data");
 	if (!dataString) throw new Error("Data string not found");
 
-	if (destination != null && destination.dataString == dataString) {
+	if (destination != null && destination.dataString == dataString && ACTION_TYPE.CURSOR != type) {
 		updateHover(destination);
 		return;
 	}
@@ -539,12 +545,6 @@ export async function endReferenceCursorEffect() {
 	}
 
 	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		resetCursor();
-		throw new Error("Target leaf not found");
-	}
-
 	const workspaceContainer = workspace.containerEl;
 	const span = workspaceContainer.querySelector("." + uuid);
 
@@ -553,6 +553,12 @@ export async function endReferenceCursorEffect() {
 		?.classList.remove("reference-span-selected");
 	// firstSpanPart?.classList.remove(uuid);
 	span?.classList.remove("reference-data-span-selected");
+
+	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) {
+		resetCursor();
+		throw new Error("Target leaf not found");
+	}
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
