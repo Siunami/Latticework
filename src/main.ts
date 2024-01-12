@@ -164,15 +164,11 @@ export default class ReferencePlugin extends Plugin {
 			// 	new Notice("New annotation");
 			// }
 			else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
-				const editor: Editor | undefined =
-					this.app.workspace.getActiveViewOfType(MarkdownView)?.editor;
-				if (!editor) return;
-				const cursor = editor.getCursor();
-
-				// @ts-ignore
-				const element = editor.getDoc().cm.contentDOM;
-				const lines = element.querySelectorAll(".cm-line");
-				const currentLine = lines[cursor.line];
+				let target = evt.target as HTMLElement;
+				let children = Array.from(target.children);
+				let currentLine = children.filter((child) =>
+					child.classList.contains("cm-active")
+				)[0];
 
 				const spans = Array.from<HTMLSpanElement>(
 					currentLine.querySelectorAll(".reference-span")
@@ -181,7 +177,14 @@ export default class ReferencePlugin extends Plugin {
 				if (
 					spans.every((span) =>
 						span.classList.contains("reference-span-hidden")
-					)
+					) ||
+					(!spans.every((span) =>
+						span.classList.contains("reference-span-hidden")
+					) &&
+						spans.reduce((acc, span) => {
+							if (acc) return acc;
+							return span.classList.contains("reference-span-hidden");
+						}, false))
 				) {
 					spans.forEach((span) => {
 						span.classList.toggle("reference-span-hidden", false);
@@ -195,10 +198,6 @@ export default class ReferencePlugin extends Plugin {
 					});
 					new Notice("Toggle annotations off");
 				}
-
-				// Find the element at line
-				// get all span elements, update their display style
-				// the appropriate updates to state will occur automatically via observer
 			}
 		});
 

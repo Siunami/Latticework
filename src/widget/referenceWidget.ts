@@ -17,6 +17,7 @@ import {
 } from "../references";
 import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
 import { getThat } from "src/state";
+import { Editor, MarkdownView } from "obsidian";
 
 /* new placeholder */
 class ReferenceWidget extends WidgetType {
@@ -85,8 +86,8 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
 				// Serialize the toggle state for reference into file
+				// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 				referenceSpan.classList.toggle("reference-span-hidden");
-				console.log(referenceSpan);
 
 				let newToggle = referenceSpan.classList.contains(
 					"reference-span-hidden"
@@ -107,6 +108,13 @@ class ReferenceWidget extends WidgetType {
 						activeLineIndex = i;
 					}
 				});
+
+				// const editor: Editor | undefined =
+				// 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
+				// if (!editor) return;
+				// const cursor = editor.getCursor();
+				// console.log(cursor);
+				// console.log(activeLineIndex);
 
 				if (activeLineIndex === undefined) return;
 				let activeLine = lines[activeLineIndex];
@@ -153,6 +161,7 @@ class ReferenceWidget extends WidgetType {
 							return allSerializedText.length + acc;
 						}, 0);
 
+					// set range to replace with new reference serialization
 					let from = prevLineCharCount + startText.join("").length;
 					let to = from + reference.length;
 
