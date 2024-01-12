@@ -1,6 +1,6 @@
-import { Plugin, MarkdownView, Notice, Editor } from "obsidian";
+import { Plugin, MarkdownView, Notice } from "obsidian";
 
-import { updateThat, getThat, getHover, getBacklinks } from "./state";
+import { updateThat, getHover, getBacklinks, getBacklinkHover } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -14,18 +14,17 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
-	delay,
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
-import { ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
-import { EditorView, ViewUpdate } from "@codemirror/view";
+import { ACTION_TYPE } from "./constants";
+import { EditorView } from "@codemirror/view";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
 		setTimeout(() => {
 			generateBacklinks();
 			this.registerEvent(
-				this.app.workspace.on("active-leaf-change", (ev) => {
+				this.app.workspace.on("active-leaf-change", async (ev) => {
 					// console.log("active-leaf-changed:");
 					// This should create referenceMarkers if they don't exist and update
 					// else update only
@@ -34,7 +33,7 @@ export default class ReferencePlugin extends Plugin {
 						const activeView =
 							this.app.workspace.getActiveViewOfType(MarkdownView);
 						if (activeView?.leaf != null) {
-							addReferencesToLeaf(activeView.leaf);
+							await addReferencesToLeaf(activeView.leaf);
 						}
 					} catch (e) {
 						console.log(e);
@@ -55,13 +54,16 @@ export default class ReferencePlugin extends Plugin {
 			}),
 		]);
 
-		let startEffectLast = new Date().getTime();
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 
-			// const semiMode = evt.metaKey || evt.ctrlKey;
+			console.log("hover");
+			console.log(getHover());
+
+			console.log("backlink hover");
+			console.log(getBacklinkHover());
+
 			let span;
-			let dataString;
 			if (
 				evt.target &&
 				(evt.target instanceof HTMLSpanElement ||
@@ -86,17 +88,13 @@ export default class ReferencePlugin extends Plugin {
 				span?.parentElement.classList.contains("reference-container-span")
 			) {
 				if (getHover() != null) return;
-				startEffectLast = new Date().getTime();
+
 				if (!span.getAttribute("data")) {
 					span = span.parentElement;
 					span = span.querySelector(".reference-data-span") as HTMLSpanElement;
 					if (!span) throw new Error("Span element not found");
 				}
-				// span = span.parentElement;
-				// if (!span) throw new Error("Span element not found");
-				// console.log(span);
 
-				// console.log("start hover reference effect");
 				updateHoveredCursorColor(span, ACTION_TYPE.MOUSE);
 				startReferenceEffect(span, ACTION_TYPE.MOUSE);
 			} else if (
@@ -104,20 +102,57 @@ export default class ReferencePlugin extends Plugin {
 				span instanceof HTMLSpanElement &&
 				span.getAttribute("reference")
 			) {
-				startEffectLast = new Date().getTime();
+				if (getBacklinkHover() != null) return;
 
-				// if (getBacklinks() != null) return;
-				// console.log("start backlink effect");
-				// updateHoveredCursorColor(span, ACTION_TYPE.BACKLINK);
 				startBacklinkEffect(span);
 			} else if (getHover() != null) {
-				if (Object.keys(getHover()).length == 2) await delay(50); // startReferenceEffect has a 50ms delay that might need to be accounted for if mouse moves rapidly
-				endReferenceHoverEffect();
+				// Define the keys you're waiting for
+				const requiredKeys = [
+					"dataString",
+					"leafId",
+					"originalLeafId",
+					"temp",
+					"cursorViewport",
+					"peek",
+					"uuid",
+				];
+
+				// Function to check if all required keys are present
+				const allKeysPresent = () =>
+					requiredKeys.every((key) => key in getHover());
+
+				// Wait until all keys are present
+				while (!allKeysPresent()) {
+					await new Promise((resolve) => setTimeout(resolve, 50));
+				}
+
+				await endReferenceHoverEffect();
 				handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 			} else if (getBacklinks() != null) {
-				if (new Date().getTime() - startEffectLast < 50) await delay(50);
-				// console.log("end backlink reference effect");
-				endBacklinkHoverEffect();
+				// Define the keys you're waiting for
+				const requiredKeys = [
+					"dataString",
+					"leafId",
+					"originalLeafId",
+					"backlinkLeafId",
+					"temp",
+					"cursorViewport",
+					"peek",
+					"uuid",
+					"backlinkUUID",
+				];
+
+				// Function to check if all required keys are present
+				const allKeysPresent = () =>
+					requiredKeys.every((key) => key in getBacklinks());
+
+				// Wait until all keys are present
+				while (!allKeysPresent()) {
+					await new Promise((resolve) => setTimeout(resolve, 50));
+				}
+
+				await endBacklinkHoverEffect();
+			} else {
 			}
 			// else {
 			// 	// console.log("end hover reference effect");
@@ -130,7 +165,7 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerDomEvent(document, "click", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
-			checkFocusCursor(evt);
+			await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
@@ -138,7 +173,7 @@ export default class ReferencePlugin extends Plugin {
 			if (evt.metaKey || evt.ctrlKey) return;
 
 			// console.log("keyup");
-			checkFocusCursor(evt);
+			await checkFocusCursor(evt);
 			// updateBacklinkMarkPositions();
 			updateBacklinkMarkPositions();
 		});
@@ -154,16 +189,7 @@ export default class ReferencePlugin extends Plugin {
 				// console.log("r");
 				updateClipboard(true);
 				new Notice("Copied reference to clipboard");
-			}
-			// else if (evt.key == "e" && evt.metaKey && evt.shiftKey) {
-			// 	// find the annotations file
-			// 	// if it doesn't exist, create it
-			// 	// if it exists, open it in adjacent panel
-			// 	// add new annotation
-			// 	updateClipboard(false, true);
-			// 	new Notice("New annotation");
-			// }
-			else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
+			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
 				let target = evt.target as HTMLElement;
 				let children = Array.from(target.children);
 				let currentLine = children.filter((child) =>

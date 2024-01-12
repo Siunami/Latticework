@@ -1,14 +1,6 @@
-import { keymap } from "@codemirror/view";
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
-import {
-	StateField,
-	StateEffect,
-	RangeSet,
-	ChangeDesc,
-} from "@codemirror/state";
+import { StateField, StateEffect } from "@codemirror/state";
 import { SVG_HOVER_COLOR } from "./constants";
-import { deflate } from "zlib";
-import { delay } from "./effects";
 
 const addHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({
@@ -85,13 +77,6 @@ export async function defaultHighlightSelection(
 		);
 
 	view.dispatch({ effects });
-
-	// try {
-	// 	view.dispatch({ effects });
-	// } catch (e) {
-	// 	await delay(1000);
-	// 	view.dispatch({ effects });
-	// }
 
 	return true;
 }

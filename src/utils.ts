@@ -226,17 +226,17 @@ export function handleRemoveHoveredCursor(user: string) {
 	}
 }
 
-export function checkFocusCursor(evt: Event) {
+export async function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
 	console.log(span);
 
 	if (matched && span) {
 		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
-		endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
-		startReferenceEffect(span, ACTION_TYPE.CURSOR);
+		await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
+		await startReferenceEffect(span, ACTION_TYPE.CURSOR);
 	} else {
-		endReferenceCursorEffect();
+		await endReferenceCursorEffect();
 		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
 	}
 }

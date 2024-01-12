@@ -83,7 +83,7 @@ class ReferenceWidget extends WidgetType {
 			return lineCopy;
 		}
 
-		containerSpan.addEventListener("click", (ev) => {
+		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
 				// Serialize the toggle state for reference into file
 				// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
@@ -165,7 +165,7 @@ class ReferenceWidget extends WidgetType {
 					let from = prevLineCharCount + startText.join("").length;
 					let to = from + reference.length;
 
-					this.updateName(reference, from, to);
+					await this.updateName(reference, from, to);
 				}
 			} else {
 				openReference(ev);

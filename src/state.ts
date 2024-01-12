@@ -184,7 +184,7 @@ export let editorChange = StateField.define<null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "sync") {
-					updateBacklinkMarkPositions();
+					// updateBacklinkMarkPositions();
 					return value;
 				}
 				return value;

@@ -20,7 +20,6 @@ import {
 	processURI,
 	getPrefixAndSuffix,
 	handleRemoveHoveredCursor,
-	checkFocusCursor,
 	encodeURIComponentString,
 	decodeURIComponentString,
 } from "./utils";
@@ -30,11 +29,8 @@ import {
 	REFERENCE_ICON_HEIGHT,
 	REFERENCE_REGEX,
 	SVG_HOVER_COLOR,
-	SVG_HOVER_COLOR_LIGHT,
 } from "./constants";
-import { collectLeavesByTabHelper } from "./workspace";
 import { DocumentLocation, Backlink } from "./types";
-import { endReferenceCursorEffect } from "./effects";
 import { v4 as uuidv4 } from "uuid";
 
 export function createReferenceIcon(portalText: string | null = null): {
@@ -373,23 +369,23 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 	return span;
 }
 
-export function addReferencesToLeaf(leaf: WorkspaceLeaf) {
+export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	const markdownView = getMarkdownView(leaf);
 	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
 	if (!workspaceTabs) {
 		throw new Error("Missing workspace tabs");
 	}
 
-	updateBacklinkMarkPositions();
+	await updateBacklinkMarkPositions();
 
 	getContainerElement(markdownView.editor)
 		.querySelector(".cm-scroller")!
-		.addEventListener("scroll", () => {
-			updateBacklinkMarkPositions();
+		.addEventListener("scroll", async () => {
+			await updateBacklinkMarkPositions();
 		});
 
-	let resizeObserver = new ResizeObserver(() => {
-		updateBacklinkMarkPositions();
+	let resizeObserver = new ResizeObserver(async () => {
+		await updateBacklinkMarkPositions();
 	});
 
 	resizeObserver.observe(workspaceTabs);
@@ -577,8 +573,8 @@ export function generateBacklinks() {
 
 		const leaves = this.app.workspace.getLeavesOfType("markdown");
 
-		leaves.forEach((leaf: WorkspaceLeaf) => {
-			addReferencesToLeaf(leaf);
+		leaves.forEach(async (leaf: WorkspaceLeaf) => {
+			await addReferencesToLeaf(leaf);
 		});
 	});
 	// }, 100);
