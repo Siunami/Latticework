@@ -121,7 +121,6 @@ function tempDirectionIndicator(
 		const scrollBottom = scrollTop + windowHeight;
 
 		// Get the elements that are between the top and bottom of the screen
-		console.log(editor);
 		// @ts-ignore
 		let container = editor.containerEl;
 		let content = container.querySelector(".cm-content");
@@ -368,26 +367,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
-		// backlinkSpan.classList.add("reference-data-span-hovered");
-		// backlinkSpan.classList.add("reference-span-selected");
-		// const backlinkUUID = uuidv4();
-		// const backlinkUUID2 = uuidv4();
 		let backlinkUUID = Array.from(backlinkSpan.classList).filter((el) =>
 			el.includes("uuid")
 		)[0];
 		backlinkSpan.parentElement
 			?.querySelector(".reference-span")
 			?.classList.add("reference-span-selected");
-		// backlinkSpan.parentElement
-		// 	?.querySelector(".reference-span")
-		// 	?.classList.add("uuid-" + backlinkUUID);
 
 		backlinkSpan.classList.add("reference-data-span-selected");
-		// backlinkSpan.classList.add("uuid-" + backlinkUUID2);
 
 		updateState({
 			backlinkUUID,
-			// backlinkUUID2,
 		});
 	}
 
@@ -432,36 +422,16 @@ export async function startReferenceEffect(
 	});
 
 	if (!span) return;
-	// const uuid = uuidv4();
-	// const uuid2 = uuidv4();
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("reference-span-selected");
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("uuid-" + uuid);
 
-	// span.classList.add("reference-data-span-selected");
-	// span.classList.add("uuid-" + uuid2);
-
-	// updateState({
-	// 	uuid,
-	// 	uuid2,
-	// });
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
 		?.classList.add("reference-span-selected");
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("uuid-" + uuid);
 
 	span.classList.add("reference-data-span-selected");
-	// span.classList.add("uuid-" + uuid2);
 
 	updateState({
 		uuid,
-		// uuid2,
 	});
 
 	const dataString = span.getAttribute("data");
