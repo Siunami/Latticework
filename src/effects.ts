@@ -104,16 +104,52 @@ function tempDirectionIndicator(
 	let rangeStart = positions.rangeStart;
 	let rangeEnd = positions.rangeEnd;
 
+	console.log(rangeStart);
+	console.log(rangeEnd);
 	if (user === ACTION_TYPE.BACKLINK) {
+		// Oh! I’d compare the bbox of the range
+		// (which I know you find in the mark layout routine)
+		// to the scrollTop + innerHeight
+		const editor = getMarkdownView(leaf).editor;
+		const backlinkContainer = getBacklinkContainer(editor);
+
+		const windowHeight = leaf.view.containerEl
+			.querySelector(".cm-scroller")
+			.getBoundingClientRect().height;
+		const scrollTop =
+			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+		const scrollBottom = scrollTop + windowHeight;
+
+		// Get the elements that are between the top and bottom of the screen
+		// @ts-ignore
+		let container = editor.containerEl;
+		let content = container.querySelector(".cm-content");
+		let references = content.querySelectorAll(".reference-data-span");
+
+		let visibleElements: HTMLElement[] = [];
+		for (let i = 0; i < references.length; i++) {
+			let bbox = references[i].getBoundingClientRect();
+			if (bbox.top >= scrollTop && bbox.bottom <= scrollBottom) {
+				visibleElements.push(references[i]);
+			}
+		}
+
+		let dataStrings = visibleElements.map((el: HTMLElement) =>
+			el.getAttribute("data")
+		);
+
 		let startTop = leaf.view.editor.getScrollInfo().top;
 
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
+		if (!dataStrings.includes(dataString)) {
+			leaf.view.editor.scrollIntoView(
+				{
+					from: Object.assign(rangeStart, { ch: 0 }),
+					to: Object.assign(rangeEnd, { ch: 0 }),
+				},
+				true
+			);
+		}
+
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
@@ -152,6 +188,7 @@ function tempDirectionIndicator(
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
 
+	// Get the elements that are between the top and bottom of the screen
 	let visibleElements: string[] = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
 		let style = backlinkContainer.children[i].getAttribute("style");
@@ -218,23 +255,16 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	});
 
 	if (!span) return;
-	// const uuid = uuidv4();
-	// const uuid2 = uuidv4();
-	// console.log(span);
+
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
 		?.classList.add("reference-span-selected");
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("uuid-" + uuid);
 
 	span.classList.add("reference-data-span-selected");
-	// span.classList.add("uuid-" + uuid2);
 
 	updateState({
 		uuid,
-		// uuid2,
 	});
 
 	const referenceData = span.getAttribute("reference");
@@ -337,26 +367,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
-		// backlinkSpan.classList.add("reference-data-span-hovered");
-		// backlinkSpan.classList.add("reference-span-selected");
-		// const backlinkUUID = uuidv4();
-		// const backlinkUUID2 = uuidv4();
 		let backlinkUUID = Array.from(backlinkSpan.classList).filter((el) =>
 			el.includes("uuid")
 		)[0];
 		backlinkSpan.parentElement
 			?.querySelector(".reference-span")
 			?.classList.add("reference-span-selected");
-		// backlinkSpan.parentElement
-		// 	?.querySelector(".reference-span")
-		// 	?.classList.add("uuid-" + backlinkUUID);
 
 		backlinkSpan.classList.add("reference-data-span-selected");
-		// backlinkSpan.classList.add("uuid-" + backlinkUUID2);
 
 		updateState({
 			backlinkUUID,
-			// backlinkUUID2,
 		});
 	}
 
@@ -401,42 +422,26 @@ export async function startReferenceEffect(
 	});
 
 	if (!span) return;
-	// const uuid = uuidv4();
-	// const uuid2 = uuidv4();
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("reference-span-selected");
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("uuid-" + uuid);
 
-	// span.classList.add("reference-data-span-selected");
-	// span.classList.add("uuid-" + uuid2);
-
-	// updateState({
-	// 	uuid,
-	// 	uuid2,
-	// });
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
 		?.classList.add("reference-span-selected");
-	// span.parentElement
-	// 	?.querySelector(".reference-span")
-	// 	?.classList.add("uuid-" + uuid);
 
 	span.classList.add("reference-data-span-selected");
-	// span.classList.add("uuid-" + uuid2);
 
 	updateState({
 		uuid,
-		// uuid2,
 	});
 
 	const dataString = span.getAttribute("data");
 	if (!dataString) throw new Error("Data string not found");
 
-	if (destination != null && destination.dataString == dataString && ACTION_TYPE.CURSOR != type) {
+	if (
+		destination != null &&
+		destination.dataString == dataString &&
+		ACTION_TYPE.CURSOR != type
+	) {
 		updateHover(destination);
 		return;
 	}
@@ -692,20 +697,7 @@ export async function endReferenceHoverEffect() {
 	span?.parentElement
 		?.querySelector(".reference-span")
 		?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
 	span?.classList.remove("reference-data-span-selected");
-	// const firstSpanPart = workspaceContainer.querySelector("." + "uuid-" + uuid);
-	// firstSpanPart?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
-
-	// const secondSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + uuid2
-	// );
-	// secondSpanPart?.classList.remove("reference-data-span-selected");
-	// secondSpanPart?.classList.remove("uuid-" + uuid2);
-
-	const activeLeaf = getThat().workspace.getLeaf();
-	// @ts-ignore id
 
 	let editorView = getEditorView(targetLeaf);
 
@@ -776,18 +768,6 @@ export async function endReferenceHoverEffect() {
 				}, 50);
 			}
 		}
-		// Toggling visual hover state
-		// let activeContainerEl: HTMLElement = getContainerElement(activeLeaf);
-
-		// if (activeContainerEl != null) {
-		// 	activeContainerEl
-		// 		.querySelector(".reference-span-selected")
-		// 		?.classList.remove("reference-span-selected");
-
-		// 	activeContainerEl
-		// 		.querySelector(".reference-data-span-selected")
-		// 		?.classList.remove("reference-data-span-selected");
-		// }
 	}
 
 	if (temp && targetLeaf) {
@@ -859,27 +839,7 @@ export async function endBacklinkHoverEffect() {
 	span?.parentElement
 		?.querySelector(".reference-span")
 		?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
 	span?.classList.remove("reference-data-span-selected");
-
-	// const secondSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + uuid2
-	// );
-	// secondSpanPart?.classList.remove("reference-data-span-selected");
-	// secondSpanPart?.classList.remove("uuid-" + uuid2);
-
-	// const firstBacklinkSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + backlinkUUID
-	// );
-	// console.log(firstBacklinkSpanPart);
-	// firstBacklinkSpanPart?.classList.remove("reference-span-selected");
-	// firstBacklinkSpanPart?.classList.remove(backlinkUUID);
-
-	// const secondBacklinkSpanPart = workspaceContainer.querySelector(
-	// 	"." + "uuid-" + backlinkUUID2
-	// );
-	// secondBacklinkSpanPart?.classList.remove("reference-data-span-selected");
-	// secondBacklinkSpanPart?.classList.remove("uuid-" + backlinkUUID2);
 
 	const backlinkSpan = workspaceContainer.querySelector("." + backlinkUUID);
 

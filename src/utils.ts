@@ -234,9 +234,6 @@ export function handleRemoveHoveredCursor(user: string) {
 export async function checkFocusCursor(evt: Event) {
 	let { matched, span } = checkCursorPositionAtDatastring(evt);
 
-	console.log(matched);
-	console.log(span);
-
 	if (matched && span) {
 		await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
 		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
