@@ -32,6 +32,7 @@ import {
 } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
+import { defaultHighlightSelection } from "./mark";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -549,14 +550,14 @@ function createBacklinkData(
 }
 
 // let debounceTimer: NodeJS.Timeout;
-export function generateBacklinks() {
+export async function generateBacklinks() {
 	// clearTimeout(debounceTimer);
 	// debounceTimer = setTimeout(() => {
 	console.log("generating references");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-	Promise.all(
+	await Promise.all(
 		markdownFiles.map((file: TFile) => this.app.vault.read(file))
 	).then((files) => {
 		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
@@ -569,12 +570,6 @@ export function generateBacklinks() {
 			updateBacklinks(fileBacklinks);
 
 			backlinks.push(...fileBacklinks);
-		});
-
-		const leaves = this.app.workspace.getLeavesOfType("markdown");
-
-		leaves.forEach(async (leaf: WorkspaceLeaf) => {
-			await addReferencesToLeaf(leaf);
 		});
 	});
 	// }, 100);

@@ -20,7 +20,7 @@ import {
 } from "./workspace";
 import { processURI, findTextPositions } from "./utils";
 import { MarkdownView, Workspace, WorkspaceLeaf } from "obsidian";
-import { highlightSelection, removeHighlights } from "./mark";
+import { highlightSelection, removeHighlight, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
 	getBacklinkContainer,
@@ -354,6 +354,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = backlinkLeaf.view.editor.getScrollInfo();
 
+		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 		// let positions = findTextPositions(
 		// 	backlinkLeaf.view.data,
@@ -391,9 +392,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	});
 
 	const originalLeafId = originalLeaf.id;
-
-	console.log(getContainerElement(originalLeaf));
-	console.log(getContainerElement(newLeaf));
 
 	const matches = [
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
@@ -526,9 +524,6 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
-	console.log(getContainerElement(originalLeaf));
-	console.log(getContainerElement(newLeaf));
-
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -596,7 +591,10 @@ export async function endReferenceCursorEffect() {
 
 	let editorView = getEditorView(targetLeaf);
 
-	removeHighlights(editorView);
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+	removeHighlight(editorView, from, to);
+
+	// removeHighlights(editorView);
 
 	if (activeLeafId === leafId) {
 		resetCursor();
@@ -705,7 +703,9 @@ export async function endReferenceHoverEffect() {
 
 	let editorView = getEditorView(targetLeaf);
 
-	removeHighlights(editorView);
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+	removeHighlight(editorView, from, to);
+	// removeHighlights(editorView);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -808,7 +808,11 @@ export async function endBacklinkHoverEffect() {
 
 	let editorView: EditorView = getEditorView(targetLeaf);
 
-	removeHighlights(editorView);
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+	console.log(text);
+	console.log(from, to);
+	// removeHighlight(editorView, from, to);
+	// removeHighlights(editorView);
 
 	// backlink effect
 	const originalLeaf = workspace.getLeafById(backlinkLeafId);
@@ -818,7 +822,9 @@ export async function endBacklinkHoverEffect() {
 	}
 	let originalEditorView: EditorView = getEditorView(originalLeaf);
 
-	removeHighlights(originalEditorView);
+	removeHighlight(originalEditorView, from, to);
+
+	// removeHighlights(originalEditorView);
 
 	if (getCursor() != null && getCursor().dataString) {
 		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();

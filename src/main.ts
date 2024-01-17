@@ -1,4 +1,4 @@
-import { Plugin, MarkdownView, Notice } from "obsidian";
+import { Plugin, MarkdownView, Notice, WorkspaceLeaf } from "obsidian";
 
 import {
 	updateThat,
@@ -32,6 +32,11 @@ export default class ReferencePlugin extends Plugin {
 	onload() {
 		setTimeout(() => {
 			generateBacklinks();
+			const leaves = this.app.workspace.getLeavesOfType("markdown");
+
+			leaves.forEach(async (leaf: WorkspaceLeaf) => {
+				await addReferencesToLeaf(leaf);
+			});
 			this.registerEvent(
 				this.app.workspace.on("active-leaf-change", async (ev) => {
 					// console.log("active-leaf-changed:");
