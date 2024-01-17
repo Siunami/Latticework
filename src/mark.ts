@@ -38,7 +38,8 @@ const highlightField = StateField.define<DecorationSet>({
 const highlightMark = Decoration.mark({ class: "highlight" });
 const highlightTheme = EditorView.baseTheme({
 	".highlight": {
-		"background-color": "white",
+		"background-color":
+			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3))",
 		color: "black",
 	},
 });

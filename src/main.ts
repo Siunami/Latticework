@@ -66,15 +66,6 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "mousemove", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 
-			console.log("hover");
-			console.log(getHover());
-
-			console.log("backlink hover");
-			console.log(getBacklinkHover());
-
-			console.log("cursor");
-			console.log(getCursor());
-
 			let span;
 			if (
 				evt.target &&
@@ -138,7 +129,7 @@ export default class ReferencePlugin extends Plugin {
 					requiredKeys.every((key) => key in getHover());
 
 				// Wait until all keys are present
-				while (!allKeysPresent()) {
+				if (!allKeysPresent()) {
 					await new Promise((resolve) => setTimeout(resolve, 50));
 				}
 
@@ -165,7 +156,7 @@ export default class ReferencePlugin extends Plugin {
 					requiredKeys.every((key) => key in getBacklinkHover());
 
 				// Wait until all keys are present
-				while (!allKeysPresent()) {
+				if (!allKeysPresent()) {
 					await new Promise((resolve) => setTimeout(resolve, 50));
 				}
 

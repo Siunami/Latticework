@@ -19,7 +19,7 @@ import {
 	openFileInAdjacentTab,
 } from "./workspace";
 import { processURI, findTextPositions } from "./utils";
-import { MarkdownView, WorkspaceLeaf } from "obsidian";
+import { MarkdownView, Workspace, WorkspaceLeaf } from "obsidian";
 import { highlightSelection, removeHighlights } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
@@ -94,18 +94,7 @@ function tempDirectionIndicator(
 	isSame: boolean,
 	user?: string
 ) {
-	let positions = findTextPositions(
-		leaf.view.data,
-		text,
-		prefix.slice(0, prefix.length - 1),
-		suffix.slice(1, suffix.length)
-	);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
-
-	console.log(rangeStart);
-	console.log(rangeEnd);
+	console.log("isSmae", isSame);
 	if (user === ACTION_TYPE.BACKLINK) {
 		// Oh! I’d compare the bbox of the range
 		// (which I know you find in the mark layout routine)
@@ -141,6 +130,16 @@ function tempDirectionIndicator(
 		let startTop = leaf.view.editor.getScrollInfo().top;
 
 		if (!dataStrings.includes(dataString)) {
+			let positions = findTextPositions(
+				leaf.view.data,
+				text,
+				prefix.slice(0, prefix.length - 1),
+				suffix.slice(1, suffix.length)
+			);
+			if (!positions) throw new Error("Positions not found");
+			let rangeStart = positions.rangeStart;
+			let rangeEnd = positions.rangeEnd;
+
 			leaf.view.editor.scrollIntoView(
 				{
 					from: Object.assign(rangeStart, { ch: 0 }),
@@ -153,22 +152,23 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
+
+			let container = leaf.containerEl.querySelector(".view-content");
+			container.classList.remove("no-shadow");
+			container.classList.remove("new-shadow");
+			container.classList.remove("top-shadow");
+			container.classList.remove("bottom-shadow");
+
 			if (startTop === endTop && isSame) {
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"none";
-			} else if (startTop === endTop || !isSame) {
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+				container.classList.add("no-shadow");
+			} else if (startTop === endTop && !isSame) {
+				container.classList.add("new-shadow");
 			} else if (startTop < endTop) {
 				// show mark above
-				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+				container.classList.add("top-shadow");
 			} else {
 				// show mark below
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+				container.classList.add("bottom-shadow");
 			}
 		}, 10);
 
@@ -212,6 +212,16 @@ function tempDirectionIndicator(
 	if (!visibleElements.includes(dataString)) {
 		let startTop = leaf.view.editor.getScrollInfo().top;
 
+		let positions = findTextPositions(
+			leaf.view.data,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) throw new Error("Positions not found");
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
+
 		leaf.view.editor.scrollIntoView(
 			{
 				from: Object.assign(rangeStart, { ch: 0 }),
@@ -222,24 +232,66 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			if (startTop == endTop && isSame) {
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 20px 20px 0px rgba(248, 255, 255, 0)";
-			} else if (startTop === endTop || !isSame) {
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 0px 10px 10px rgba(248, 255, 255)";
+			let container = leaf.containerEl.querySelector(".view-content");
+			container.classList.remove("no-shadow");
+			container.classList.remove("new-shadow");
+			container.classList.remove("top-shadow");
+			container.classList.remove("bottom-shadow");
+
+			if (startTop === endTop && isSame) {
+				container.classList.add("no-shadow");
+			} else if (startTop === endTop && !isSame) {
+				container.classList.add("new-shadow");
 			} else if (startTop < endTop) {
 				// show mark above
-				// newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-				// 	"inset 0px 0px 10px 10px rgba(248, 255, 255)";
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px 20px 20px 0px rgba(248, 255, 255)";
+				container.classList.add("top-shadow");
 			} else {
 				// show mark below
-				leaf.containerEl.querySelector(".view-content").style.boxShadow =
-					"inset 0px -30px 20px 0px rgba(248, 255, 255)";
+				container.classList.add("bottom-shadow");
 			}
 		}, 10);
+	}
+}
+
+function endEffectRemoveHighlights(
+	workspace: Workspace,
+	leafId: string,
+	uuid: string,
+	backlinkUUID?: string
+) {
+	const workspaceContainer = workspace.containerEl;
+	const span = workspaceContainer.querySelector("." + uuid);
+
+	span?.parentElement
+		?.querySelector(".reference-span")
+		?.classList.remove("reference-span-selected");
+	// firstSpanPart?.classList.remove(uuid);
+	span?.classList.remove("reference-data-span-selected");
+
+	if (backlinkUUID) {
+		const backlinkSpan = workspaceContainer.querySelector("." + backlinkUUID);
+
+		backlinkSpan?.parentElement
+			?.querySelector(".reference-span")
+			?.classList.remove("reference-span-selected");
+		backlinkSpan?.classList.remove("reference-data-span-selected");
+	}
+
+	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) {
+		resetCursor();
+		throw new Error("Target leaf not found");
+	}
+
+	// remove box shadows if any
+	let container =
+		getContainerElement(targetLeaf)?.querySelector(".view-content");
+
+	if (container) {
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
 	}
 }
 
@@ -256,6 +308,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	if (!span) return;
 
+	// Toggle hover state
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
@@ -273,6 +326,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	const backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
 
+	// Check if the cursor is already on the same reference
 	if (destination != null && destination.dataString == dataString) {
 		updateState(destination);
 		return;
@@ -280,6 +334,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
+	// get backlink leaf
 	let leavesByTab = collectLeavesByTabHelper();
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
@@ -337,6 +392,9 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	const originalLeafId = originalLeaf.id;
 
+	console.log(getContainerElement(originalLeaf));
+	console.log(getContainerElement(newLeaf));
+
 	const matches = [
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
 	];
@@ -381,16 +439,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		});
 	}
 
-	if (
-		id === originalLeafId
-		// &&
-		// (newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
-		// 	"none" ||
-		// 	newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
-	) {
-		newLeaf.containerEl.querySelector(".view-content").style.boxShadow = "none";
-	}
-
 	// @ts-ignore
 	if (originalLeafId) {
 		updateState({
@@ -412,6 +460,7 @@ export async function startReferenceEffect(
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) {
 		if (ACTION_TYPE.CURSOR == type) {
+			// if there was another cursor effect, end it and start a new one
 			await endReferenceCursorEffect();
 		} else {
 			return;
@@ -464,11 +513,6 @@ export async function startReferenceEffect(
 		file,
 		type
 	);
-	// if (!newLeaf) {
-	// 	resetState();
-	// 	return;
-	// }
-	// await delay(50); // ensure new leaf has opened completely before doing checks below
 
 	// @ts-ignore
 	let id = newLeaf.id;
@@ -481,6 +525,9 @@ export async function startReferenceEffect(
 
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
+
+	console.log(getContainerElement(originalLeaf));
+	console.log(getContainerElement(newLeaf));
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
@@ -506,16 +553,6 @@ export async function startReferenceEffect(
 			// originalLeafId: currLeafID,
 			cursorViewport,
 		});
-	}
-
-	if (
-		id != originalLeafId &&
-		(newLeaf.containerEl.querySelector(".view-content").style.boxShadow ==
-			"none" ||
-			newLeaf.containerEl.querySelector(".view-content").style.boxShadow == "")
-	) {
-		newLeaf.containerEl.querySelector(".view-content").style.boxShadow =
-			"inset 0px 0px 10px 10px rgba(248, 255, 255)";
 	}
 
 	if (originalLeafId) {
@@ -550,20 +587,8 @@ export async function endReferenceCursorEffect() {
 	}
 
 	const { workspace } = getThat();
-	const workspaceContainer = workspace.containerEl;
-	const span = workspaceContainer.querySelector("." + uuid);
-
-	span?.parentElement
-		?.querySelector(".reference-span")
-		?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
-	span?.classList.remove("reference-data-span-selected");
-
 	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		resetCursor();
-		throw new Error("Target leaf not found");
-	}
+	endEffectRemoveHighlights(workspace, leafId, uuid);
 
 	const activeLeaf = getThat().workspace.getLeaf();
 	// @ts-ignore id
@@ -626,15 +651,6 @@ export async function endReferenceCursorEffect() {
 			workspace.revealLeaf(cursorLeaf);
 			const editorView: EditorView = getEditorView(cursorLeaf);
 			highlightSelection(editorView, from, to);
-			// tempDirectionIndicator(
-			// 	cursorLeaf,
-			// 	text,
-			// 	prefix,
-			// 	suffix,
-			// 	temp,
-			// 	dataString,
-			// 	ACTION_TYPE.MOUSE
-			// );
 		} else {
 			let containerEl: HTMLElement = getContainerElement(targetLeaf);
 			if (containerEl != null) {
@@ -684,20 +700,8 @@ export async function endReferenceHoverEffect() {
 	}
 
 	const { workspace } = getThat();
-
 	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		resetHover();
-		throw new Error("Target leaf not found");
-	}
-
-	const workspaceContainer = workspace.containerEl;
-	const span = workspaceContainer.querySelector("." + uuid);
-
-	span?.parentElement
-		?.querySelector(".reference-span")
-		?.classList.remove("reference-span-selected");
-	span?.classList.remove("reference-data-span-selected");
+	endEffectRemoveHighlights(workspace, leafId, uuid);
 
 	let editorView = getEditorView(targetLeaf);
 
@@ -706,38 +710,6 @@ export async function endReferenceHoverEffect() {
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
-
-		// const currentScroll = view.editor.getScrollInfo().top;
-		// const result = await new Promise((resolve) => {
-		// 	const scrolling = setInterval(() => {
-		// 		const scrollAmount = 40;
-		// 		const currentScroll = view.editor.getScrollInfo().top;
-		// 		if (currentScroll == cursorViewport.top) {
-		// 			clearInterval(scrolling);
-		// 		} else if (currentScroll > cursorViewport.top) {
-		// 			if (currentScroll - scrollAmount < cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll - scrollAmount);
-		// 			}
-		// 		} else if (currentScroll < cursorViewport.top) {
-		// 			if (currentScroll + scrollAmount > cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll + scrollAmount);
-		// 			}
-		// 		}
-		// 	}, 10);
-		// });
-
-		// view.containerEl.querySelector(".cm-scroller")?.scrollTo({
-		// 	top: cursorViewport.top,
-		// 	behavior: "smooth",
-		// });
 
 		// if the cursor is active, highlight the selection
 		if (getCursor() != null && getCursor().dataString) {
@@ -751,14 +723,6 @@ export async function endReferenceHoverEffect() {
 			if (!editorView) throw new Error("Editor view not found");
 
 			highlightSelection(editorView, from, to);
-			// tempDirectionIndicator(
-			// 	cursorLeaf,
-			// 	text,
-			// 	prefix,
-			// 	suffix,
-			// 	temp,
-			// 	dataString
-			// );
 		} else {
 			let containerEl: HTMLElement = getContainerElement(targetLeaf);
 			if (containerEl != null) {
@@ -827,26 +791,7 @@ export async function endBacklinkHoverEffect() {
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		resetBacklinkHover();
-		throw new Error("Target leaf not found");
-	}
-
-	// Remove all highlights
-	const workspaceContainer = workspace.containerEl;
-	const span = workspaceContainer.querySelector("." + uuid);
-
-	span?.parentElement
-		?.querySelector(".reference-span")
-		?.classList.remove("reference-span-selected");
-	span?.classList.remove("reference-data-span-selected");
-
-	const backlinkSpan = workspaceContainer.querySelector("." + backlinkUUID);
-
-	backlinkSpan?.parentElement
-		?.querySelector(".reference-span")
-		?.classList.remove("reference-span-selected");
-	backlinkSpan?.classList.remove("reference-data-span-selected");
+	endEffectRemoveHighlights(workspace, leafId, uuid, backlinkUUID);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
