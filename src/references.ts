@@ -337,7 +337,7 @@ export async function updateBacklinkMarkPositions() {
 					);
 					// width 900, show the reference
 					const showPortals = getContainerElement(leaf).innerWidth > 900;
-					await updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+					updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
 				})
 			);
 		}, 500);
