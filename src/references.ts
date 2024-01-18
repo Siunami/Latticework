@@ -33,6 +33,8 @@ import {
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { defaultHighlightSelection } from "./mark";
+import { delay } from "./effects";
+import { generateDefaultHighlights } from "./main";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -319,7 +321,7 @@ let debounceTimer: NodeJS.Timeout;
 
 export async function updateBacklinkMarkPositions() {
 	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(() => {
+	debounceTimer = setTimeout(async () => {
 		const leaves = getThat().workspace.getLeavesOfType(
 			"markdown"
 		) as WorkspaceLeaf[];
@@ -327,15 +329,17 @@ export async function updateBacklinkMarkPositions() {
 		setTimeout(async () => {
 			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
 
-			leaves.forEach((leaf) => {
-				const backlinksToLeaf = allBacklinks.filter(
-					// @ts-ignore
-					(b) => b.referencedLocation.filename == leaf.view.file.path
-				);
-				// width 900, show the reference
-				const showPortals = getContainerElement(leaf).innerWidth > 900;
-				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
-			});
+			await Promise.all(
+				leaves.map(async (leaf) => {
+					const backlinksToLeaf = allBacklinks.filter(
+						// @ts-ignore
+						(b) => b.referencedLocation.filename == leaf.view.file.path
+					);
+					// width 900, show the reference
+					const showPortals = getContainerElement(leaf).innerWidth > 900;
+					await updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+				})
+			);
 		}, 500);
 	}, 100);
 }
@@ -377,15 +381,21 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	await updateBacklinkMarkPositions();
+	await delay(2000);
+	generateDefaultHighlights(leaf);
 
 	getContainerElement(markdownView.editor)
 		.querySelector(".cm-scroller")!
 		.addEventListener("scroll", async () => {
 			await updateBacklinkMarkPositions();
+			await delay(2000);
+			generateDefaultHighlights(leaf);
 		});
 
 	let resizeObserver = new ResizeObserver(async () => {
 		await updateBacklinkMarkPositions();
+		await delay(2000);
+		generateDefaultHighlights(leaf);
 	});
 
 	resizeObserver.observe(workspaceTabs);

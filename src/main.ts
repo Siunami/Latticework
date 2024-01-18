@@ -33,29 +33,29 @@ import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
 import { defaultHighlightSelection } from "./mark";
 
-export default class ReferencePlugin extends Plugin {
-	generateDefaultHighlights(leaf: WorkspaceLeaf) {
-		const editor = getMarkdownView(leaf).editor;
-		const backlinkContainer = getBacklinkContainer(editor);
+export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
+	const editor = getMarkdownView(leaf).editor;
+	const backlinkContainer = getBacklinkContainer(editor);
 
-		let backlinks = [];
-		for (let i = 0; i < backlinkContainer.children.length; i++) {
-			backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
-		}
-
-		for (let backlink of backlinks) {
-			let reference = backlink.getAttribute("reference")
-				? JSON.parse(backlink.getAttribute("reference")!)
-				: null;
-			if (reference) {
-				let referenceFrom = reference.referencedLocation.from;
-				let referenceTo = reference.referencedLocation.to;
-				let editorView = getCodeMirrorEditorView(editor);
-				defaultHighlightSelection(editorView, referenceFrom, referenceTo);
-			}
-		}
+	let backlinks = [];
+	for (let i = 0; i < backlinkContainer.children.length; i++) {
+		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
 	}
 
+	for (let backlink of backlinks) {
+		let reference = backlink.getAttribute("reference")
+			? JSON.parse(backlink.getAttribute("reference")!)
+			: null;
+		if (reference) {
+			let referenceFrom = reference.referencedLocation.from;
+			let referenceTo = reference.referencedLocation.to;
+			let editorView = getCodeMirrorEditorView(editor);
+			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+		}
+	}
+}
+
+export default class ReferencePlugin extends Plugin {
 	onload() {
 		setTimeout(async () => {
 			await generateBacklinks();
@@ -68,11 +68,13 @@ export default class ReferencePlugin extends Plugin {
 				}
 			);
 
-			Promise.all(promises).then((leaves: WorkspaceLeaf[]) => {
-				delay(5000);
+			Promise.all(promises).then(async (leaves: WorkspaceLeaf[]) => {
+				console.log("iterate leaves delay");
+
+				await delay(2000);
 				console.log("iterate leaves");
 				leaves.forEach((leaf: WorkspaceLeaf) => {
-					this.generateDefaultHighlights(leaf);
+					generateDefaultHighlights(leaf);
 					// const editor = getMarkdownView(leaf).editor;
 					// const backlinkContainer = getBacklinkContainer(editor);
 
@@ -105,9 +107,9 @@ export default class ReferencePlugin extends Plugin {
 							this.app.workspace.getActiveViewOfType(MarkdownView);
 						if (activeView?.leaf != null) {
 							await addReferencesToLeaf(activeView.leaf);
-							delay(1000);
+							await delay(2000);
 
-							this.generateDefaultHighlights(activeView.leaf);
+							generateDefaultHighlights(activeView.leaf);
 
 							// const editor = getMarkdownView(activeView.leaf).editor;
 							// const backlinkContainer = getBacklinkContainer(editor);
