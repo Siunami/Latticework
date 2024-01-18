@@ -69,10 +69,7 @@ export default class ReferencePlugin extends Plugin {
 			);
 
 			Promise.all(promises).then(async (leaves: WorkspaceLeaf[]) => {
-				console.log("iterate leaves delay");
-
 				await delay(2000);
-				console.log("iterate leaves");
 				leaves.forEach((leaf: WorkspaceLeaf) => {
 					generateDefaultHighlights(leaf);
 					// const editor = getMarkdownView(leaf).editor;

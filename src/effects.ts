@@ -99,7 +99,6 @@ function tempDirectionIndicator(
 	isSame: boolean,
 	user?: string
 ) {
-	console.log("isSmae", isSame);
 	if (user === ACTION_TYPE.BACKLINK) {
 		// Oh! I’d compare the bbox of the range
 		// (which I know you find in the mark layout routine)
@@ -818,8 +817,6 @@ export async function endBacklinkHoverEffect() {
 	let editorView: EditorView = getEditorView(targetLeaf);
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-	console.log(text);
-	console.log(from, to);
 	// removeHighlight(editorView, from, to);
 	// removeHighlights(editorView);
 

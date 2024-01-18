@@ -329,6 +329,15 @@ export async function updateBacklinkMarkPositions() {
 		setTimeout(async () => {
 			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
 
+			leaves.map(async (leaf) => {
+				const backlinksToLeaf = allBacklinks.filter(
+					// @ts-ignore
+					(b) => b.referencedLocation.filename == leaf.view.file.path
+				);
+				// width 900, show the reference
+				const showPortals = getContainerElement(leaf).innerWidth > 900;
+				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+			});
 			await Promise.all(
 				leaves.map(async (leaf) => {
 					const backlinksToLeaf = allBacklinks.filter(
