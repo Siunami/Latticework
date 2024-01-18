@@ -286,6 +286,16 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			// console.log("keydown");
 
+			console.log(evt.key);
+
+			console.log(evt.shiftKey);
+
+			console.log(evt.ctrlKey);
+			console.log(evt.metaKey);
+
+			console.log(
+				evt.key == "s" && (evt.metaKey || evt.ctrlKey) && evt.shiftKey
+			);
 			if (
 				evt.key == "Ç" &&
 				(evt.metaKey || evt.ctrlKey) &&
@@ -296,7 +306,7 @@ export default class ReferencePlugin extends Plugin {
 				updateClipboard(false);
 				new Notice("Copied reference to clipboard");
 			} else if (
-				evt.key == "c" &&
+				(evt.key == "c" || evt.key == "C") &&
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey
 			) {
@@ -304,7 +314,7 @@ export default class ReferencePlugin extends Plugin {
 				updateClipboard(true);
 				new Notice("Copied reference to clipboard");
 			} else if (
-				evt.key == "s" &&
+				(evt.key == "s" || evt.key == "S") &&
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey
 			) {
