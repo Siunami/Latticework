@@ -32,6 +32,9 @@ import {
 } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
+import { defaultHighlightSelection } from "./mark";
+import { delay } from "./effects";
+import { generateDefaultHighlights } from "./main";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -167,7 +170,7 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	}
 }
 
-function getCodeMirrorEditorView(editor: Editor): EditorView {
+export function getCodeMirrorEditorView(editor: Editor): EditorView {
 	// @ts-ignore this type is missing... but the Obsidian docs tell us to do it this way??
 	return editor.cm as EditorView;
 }
@@ -288,7 +291,6 @@ export function updateBacklinkMarkPosition(
 			if (!marker) return;
 			// toggle portals
 			const portal: HTMLElement | null = marker.querySelector(".portal");
-			const svg = marker.querySelector("svg");
 
 			if (showPortals) {
 				// if (svg && !portal) svg.style.display = "inline";
@@ -319,7 +321,7 @@ let debounceTimer: NodeJS.Timeout;
 
 export async function updateBacklinkMarkPositions() {
 	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(() => {
+	debounceTimer = setTimeout(async () => {
 		const leaves = getThat().workspace.getLeavesOfType(
 			"markdown"
 		) as WorkspaceLeaf[];
@@ -327,7 +329,7 @@ export async function updateBacklinkMarkPositions() {
 		setTimeout(async () => {
 			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
 
-			leaves.forEach((leaf) => {
+			leaves.map(async (leaf) => {
 				const backlinksToLeaf = allBacklinks.filter(
 					// @ts-ignore
 					(b) => b.referencedLocation.filename == leaf.view.file.path
@@ -336,6 +338,17 @@ export async function updateBacklinkMarkPositions() {
 				const showPortals = getContainerElement(leaf).innerWidth > 900;
 				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
 			});
+			await Promise.all(
+				leaves.map(async (leaf) => {
+					const backlinksToLeaf = allBacklinks.filter(
+						// @ts-ignore
+						(b) => b.referencedLocation.filename == leaf.view.file.path
+					);
+					// width 900, show the reference
+					const showPortals = getContainerElement(leaf).innerWidth > 900;
+					updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
+				})
+			);
 		}, 500);
 	}, 100);
 }
@@ -377,18 +390,26 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	await updateBacklinkMarkPositions();
+	await delay(2000);
+	generateDefaultHighlights(leaf);
 
 	getContainerElement(markdownView.editor)
 		.querySelector(".cm-scroller")!
 		.addEventListener("scroll", async () => {
 			await updateBacklinkMarkPositions();
+			await delay(2000);
+			generateDefaultHighlights(leaf);
 		});
 
 	let resizeObserver = new ResizeObserver(async () => {
 		await updateBacklinkMarkPositions();
+		await delay(2000);
+		generateDefaultHighlights(leaf);
 	});
 
 	resizeObserver.observe(workspaceTabs);
+
+	return leaf;
 }
 
 export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
@@ -549,14 +570,14 @@ function createBacklinkData(
 }
 
 // let debounceTimer: NodeJS.Timeout;
-export function generateBacklinks() {
+export async function generateBacklinks() {
 	// clearTimeout(debounceTimer);
 	// debounceTimer = setTimeout(() => {
 	console.log("generating references");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-	Promise.all(
+	await Promise.all(
 		markdownFiles.map((file: TFile) => this.app.vault.read(file))
 	).then((files) => {
 		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
@@ -569,12 +590,6 @@ export function generateBacklinks() {
 			updateBacklinks(fileBacklinks);
 
 			backlinks.push(...fileBacklinks);
-		});
-
-		const leaves = this.app.workspace.getLeavesOfType("markdown");
-
-		leaves.forEach(async (leaf: WorkspaceLeaf) => {
-			await addReferencesToLeaf(leaf);
 		});
 	});
 	// }, 100);

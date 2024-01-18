@@ -50,8 +50,9 @@ const highlightTheme = EditorView.baseTheme({
 });
 const defaultHighlightTheme = EditorView.baseTheme({
 	".default-highlight": {
-		"background-color": SVG_HOVER_COLOR,
-		color: "black",
+		"background-color":
+			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3))",
+		// color: "black",
 	},
 });
 
