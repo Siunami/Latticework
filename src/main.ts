@@ -286,15 +286,28 @@ export default class ReferencePlugin extends Plugin {
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			// console.log("keydown");
 
-			if (evt.key == "Ç" && evt.metaKey && evt.shiftKey && evt.altKey) {
+			if (
+				evt.key == "Ç" &&
+				(evt.metaKey || evt.ctrlKey) &&
+				evt.shiftKey &&
+				evt.altKey
+			) {
 				// console.log("c");
 				updateClipboard(false);
 				new Notice("Copied reference to clipboard");
-			} else if (evt.key == "c" && evt.metaKey && evt.shiftKey) {
+			} else if (
+				evt.key == "c" &&
+				(evt.metaKey || evt.ctrlKey) &&
+				evt.shiftKey
+			) {
 				// console.log("r");
 				updateClipboard(true);
 				new Notice("Copied reference to clipboard");
-			} else if (evt.key == "s" && evt.metaKey && evt.shiftKey) {
+			} else if (
+				evt.key == "s" &&
+				(evt.metaKey || evt.ctrlKey) &&
+				evt.shiftKey
+			) {
 				let target = evt.target as HTMLElement;
 				let children = Array.from(target.children);
 				let currentLine = children.filter((child) =>
