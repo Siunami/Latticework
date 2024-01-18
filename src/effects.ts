@@ -20,7 +20,12 @@ import {
 } from "./workspace";
 import { processURI, findTextPositions } from "./utils";
 import { MarkdownView, Workspace, WorkspaceLeaf } from "obsidian";
-import { highlightSelection, removeHighlight, removeHighlights } from "./mark";
+import {
+	defaultHighlightSelection,
+	highlightSelection,
+	removeHighlight,
+	removeHighlights,
+} from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
 	getBacklinkContainer,
@@ -529,6 +534,7 @@ export async function startReferenceEffect(
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = newLeaf.view.editor.getScrollInfo();
 
+		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
 		tempDirectionIndicator(
@@ -593,6 +599,7 @@ export async function endReferenceCursorEffect() {
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	removeHighlight(editorView, from, to);
+	defaultHighlightSelection(editorView, from, to);
 
 	// removeHighlights(editorView);
 
@@ -705,6 +712,8 @@ export async function endReferenceHoverEffect() {
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	removeHighlight(editorView, from, to);
+	defaultHighlightSelection(editorView, from, to);
+
 	// removeHighlights(editorView);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
@@ -823,6 +832,7 @@ export async function endBacklinkHoverEffect() {
 	let originalEditorView: EditorView = getEditorView(originalLeaf);
 
 	removeHighlight(originalEditorView, from, to);
+	defaultHighlightSelection(originalEditorView, from, to);
 
 	// removeHighlights(originalEditorView);
 

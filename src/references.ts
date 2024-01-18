@@ -168,7 +168,7 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 	}
 }
 
-function getCodeMirrorEditorView(editor: Editor): EditorView {
+export function getCodeMirrorEditorView(editor: Editor): EditorView {
 	// @ts-ignore this type is missing... but the Obsidian docs tell us to do it this way??
 	return editor.cm as EditorView;
 }
@@ -289,7 +289,6 @@ export function updateBacklinkMarkPosition(
 			if (!marker) return;
 			// toggle portals
 			const portal: HTMLElement | null = marker.querySelector(".portal");
-			const svg = marker.querySelector("svg");
 
 			if (showPortals) {
 				// if (svg && !portal) svg.style.display = "inline";
@@ -390,6 +389,8 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	});
 
 	resizeObserver.observe(workspaceTabs);
+
+	return leaf;
 }
 
 export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {

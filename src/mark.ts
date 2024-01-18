@@ -41,8 +41,6 @@ const highlightField = StateField.define<DecorationSet>({
 			} else if (e.is(resetHighlight)) {
 				higlights = higlights.update({
 					filter: (from, to) => {
-						console.log(e);
-						console.log(from, to);
 						return !(from === e.value.from && to === e.value.to);
 					},
 				});
@@ -54,6 +52,7 @@ const highlightField = StateField.define<DecorationSet>({
 
 const highlightMark = Decoration.mark({ class: "highlight" });
 const defaultHighlightMark = Decoration.mark({ class: "default-highlight" });
+const theme = EditorView.baseTheme({});
 const highlightTheme = EditorView.baseTheme({
 	".highlight": {
 		"background-color":
@@ -70,7 +69,8 @@ const highlightTheme = EditorView.baseTheme({
 // });
 const defaultHighlightTheme = EditorView.baseTheme({
 	".default-highlight": {
-		"background-color": "green",
+		"background-color":
+			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43))",
 		color: "black",
 	},
 });
@@ -81,27 +81,24 @@ export function highlightSelection(view: EditorView, from: number, to: number) {
 	if (!effects.length) return false;
 
 	if (!view.state.field(highlightField, false))
-		effects.push(StateEffect.appendConfig.of([highlightField, highlightTheme]));
+		effects.push(StateEffect.appendConfig.of([highlightField, theme]));
 
 	view.dispatch({ effects });
 	return true;
 }
 
 // have a function that adds subtle highlights to state
-export async function defaultHighlightSelection(
+export function defaultHighlightSelection(
 	view: EditorView,
 	from: number,
 	to: number
 ) {
-	console.log("default");
 	let effects: StateEffect<unknown>[] = [addDefaultHighlight.of({ from, to })];
 
 	if (!effects.length) return false;
 
 	if (!view.state.field(highlightField, false))
-		effects.push(
-			StateEffect.appendConfig.of([highlightField, defaultHighlightTheme])
-		);
+		effects.push(StateEffect.appendConfig.of([highlightField, theme]));
 
 	view.dispatch({ effects });
 
@@ -110,8 +107,6 @@ export async function defaultHighlightSelection(
 
 export function removeHighlight(view: EditorView, from: number, to: number) {
 	let effects: StateEffect<unknown>[] = [resetHighlight.of({ from, to })];
-
-	console.log(effects);
 
 	if (!effects.length) return false;
 
@@ -135,14 +130,3 @@ export function removeHighlights(view: EditorView) {
 
 // I want to add a bunch of highlights to the state that use some lighter highlight theme
 // And then remove them and update the highlights on each generation of backlinkMarkPositions
-
-// let reference = marker.getAttribute("reference")
-// ? JSON.parse(marker.getAttribute("reference")!)
-// : null;
-// if (reference) {
-// console.log(reference);
-// let referenceFrom = reference.referencedLocation.from;
-// let referenceTo = reference.referencedLocation.to;
-// let editorView = getCodeMirrorEditorView(editor);
-// defaultHighlightSelection(editorView, referenceFrom, referenceTo);
-// }

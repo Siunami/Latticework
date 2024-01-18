@@ -15,6 +15,9 @@ import {
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
 	updateHoveredCursorColor,
+	getMarkdownView,
+	getBacklinkContainer,
+	getCodeMirrorEditorView,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -22,24 +25,78 @@ import {
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
 	endReferenceCursorEffect,
+	delay,
 } from "./effects";
 import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
+import { defaultHighlightSelection } from "./mark";
 
 export default class ReferencePlugin extends Plugin {
+	generateDefaultHighlights(leaf: WorkspaceLeaf) {
+		const editor = getMarkdownView(leaf).editor;
+		const backlinkContainer = getBacklinkContainer(editor);
+
+		let backlinks = [];
+		for (let i = 0; i < backlinkContainer.children.length; i++) {
+			backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+		}
+
+		for (let backlink of backlinks) {
+			let reference = backlink.getAttribute("reference")
+				? JSON.parse(backlink.getAttribute("reference")!)
+				: null;
+			if (reference) {
+				let referenceFrom = reference.referencedLocation.from;
+				let referenceTo = reference.referencedLocation.to;
+				let editorView = getCodeMirrorEditorView(editor);
+				defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+			}
+		}
+	}
+
 	onload() {
-		setTimeout(() => {
-			generateBacklinks();
+		setTimeout(async () => {
+			await generateBacklinks();
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
-			leaves.forEach(async (leaf: WorkspaceLeaf) => {
-				await addReferencesToLeaf(leaf);
+			let promises: Promise<WorkspaceLeaf>[] = leaves.map(
+				(leaf: WorkspaceLeaf) => {
+					// await addReferencesToLeaf(leaf);
+					return addReferencesToLeaf(leaf);
+				}
+			);
+
+			Promise.all(promises).then((leaves: WorkspaceLeaf[]) => {
+				delay(5000);
+				console.log("iterate leaves");
+				leaves.forEach((leaf: WorkspaceLeaf) => {
+					this.generateDefaultHighlights(leaf);
+					// const editor = getMarkdownView(leaf).editor;
+					// const backlinkContainer = getBacklinkContainer(editor);
+
+					// let backlinks = [];
+					// for (let i = 0; i < backlinkContainer.children.length; i++) {
+					// 	backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+					// }
+
+					// for (let backlink of backlinks) {
+					// 	let reference = backlink.getAttribute("reference")
+					// 		? JSON.parse(backlink.getAttribute("reference")!)
+					// 		: null;
+					// 	if (reference) {
+					// 		let referenceFrom = reference.referencedLocation.from;
+					// 		let referenceTo = reference.referencedLocation.to;
+					// 		let editorView = getCodeMirrorEditorView(editor);
+					// 		defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+					// 	}
+					// }
+				});
 			});
+
 			this.registerEvent(
 				this.app.workspace.on("active-leaf-change", async (ev) => {
-					// console.log("active-leaf-changed:");
 					// This should create referenceMarkers if they don't exist and update
 					// else update only
 
@@ -48,6 +105,36 @@ export default class ReferencePlugin extends Plugin {
 							this.app.workspace.getActiveViewOfType(MarkdownView);
 						if (activeView?.leaf != null) {
 							await addReferencesToLeaf(activeView.leaf);
+							delay(1000);
+
+							this.generateDefaultHighlights(activeView.leaf);
+
+							// const editor = getMarkdownView(activeView.leaf).editor;
+							// const backlinkContainer = getBacklinkContainer(editor);
+
+							// let backlinks = [];
+							// for (let i = 0; i < backlinkContainer.children.length; i++) {
+							// 	backlinks.push(
+							// 		backlinkContainer.children.item(i) as HTMLElement
+							// 	);
+							// }
+
+							// for (let backlink of backlinks) {
+							// 	let reference = backlink.getAttribute("reference")
+							// 		? JSON.parse(backlink.getAttribute("reference")!)
+							// 		: null;
+							// 	if (reference) {
+							// 		console.log(reference);
+							// 		let referenceFrom = reference.referencedLocation.from;
+							// 		let referenceTo = reference.referencedLocation.to;
+							// 		let editorView = getCodeMirrorEditorView(editor);
+							// 		defaultHighlightSelection(
+							// 			editorView,
+							// 			referenceFrom,
+							// 			referenceTo
+							// 		);
+							// 	}
+							// }
 						}
 					} catch (e) {
 						console.log(e);
@@ -236,14 +323,31 @@ export default class ReferencePlugin extends Plugin {
 						// Want to serialize references at some point
 						// console.log(span);
 						// getThat().workspace.getLeaf().view;
+						let referenceSpan = span.parentElement?.querySelector(
+							".reference-data-span"
+						);
+						let content = referenceSpan?.getAttribute("data");
+						const activeView = this.app.workspace.getLeaf();
+						const editor = getMarkdownView(activeView).editor;
+						const editorView = getCodeMirrorEditorView(editor);
 
-						// serializeReference(span)
+						serializeReference(content, span, editorView);
 					});
 					new Notice("Toggle annotations on");
 				} else {
 					spans.forEach((span: HTMLSpanElement) => {
 						spans.forEach((span) => {
 							span.classList.toggle("reference-span-hidden", true);
+
+							let referenceSpan = span.parentElement?.querySelector(
+								".reference-data-span"
+							);
+							let content = referenceSpan?.getAttribute("data");
+							const activeView = this.app.workspace.getLeaf();
+							const editor = getMarkdownView(activeView).editor;
+							const editorView = getCodeMirrorEditorView(editor);
+
+							serializeReference(content, span, editorView);
 						});
 					});
 					new Notice("Toggle annotations off");
