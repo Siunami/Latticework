@@ -8,6 +8,7 @@ import {
 	getThat,
 	getCursor,
 	resetHover,
+	updateCursor,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
@@ -52,7 +53,7 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 			let editorView = getCodeMirrorEditorView(editor);
-			// removeHighlights(editorView);
+			removeHighlights(editorView);
 
 			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
 		}
@@ -290,6 +291,12 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
+			// if (evt.key == "Backspace") {
+			// 	updateCursor({
+			// 		removed: true,
+			// 	});
+			// }
+
 			// console.log("keydown");
 
 			// console.log(evt.key);

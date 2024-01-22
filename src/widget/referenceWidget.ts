@@ -16,7 +16,7 @@ import {
 	updateBacklinkMarkPositions,
 } from "../references";
 import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
-import { getThat } from "src/state";
+import { getThat, updateCursor } from "src/state";
 import { Editor, MarkdownView } from "obsidian";
 import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
@@ -43,7 +43,11 @@ export function getReferencePosition(
 	// get the index of the activeLine
 	let activeLineIndex;
 	let seenActive = false;
+	console.log(currLine);
+	console.log("^currline");
+
 	lines.forEach((line, i) => {
+		console.log(line);
 		if (seenActive) return;
 		if (line == currLine) {
 			seenActive = true;
@@ -86,7 +90,7 @@ export function getReferencePosition(
 	});
 
 	// const index = lineReferencesData.reduce(
-	// 	(prevIndex, currentValue, currentIndex) => {
+	// 	(prevI1ndex, currentValue, currentIndex) => {
 	// 		if (currentValue.includes(content[0])) {
 	// 			return currentIndex;
 	// 		}
@@ -313,15 +317,18 @@ class ReferenceWidget extends WidgetType {
 			})[0];
 			let view = getEditorView(leaf);
 
-			const results = getReferencePosition(
-				view,
-				this.parentElement as HTMLSpanElement,
-				this.name,
-				text
-			);
-			if (!results) return;
+			// const results = getReferencePosition(
+			// 	view,
+			// 	this.parentElement as HTMLSpanElement,
+			// 	this.name,
+			// 	text
+			// );
+			// if (!results) return;
 			console.log(view);
-			removeHighlight(view, results.from, results.to);
+			removeHighlight(view, parseInt(from), parseInt(to));
+			updateCursor({
+				delete: true,
+			});
 		}, 10);
 	}
 

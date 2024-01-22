@@ -585,8 +585,11 @@ export async function endReferenceCursorEffect() {
 		cursorViewport,
 		peek,
 		uuid,
+		removed,
 	} = getCursor();
 	resetCursor();
+
+	console.log("REMMOVED: " + removed);
 
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
@@ -605,8 +608,11 @@ export async function endReferenceCursorEffect() {
 	let editorView = getEditorView(targetLeaf);
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	// remove the highlight
 	removeHighlight(editorView, from, to);
-	defaultHighlightSelection(editorView, from, to);
+	// replace with default highlight
+	if (!removed) defaultHighlightSelection(editorView, from, to);
 
 	// removeHighlights(editorView);
 

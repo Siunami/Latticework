@@ -400,7 +400,7 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 			await updateBacklinkMarkPositions();
 			await delay(2000);
 			generateDefaultHighlights(leaf);
-			console.log("scroll");
+			// console.log("scroll");
 			// if (ev.target && (ev.target as HTMLElement).scrollTop) {
 			// 	console.log((ev.target as HTMLElement).scrollTop);
 			// 	if (Math.abs(prevScroll - (ev.target as HTMLElement).scrollTop) < 10) {
