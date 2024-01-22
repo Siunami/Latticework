@@ -33,7 +33,7 @@ import {
 	getMarkdownView,
 } from "./references";
 
-function getEditorView(leaf: WorkspaceLeaf) {
+export function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
 	const view = leaf.view;
 
