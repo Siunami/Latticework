@@ -8,6 +8,7 @@ import {
 	WorkspaceTabs,
 } from "obsidian";
 import { getThat } from "./state";
+import { getContainerElement } from "./references";
 
 function collectLeavesByTab(
 	split: WorkspaceSplit,
@@ -151,6 +152,11 @@ export async function openFileInAdjacentTab(
 		let leaf = currentTab[currentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
+		console.log("open file new tab");
+
+		console.log(leaf);
+		console.log(originalLeaf);
+
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
@@ -159,6 +165,15 @@ export async function openFileInAdjacentTab(
 		)[0];
 		let leaf = rightAdjacentTab[rightAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
+
+		console.log("open existing file right tab");
+		// const originalLeaf = leavesByTab[currTabIdx].filter(
+		// 	(t: WorkspaceLeaf) => getContainerElement(t).style.display != "none"
+		// )[0];
+
+		console.log(leaf);
+		console.log(originalLeaf);
+
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (leftAdjacentTabNames.includes(file)) {
 		// file exists in left tab
@@ -168,6 +183,16 @@ export async function openFileInAdjacentTab(
 
 		let leaf = leftAdjacentTab[leftAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
+
+		console.log("open existing file left tab");
+
+		// const originalLeaf = leavesByTab[currTabIdx].filter(
+		// 	(t: WorkspaceLeaf) => getContainerElement(t).style.display != "none"
+		// )[0];
+
+		console.log(leaf);
+		console.log(originalLeaf);
+
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTab.length > 0) {
 		// there exists a right tab
@@ -181,6 +206,11 @@ export async function openFileInAdjacentTab(
 		await openFileInLeaf(newLeaf, file);
 		workspace.revealLeaf(newLeaf);
 		workspace.setActiveLeaf(currLeaf);
+
+		console.log("open new file right tab");
+		console.log(newLeaf);
+		console.log(originalLeaf);
+
 		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
 		// there exists a left tab
@@ -194,13 +224,23 @@ export async function openFileInAdjacentTab(
 		await openFileInLeaf(newLeaf, file); // load file into new leaf
 		workspace.revealLeaf(newLeaf); // reveal new leaf
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
+
+		console.log("open new file left tab");
+		console.log(newLeaf);
+		console.log(originalLeaf);
+
 		return { newLeaf, temp: true, originalLeaf };
 	} else {
 		// no adjacent tabs
 		const currLeaf = workspace.getLeaf();
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
-		return { newLeaf, temp: true };
+
+		console.log("open new file left tab");
+		console.log(newLeaf);
+		console.log(currLeaf);
+
+		return { newLeaf, temp: true, originalLeaf: currLeaf };
 	}
 }
 

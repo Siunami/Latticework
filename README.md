@@ -16,6 +16,6 @@ Then, back in the `Community plugins` tab, make sure that the plugin has been ac
 
 CMD+Shift+C -> Copy the selected text with a reference
 
-CMD+Shift+D -> Copy just a reference to the selected text
-
 Hover over a reference to peek. Click to keep in view.
+
+CMD+Click on a reference -> Will toggle the text in the reference on and off

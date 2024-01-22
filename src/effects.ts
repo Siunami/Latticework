@@ -33,7 +33,7 @@ import {
 	getMarkdownView,
 } from "./references";
 
-function getEditorView(leaf: WorkspaceLeaf) {
+export function getEditorView(leaf: WorkspaceLeaf) {
 	if (!leaf) return null;
 	const view = leaf.view;
 
@@ -156,6 +156,7 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
+			console.log(endTop);
 
 			let container = leaf.containerEl.querySelector(".view-content");
 			container.classList.remove("no-shadow");
@@ -174,7 +175,7 @@ function tempDirectionIndicator(
 				// show mark below
 				container.classList.add("bottom-shadow");
 			}
-		}, 10);
+		}, 25);
 
 		return;
 	}
@@ -213,48 +214,52 @@ function tempDirectionIndicator(
 		}
 	}
 
-	if (!visibleElements.includes(dataString)) {
-		let startTop = leaf.view.editor.getScrollInfo().top;
+	console.log(!visibleElements.includes(dataString));
+	// if (!visibleElements.includes(dataString)) {
+	let startTop = leaf.view.editor.getScrollInfo().top;
 
-		let positions = findTextPositions(
-			leaf.view.data,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
+	let positions = findTextPositions(
+		leaf.view.data,
+		text,
+		prefix.slice(0, prefix.length - 1),
+		suffix.slice(1, suffix.length)
+	);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
 
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
-		setTimeout(() => {
-			// if (temp) return;
-			let endTop = leaf.view.editor.getScrollInfo().top;
-			let container = leaf.containerEl.querySelector(".view-content");
-			container.classList.remove("no-shadow");
-			container.classList.remove("new-shadow");
-			container.classList.remove("top-shadow");
-			container.classList.remove("bottom-shadow");
+	leaf.view.editor.scrollIntoView(
+		{
+			from: Object.assign(rangeStart, { ch: 0 }),
+			to: Object.assign(rangeEnd, { ch: 0 }),
+		},
+		true
+	);
+	console.log(startTop);
+	setTimeout(() => {
+		// if (temp) return;
+		let endTop = leaf.view.editor.getScrollInfo().top;
+		console.log(endTop);
 
-			if (startTop === endTop && isSame) {
-				container.classList.add("no-shadow");
-			} else if (startTop === endTop && !isSame) {
-				container.classList.add("new-shadow");
-			} else if (startTop < endTop) {
-				// show mark above
-				container.classList.add("top-shadow");
-			} else {
-				// show mark below
-				container.classList.add("bottom-shadow");
-			}
-		}, 10);
-	}
+		let container = leaf.containerEl.querySelector(".view-content");
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+
+		if (startTop === endTop && isSame) {
+			container.classList.add("no-shadow");
+		} else if (startTop === endTop && !isSame) {
+			container.classList.add("new-shadow");
+		} else if (startTop < endTop) {
+			// show mark above
+			container.classList.add("top-shadow");
+		} else {
+			// show mark below
+			container.classList.add("bottom-shadow");
+		}
+	}, 25);
+	// }
 }
 
 function endEffectRemoveHighlights(
@@ -474,6 +479,7 @@ export async function startReferenceEffect(
 
 	if (!span) return;
 
+	// color the span
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
@@ -528,6 +534,7 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
+	console.log(newLeaf && newLeaf.view instanceof MarkdownView);
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -536,6 +543,7 @@ export async function startReferenceEffect(
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
+		console.log("leaves are equal" + id === originalLeafId);
 		tempDirectionIndicator(
 			newLeaf,
 			text,
@@ -577,8 +585,11 @@ export async function endReferenceCursorEffect() {
 		cursorViewport,
 		peek,
 		uuid,
+		removed,
 	} = getCursor();
 	resetCursor();
+
+	console.log("REMMOVED: " + removed);
 
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
@@ -597,8 +608,11 @@ export async function endReferenceCursorEffect() {
 	let editorView = getEditorView(targetLeaf);
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	// remove the highlight
 	removeHighlight(editorView, from, to);
-	defaultHighlightSelection(editorView, from, to);
+	// replace with default highlight
+	if (!removed) defaultHighlightSelection(editorView, from, to);
 
 	// removeHighlights(editorView);
 

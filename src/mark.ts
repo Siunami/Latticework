@@ -97,6 +97,17 @@ export function defaultHighlightSelection(
 
 	if (!effects.length) return false;
 
+	// let filteredEffects: StateEffect<unknown>[] =
+	// 	view.state.selection.ranges.filter(
+	// 		({ from, to }) => !effects.includes(addDefaultHighlight.of({ from, to }))
+	// 	);
+
+	console.log("DEFAULT HIGHLIGHT SELECTION RANGES");
+	console.log(view.state.selection.ranges);
+	console.log(from, to);
+
+	// effects = [...effects, ...filteredEffects];
+
 	if (!view.state.field(highlightField, false))
 		effects.push(StateEffect.appendConfig.of([highlightField, theme]));
 

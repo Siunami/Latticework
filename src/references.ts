@@ -34,7 +34,7 @@ import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { defaultHighlightSelection } from "./mark";
 import { delay } from "./effects";
-import { generateDefaultHighlights } from "./main";
+import { generateDefaultHighlights, handleMovementEffects } from "./main";
 
 export function createReferenceIcon(portalText: string | null = null): {
 	span: HTMLSpanElement;
@@ -393,12 +393,24 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	await delay(2000);
 	generateDefaultHighlights(leaf);
 
+	// let prevScroll = 0;
 	getContainerElement(markdownView.editor)
 		.querySelector(".cm-scroller")!
-		.addEventListener("scroll", async () => {
+		.addEventListener("scroll", async (ev) => {
 			await updateBacklinkMarkPositions();
 			await delay(2000);
 			generateDefaultHighlights(leaf);
+			// console.log("scroll");
+			// if (ev.target && (ev.target as HTMLElement).scrollTop) {
+			// 	console.log((ev.target as HTMLElement).scrollTop);
+			// 	if (Math.abs(prevScroll - (ev.target as HTMLElement).scrollTop) < 10) {
+			// 		console.log("slow scroll");
+			// 		console.log(ev);
+			// 		// NEED TO HANDLE THIS DIFFERENTLY AND THEN PASS TO HANDLE MOUSE MOVEMENTS FUNCTION
+			// 		handleMovementEffects(ev as MouseEvent);
+			// 	}
+			// 	prevScroll = (ev.target as HTMLElement).scrollTop;
+			// }
 		});
 
 	let resizeObserver = new ResizeObserver(async () => {
