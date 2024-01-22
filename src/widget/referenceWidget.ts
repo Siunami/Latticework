@@ -31,19 +31,25 @@ function processLine(line: Element) {
 export async function serializeReference(
 	content: any,
 	referenceSpan: Element,
-	view: EditorView
+	view: EditorView,
+	toggleValue: string | null = null
 ) {
 	content = typeof content == "string" ? content : content[1];
-	const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+
+	const [prefix, text, suffix, file, from, to, portal, toggle] =
 		content.split(":");
 	// Serialize the toggle state for reference into file
 	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 	// referenceSpan.classList.toggle("reference-span-hidden");
 
-	let newToggle = referenceSpan.classList.contains("reference-span-hidden")
-		? "f"
-		: "t";
+	// let newToggle = referenceSpan.classList.contains("reference-span-hidden")
+	// 	? "f"
+	// 	: "t";
+	let newToggle = toggleValue ? toggleValue : toggle === "f" ? "t" : "f";
 	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
+
+	// referenceSpan.classList.toggle("reference-span-hidden", newToggle === "f");
+	console.log("newToggle: " + newToggle);
 
 	let lines = view.contentDOM.querySelectorAll(".cm-line");
 	let currLine = referenceSpan?.parentElement?.parentElement;
@@ -80,24 +86,26 @@ export async function serializeReference(
 	let lineReferencesData = Array.from(lineReferences || []).map(
 		(span) => "[↗](urn:" + span.getAttribute("data") + ")"
 	);
+
 	if (content) {
-		// identify which reference is being toggled
-		// let index = lineReferencesData.reduce(
-		// 	(prevValue, currentValue, currentIndex) => {
-		// 		if (currentValue.contains(content)) return currentIndex;
-		// 		return currentValue;
+		let index: number | null = null;
+		lineReferencesData.forEach((reference, i) => {
+			if (!index) {
+				if (reference.includes(content)) {
+					index = i;
+				}
+			}
+		});
+
+		// const index = lineReferencesData.reduce(
+		// 	(prevIndex, currentValue, currentIndex) => {
+		// 		if (currentValue.includes(content[0])) {
+		// 			return currentIndex;
+		// 		}
+		// 		return prevIndex;
 		// 	},
 		// 	null
 		// );
-		const index = lineReferencesData.reduce(
-			(prevIndex, currentValue, currentIndex) => {
-				if (currentValue.includes(content[0])) {
-					return currentIndex;
-				}
-				return prevIndex;
-			},
-			null
-		);
 
 		if (!index && index != 0) throw new Error("Reference not found");
 
@@ -195,8 +203,9 @@ class ReferenceWidget extends WidgetType {
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
-				referenceSpan.classList.toggle("reference-span-hidden");
 				await serializeReference(content, referenceSpan, this.view);
+				// referenceSpan.
+				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 
 				// // Serialize the toggle state for reference into file

@@ -153,9 +153,11 @@ function tempDirectionIndicator(
 			);
 		}
 
+		console.log(startTop);
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
+			console.log(endTop);
 
 			let container = leaf.containerEl.querySelector(".view-content");
 			container.classList.remove("no-shadow");
@@ -174,7 +176,7 @@ function tempDirectionIndicator(
 				// show mark below
 				container.classList.add("bottom-shadow");
 			}
-		}, 10);
+		}, 15);
 
 		return;
 	}
@@ -233,9 +235,12 @@ function tempDirectionIndicator(
 			},
 			true
 		);
+		console.log(startTop);
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
+			console.log(endTop);
+
 			let container = leaf.containerEl.querySelector(".view-content");
 			container.classList.remove("no-shadow");
 			container.classList.remove("new-shadow");
@@ -253,7 +258,7 @@ function tempDirectionIndicator(
 				// show mark below
 				container.classList.add("bottom-shadow");
 			}
-		}, 10);
+		}, 15);
 	}
 }
 
@@ -474,6 +479,7 @@ export async function startReferenceEffect(
 
 	if (!span) return;
 
+	// color the span
 	let uuid = Array.from(span.classList).filter((el) => el.includes("uuid"))[0];
 	span.parentElement
 		?.querySelector(".reference-span")
