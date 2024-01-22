@@ -313,7 +313,6 @@ class ReferenceWidget extends WidgetType {
 			})[0];
 			let view = getEditorView(leaf);
 
-			console.log(view);
 			const results = getReferencePosition(
 				view,
 				this.parentElement as HTMLSpanElement,
@@ -355,7 +354,9 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.appendChild(span);
 
 		this.referenceSpan = referenceSpan;
-		this.parentElement = containerSpan;
+		setTimeout(() => {
+			this.parentElement = containerSpan.parentElement;
+		}, 20);
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {

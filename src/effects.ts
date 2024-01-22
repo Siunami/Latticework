@@ -153,7 +153,6 @@ function tempDirectionIndicator(
 			);
 		}
 
-		console.log(startTop);
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
@@ -176,7 +175,7 @@ function tempDirectionIndicator(
 				// show mark below
 				container.classList.add("bottom-shadow");
 			}
-		}, 15);
+		}, 25);
 
 		return;
 	}
@@ -215,51 +214,52 @@ function tempDirectionIndicator(
 		}
 	}
 
-	if (!visibleElements.includes(dataString)) {
-		let startTop = leaf.view.editor.getScrollInfo().top;
+	console.log(!visibleElements.includes(dataString));
+	// if (!visibleElements.includes(dataString)) {
+	let startTop = leaf.view.editor.getScrollInfo().top;
 
-		let positions = findTextPositions(
-			leaf.view.data,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
+	let positions = findTextPositions(
+		leaf.view.data,
+		text,
+		prefix.slice(0, prefix.length - 1),
+		suffix.slice(1, suffix.length)
+	);
+	if (!positions) throw new Error("Positions not found");
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
 
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
-		console.log(startTop);
-		setTimeout(() => {
-			// if (temp) return;
-			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(endTop);
+	leaf.view.editor.scrollIntoView(
+		{
+			from: Object.assign(rangeStart, { ch: 0 }),
+			to: Object.assign(rangeEnd, { ch: 0 }),
+		},
+		true
+	);
+	console.log(startTop);
+	setTimeout(() => {
+		// if (temp) return;
+		let endTop = leaf.view.editor.getScrollInfo().top;
+		console.log(endTop);
 
-			let container = leaf.containerEl.querySelector(".view-content");
-			container.classList.remove("no-shadow");
-			container.classList.remove("new-shadow");
-			container.classList.remove("top-shadow");
-			container.classList.remove("bottom-shadow");
+		let container = leaf.containerEl.querySelector(".view-content");
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
 
-			if (startTop === endTop && isSame) {
-				container.classList.add("no-shadow");
-			} else if (startTop === endTop && !isSame) {
-				container.classList.add("new-shadow");
-			} else if (startTop < endTop) {
-				// show mark above
-				container.classList.add("top-shadow");
-			} else {
-				// show mark below
-				container.classList.add("bottom-shadow");
-			}
-		}, 15);
-	}
+		if (startTop === endTop && isSame) {
+			container.classList.add("no-shadow");
+		} else if (startTop === endTop && !isSame) {
+			container.classList.add("new-shadow");
+		} else if (startTop < endTop) {
+			// show mark above
+			container.classList.add("top-shadow");
+		} else {
+			// show mark below
+			container.classList.add("bottom-shadow");
+		}
+	}, 25);
+	// }
 }
 
 function endEffectRemoveHighlights(
@@ -534,6 +534,7 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
+	console.log(newLeaf && newLeaf.view instanceof MarkdownView);
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -542,6 +543,7 @@ export async function startReferenceEffect(
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
+		console.log("leaves are equal" + id === originalLeafId);
 		tempDirectionIndicator(
 			newLeaf,
 			text,
