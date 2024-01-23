@@ -589,8 +589,6 @@ export async function endReferenceCursorEffect() {
 	} = getCursor();
 	resetCursor();
 
-	console.log("REMMOVED: " + removed);
-
 	if (getHover() != null && getHover().dataString == dataString) {
 		// End mutex lock
 		resetCursor();

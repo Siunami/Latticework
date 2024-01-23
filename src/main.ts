@@ -9,6 +9,7 @@ import {
 	getCursor,
 	resetHover,
 	updateCursor,
+	updateHoveredCursor,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
@@ -16,11 +17,11 @@ import {
 	generateBacklinks,
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
-	updateHoveredCursorColor,
 	getMarkdownView,
 	getBacklinkContainer,
 	getCodeMirrorEditorView,
 	getContainerElement,
+	updateHoveredCursorColor,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -34,7 +35,11 @@ import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
-import { defaultHighlightSelection, removeHighlights } from "./mark";
+import {
+	defaultHighlightSelection,
+	removeHighlight,
+	removeHighlights,
+} from "./mark";
 
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const editor = getMarkdownView(leaf).editor;
@@ -53,8 +58,10 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 			let editorView = getCodeMirrorEditorView(editor);
-			removeHighlights(editorView);
+			// removeHighlights(editorView);
+			// removeHighlight(editorView, referenceFrom, referenceTo);
 
+			console.log("default highlight selection");
 			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
 		}
 	}
@@ -140,15 +147,8 @@ export async function handleMovementEffects(evt: MouseEvent) {
 		if (!allKeysPresent()) {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
-		console.log("start end backlink effect!!!!!");
 		await endBacklinkHoverEffect();
-	} else {
 	}
-	// else {
-	// 	// console.log("end hover reference effect");
-	// 	endReferenceHoverEffect();
-	// 	handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
-	// }
 }
 
 export default class ReferencePlugin extends Plugin {
@@ -159,36 +159,11 @@ export default class ReferencePlugin extends Plugin {
 
 			let promises: Promise<WorkspaceLeaf>[] = leaves.map(
 				(leaf: WorkspaceLeaf) => {
-					// await addReferencesToLeaf(leaf);
 					return addReferencesToLeaf(leaf);
 				}
 			);
 
-			Promise.all(promises).then(async (leaves: WorkspaceLeaf[]) => {
-				await delay(2000);
-				leaves.forEach((leaf: WorkspaceLeaf) => {
-					generateDefaultHighlights(leaf);
-					// const editor = getMarkdownView(leaf).editor;
-					// const backlinkContainer = getBacklinkContainer(editor);
-
-					// let backlinks = [];
-					// for (let i = 0; i < backlinkContainer.children.length; i++) {
-					// 	backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
-					// }
-
-					// for (let backlink of backlinks) {
-					// 	let reference = backlink.getAttribute("reference")
-					// 		? JSON.parse(backlink.getAttribute("reference")!)
-					// 		: null;
-					// 	if (reference) {
-					// 		let referenceFrom = reference.referencedLocation.from;
-					// 		let referenceTo = reference.referencedLocation.to;
-					// 		let editorView = getCodeMirrorEditorView(editor);
-					// 		defaultHighlightSelection(editorView, referenceFrom, referenceTo);
-					// 	}
-					// }
-				});
-			});
+			await Promise.all(promises);
 
 			this.registerEvent(
 				this.app.workspace.on("active-leaf-change", async (ev) => {
@@ -200,37 +175,6 @@ export default class ReferencePlugin extends Plugin {
 							this.app.workspace.getActiveViewOfType(MarkdownView);
 						if (activeView?.leaf != null) {
 							await addReferencesToLeaf(activeView.leaf);
-							await delay(2000);
-
-							generateDefaultHighlights(activeView.leaf);
-
-							// let container = getContainerElement(activeView.leaf);
-							// const editor = getMarkdownView(activeView.leaf).editor;
-							// const backlinkContainer = getBacklinkContainer(editor);
-
-							// let backlinks = [];
-							// for (let i = 0; i < backlinkContainer.children.length; i++) {
-							// 	backlinks.push(
-							// 		backlinkContainer.children.item(i) as HTMLElement
-							// 	);
-							// }
-
-							// for (let backlink of backlinks) {
-							// 	let reference = backlink.getAttribute("reference")
-							// 		? JSON.parse(backlink.getAttribute("reference")!)
-							// 		: null;
-							// 	if (reference) {
-							// 		console.log(reference);
-							// 		let referenceFrom = reference.referencedLocation.from;
-							// 		let referenceTo = reference.referencedLocation.to;
-							// 		let editorView = getCodeMirrorEditorView(editor);
-							// 		defaultHighlightSelection(
-							// 			editorView,
-							// 			referenceFrom,
-							// 			referenceTo
-							// 		);
-							// 	}
-							// }
 						}
 					} catch (e) {
 						console.log(e);
@@ -250,11 +194,6 @@ export default class ReferencePlugin extends Plugin {
 				}
 			}),
 		]);
-
-		// this.registerDomEvent(document, "scroll", async (evt) => {
-		// 	console.log(evt);
-		// 	handleMovementEffects(evt as MouseEvent);
-		// });
 
 		let prevX = 0;
 		let prevY = 0;
@@ -276,46 +215,23 @@ export default class ReferencePlugin extends Plugin {
 			console.log("click");
 			await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
-
-			// if (evt.metaKey || evt.ctrlKey) return;
-			// await endReferenceCursorEffect();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
 
-			// console.log("keyup");
 			await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
-			// updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			// if (evt.key == "Backspace") {
-			// 	updateCursor({
-			// 		removed: true,
-			// 	});
-			// }
-
-			// console.log("keydown");
-
-			// console.log(evt.key);
-
-			// console.log(evt.shiftKey);
-
-			// console.log(evt.ctrlKey);
-			// console.log(evt.metaKey);
-
-			// console.log(
-			// 	evt.key == "s" && (evt.metaKey || evt.ctrlKey) && evt.shiftKey
-			// );
+			// Copy with toggle off
 			if (
 				evt.key == "Ç" &&
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey &&
 				evt.altKey
 			) {
-				// console.log("c");
 				updateClipboard(false);
 				new Notice("Copied reference to clipboard");
 			} else if (
@@ -323,7 +239,7 @@ export default class ReferencePlugin extends Plugin {
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey
 			) {
-				// console.log("r");
+				// Copy with toggle on
 				updateClipboard(true);
 				new Notice("Copied reference to clipboard");
 			} else if (
@@ -331,6 +247,7 @@ export default class ReferencePlugin extends Plugin {
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey
 			) {
+				// Copy with S on
 				let target = evt.target as HTMLElement;
 				let children = Array.from(target.children);
 				let currentLine = children.filter((child) =>
@@ -347,44 +264,15 @@ export default class ReferencePlugin extends Plugin {
 						hasOneHidden = true;
 					}
 				});
-				// // spans.reduce((acc, span) => {
-				// // 	if (acc) return acc;
-				// // 	return span.classList.contains("reference-span-hidden");
-				// // }, false))
 
-				// console.log(
-				// 	spans.every((span) =>
-				// 		span.classList.contains("reference-span-hidden")
-				// 	)
-				// );
-
-				// console.log(
-				// 	!spans.every((span) =>
-				// 		span.classList.contains("reference-span-hidden")
-				// 	) && hasOneHidden
-				// );
-
-				// console.log(
-				// 	!spans.every((span) =>
-				// 		span.classList.contains("reference-span-hidden")
-				// 	)
-				// );
 				if (
 					spans.every((span) =>
 						span.classList.contains("reference-span-hidden")
 					) ||
 					hasOneHidden
-					// spans.every((span) =>
-					// 	span.classList.contains("reference-span-hidden")
-					// ) ||
-					// (!spans.every((span) =>
-					// 	span.classList.contains("reference-span-hidden")
-					// ) &&
-					// 	hasOneHidden)
 				) {
 					new Notice("Toggle annotations on");
 
-					// spans.forEach(async (span) => {
 					for (const span of spans) {
 						// Want to serialize references at some point
 						let referenceSpan = span.parentElement?.querySelector(
@@ -396,120 +284,39 @@ export default class ReferencePlugin extends Plugin {
 						const editorView = getCodeMirrorEditorView(editor);
 
 						await serializeReference(content, span, editorView, "f");
-						console.log(span);
+
 						if (!span.classList.contains("reference-span-hidden")) {
 							span.classList.add("reference-span-hidden");
-							// Allow the browser to re-render the element
-							// await new Promise((resolve) => setTimeout(resolve, 0));
 						}
+
 						span.classList.remove("reference-span-hidden");
-						// Allow the browser to re-render the element
-						// await new Promise((resolve) => setTimeout(resolve, 0));
-						// const cursor = editor.getCursor();
-						// editor.replaceRange(" ", cursor, cursor);
-						// editor.undo();
-						// });
 					}
 				} else {
 					new Notice("Toggle annotations off");
-
-					// spans.forEach(async (span: HTMLSpanElement) => {
-					// 	let referenceSpan = span.parentElement?.querySelector(
-					// 		".reference-data-span"
-					// 	);
-					// 	let content = referenceSpan?.getAttribute("data");
-					// 	const activeView = this.app.workspace.getLeaf();
-					// 	const editor = getMarkdownView(activeView).editor;
-					// 	const editorView = getCodeMirrorEditorView(editor);
-
-					// 	await serializeReference(content, span, editorView, "t");
-					// 	console.log(span);
-					// 	span.classList.remove("reference-span-hidden");
-
-					// 	if (!span.classList.contains("reference-span-hidden")) {
-					// 		span.classList.add("reference-span-hidden");
-					// 	}
-					// });
 
 					for (const span of spans) {
 						let referenceSpan = span.parentElement?.querySelector(
 							".reference-data-span"
 						);
+
 						let content = referenceSpan?.getAttribute("data");
 						const activeView = this.app.workspace.getLeaf();
 						const editor = getMarkdownView(activeView).editor;
 						const editorView = getCodeMirrorEditorView(editor);
 
 						await serializeReference(content, span, editorView, "t");
-						console.log(span);
 
 						// Remove the class if it exists
 						if (span.classList.contains("reference-span-hidden")) {
 							span.classList.remove("reference-span-hidden");
-							// Allow the browser to re-render the element
-							// await new Promise((resolve) => setTimeout(resolve, 0));
 						}
 
 						// Add the class
 						span.classList.add("reference-span-hidden");
-						// Allow the browser to re-render the element
-						// await new Promise((resolve) => setTimeout(resolve, 0));
-						// const cursor = editor.getCursor();
-						// editor.replaceRange(" ", cursor, cursor);
-						// editor.undo();
 					}
 				}
 			}
 		});
-
-		// getThat().workspace.on("editor-change", (ev) => {
-		// 	console.log(ev);
-		// });
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("window-close", (ev) => {
-		// 		console.log("window closed:");
-		// 		console.log(ev);
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("editor-drop", (ev) => {
-		// 		console.log("Editor dropped:");
-		// 		console.log(ev);
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("window-open", (ev) => {
-		// 		console.log("window opened:");
-		// 		// console.log(ev);
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("resize", () => {
-		// 		console.log("resize");
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("file-open", (ev) => {
-		// 		console.log("file opened:");
-		// 		// console.log(ev);
-		// 		// console.log(getReferences());
-
-		// 		let currentLeaf: any = this.app.workspace.getLeaf();
-
-		// 		// check it references have already been created, else create references
-		// 	})
-		// );
-
-		// this.registerEvent(
-		// 	this.app.workspace.on("layout-change", () => {
-		// 		console.log("layout-changed:");
-		// 	})
-		// );
 	}
 
 	onunload() {}
