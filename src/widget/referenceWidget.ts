@@ -12,12 +12,14 @@ import {
 	openReference,
 	createReferenceIcon,
 	updateBacklinkMarkPositions,
+	getMarkdownView,
+	getBacklinkContainer,
 } from "../references";
 import { decodeURIComponentString } from "src/utils";
-import { updateCursor } from "src/state";
 import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
+import { Backlink } from "src/types";
 
 function processLine(line: Element) {
 	let lineCopy = line?.cloneNode(true) as HTMLElement;
@@ -150,7 +152,8 @@ class ReferenceWidget extends WidgetType {
 		private view: EditorView,
 		private pos: number,
 		private referenceSpan: Element | null = null,
-		private parentElement: HTMLElement | null | undefined = null
+		private parentElement: HTMLElement | null | undefined = null,
+		private serialized: boolean = false
 	) {
 		super();
 	}
@@ -163,20 +166,21 @@ class ReferenceWidget extends WidgetType {
 		return this.view;
 	}
 
+	// this runs when re-serialized as well
 	destroy() {
+		if (this.serialized) {
+			this.serialized = false;
+			return;
+		}
 		setTimeout(() => {
-			// console.log("remove highlight");
-			// console.log(this.name);
-			// console.log(this.pos);
-			// console.log(this.view);
-			// console.log(this.referenceSpan);
-			// console.log(this.parentElement);
 			const regex = /\[↗\]\(urn:([^)]*)\)/g;
 			let content = regex.exec(this.name);
 			if (!content) throw new Error("Invalid reference");
 
+			let reference = content[0];
+			let dataString = content[1];
 			const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-				content[1].split(":");
+				dataString.split(":");
 
 			let decodedFile = decodeURIComponentString(file);
 			// const leaves = getThat().workspace.getLeavesOfType("markdown");
@@ -186,18 +190,26 @@ class ReferenceWidget extends WidgetType {
 			})[0];
 			let view = getEditorView(leaf);
 
-			// // const results = getReferencePosition(
-			// // 	view,
-			// // 	this.parentElement as HTMLSpanElement,
-			// // 	this.name,
-			// // 	text
-			// // );
-			// // if (!results) return;
-			// console.log(view);
 			removeHighlight(view, parseInt(from), parseInt(to));
-			updateCursor({
-				delete: true,
+			const editor = getMarkdownView(leaf).editor;
+			const backlinkContainer = getBacklinkContainer(editor);
+			const backlinks = Array.from(
+				backlinkContainer.querySelectorAll(".reference-data-span")
+			);
+			const backlinkData = backlinks.map((backlink: HTMLElement) => {
+				let reference = backlink.getAttribute("reference");
+				if (!reference) return {};
+				return JSON.parse(reference);
 			});
+			const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
+				return (
+					backlink.dataString === dataString &&
+					backlink.referencedLocation.filename ===
+						decodeURIComponentString(file)
+				);
+			});
+			// console.log(backlinkContainer);
+			backlinks[backlinkIndex].remove();
 		}, 10);
 	}
 
@@ -234,6 +246,13 @@ class ReferenceWidget extends WidgetType {
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
+				openReference(ev);
+
+				// // Serialize the toggle state for reference into file
+				// // KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
+				// referenceSpan.classList.toggle("reference-span-hidden");
+			} else {
+				this.serialized = true;
 				await serializeReference(content, referenceSpan, this.view);
 				// referenceSpan.
 				referenceSpan.classList.toggle("reference-span-hidden");
@@ -242,12 +261,6 @@ class ReferenceWidget extends WidgetType {
 					this.referenceSpan = referenceSpan;
 					this.parentElement = referenceSpan?.parentElement?.parentElement;
 				}
-
-				// // Serialize the toggle state for reference into file
-				// // KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
-				// referenceSpan.classList.toggle("reference-span-hidden");
-			} else {
-				openReference(ev);
 			}
 		});
 

@@ -33,7 +33,31 @@ import {
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { delay } from "./effects";
-import { generateDefaultHighlights } from "./main";
+import { defaultHighlightSelection } from "./mark";
+
+export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
+	const editor = getMarkdownView(leaf).editor;
+	const backlinkContainer = getBacklinkContainer(editor);
+	let editorView = getCodeMirrorEditorView(editor);
+
+	let backlinks = [];
+	for (let i = 0; i < backlinkContainer.children.length; i++) {
+		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+	}
+
+	for (let backlink of backlinks) {
+		let reference = backlink.getAttribute("reference")
+			? JSON.parse(backlink.getAttribute("reference")!)
+			: null;
+		if (reference) {
+			let referenceFrom = reference.referencedLocation.from;
+			let referenceTo = reference.referencedLocation.to;
+
+			console.log("default highlight selection");
+			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+		}
+	}
+}
 
 export function createReferenceIcon(
 	portalText: string | null = null
@@ -216,6 +240,7 @@ let debounceTimer: NodeJS.Timeout;
 export async function updateBacklinkMarkPositions() {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(async () => {
+		console.log("updatebacklinkmarkpositions");
 		const leaves = getThat().workspace.getLeavesOfType(
 			"markdown"
 		) as WorkspaceLeaf[];
@@ -288,31 +313,31 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	await updateBacklinkMarkPositions();
-	await delay(2000);
+	await delay(1000);
 	console.log("initial load");
 	generateDefaultHighlights(leaf);
 
-	const scroller = getContainerElement(markdownView.editor).querySelector(
-		".cm-scroller"
-	)!;
+	// const scroller = getContainerElement(markdownView.editor).querySelector(
+	// 	".cm-scroller"
+	// )!;
 
-	// Remove the existing listener before adding a new one
-	if (existingListener) {
-		scroller.removeEventListener("scroll", existingListener);
-	}
+	// // Remove the existing listener before adding a new one
+	// if (existingListener) {
+	// 	scroller.removeEventListener("scroll", existingListener);
+	// }
 
-	const newListener = async (ev: Event) => {
-		await updateBacklinkMarkPositions();
-		await delay(2000);
-		console.log("scroll load");
+	// const newListener = async (ev: Event) => {
+	// 	await updateBacklinkMarkPositions();
+	// 	await delay(2000);
+	// 	console.log("scroll load");
 
-		generateDefaultHighlights(leaf);
-	};
+	// 	generateDefaultHighlights(leaf);
+	// };
 
-	scroller.addEventListener("scroll", newListener);
+	// scroller.addEventListener("scroll", newListener);
 
-	// Update the existing listener
-	existingListener = newListener;
+	// // Update the existing listener
+	// existingListener = newListener;
 
 	// Remove the existing observer before creating a new one
 	if (existingObserver) {
@@ -321,10 +346,10 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 
 	const newObserver = new ResizeObserver(async () => {
 		await updateBacklinkMarkPositions();
-		await delay(2000);
+		await delay(1000);
 		console.log("resize load");
 
-		generateDefaultHighlights(leaf);
+		// generateDefaultHighlights(leaf);
 	});
 
 	newObserver.observe(workspaceTabs);
@@ -519,7 +544,10 @@ export async function generateBacklinks() {
 	}, 0);
 }
 
-export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
+export function updateHoveredReferenceColor(
+	span: HTMLSpanElement,
+	user: string
+) {
 	// remove existing cursors
 	// const svg = span.querySelector("svg");
 	const portal: HTMLElement | null = span.querySelector(".portal");
@@ -550,6 +578,7 @@ export function updateHoveredCursorColor(span: HTMLSpanElement, user: string) {
 
 // Should only recompute for the particular page being opened or interacted with
 export async function recomputeReferencesForPage(): Promise<Backlink[]> {
+	await delay(10);
 	let references: Backlink[] = [];
 	let markdownFiles = this.app.vault.getMarkdownFiles();
 

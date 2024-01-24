@@ -21,7 +21,7 @@ If your plugin does not need CSS, delete this file.
 	/* background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%); */
 	background-color: var(--color-base-35);
 
-	cursor: alias;
+	cursor: pointer;
 	/* color: color-mix(in srgb, var(--text-normal) 45%, var(--text-muted) 55%); */
 	color: var(--text-normal);
 	padding-left: 3px;
@@ -35,7 +35,7 @@ If your plugin does not need CSS, delete this file.
 	/* background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%); */
 	background-color: var(--color-base-35);
 	color: var(--text-accent);
-	cursor: alias;
+	cursor: pointer;
 
 	padding-left: 3px;
 	padding-right: 3px;

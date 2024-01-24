@@ -53,27 +53,6 @@ const highlightField = StateField.define<DecorationSet>({
 const highlightMark = Decoration.mark({ class: "highlight" });
 const defaultHighlightMark = Decoration.mark({ class: "default-highlight" });
 const theme = EditorView.baseTheme({});
-const highlightTheme = EditorView.baseTheme({
-	".highlight": {
-		"background-color":
-			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3))",
-		color: "black",
-	},
-});
-// const defaultHighlightTheme = EditorView.baseTheme({
-// 	".highlight": {
-// 		"background-color":
-// 			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43))",
-// 		color: "black",
-// 	},
-// });
-const defaultHighlightTheme = EditorView.baseTheme({
-	".default-highlight": {
-		"background-color":
-			"hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43))",
-		color: "black",
-	},
-});
 
 export function highlightSelection(view: EditorView, from: number, to: number) {
 	let effects: StateEffect<unknown>[] = [addHighlight.of({ from, to })];
@@ -97,16 +76,9 @@ export function defaultHighlightSelection(
 
 	if (!effects.length) return false;
 
-	// let filteredEffects: StateEffect<unknown>[] =
-	// 	view.state.selection.ranges.filter(
-	// 		({ from, to }) => !effects.includes(addDefaultHighlight.of({ from, to }))
-	// 	);
-
 	console.log("DEFAULT HIGHLIGHT SELECTION RANGES");
 	console.log(view.state.selection.ranges);
 	console.log(from, to);
-
-	// effects = [...effects, ...filteredEffects];
 
 	if (!view.state.field(highlightField, false))
 		effects.push(StateEffect.appendConfig.of([highlightField, theme]));

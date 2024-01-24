@@ -1,16 +1,6 @@
 import { Plugin, MarkdownView, Notice, WorkspaceLeaf } from "obsidian";
 
-import {
-	updateThat,
-	getHover,
-	getBacklinks,
-	getBacklinkHover,
-	getThat,
-	getCursor,
-	resetHover,
-	updateCursor,
-	updateHoveredCursor,
-} from "./state";
+import { updateThat, getHover, getBacklinkHover, getThat } from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
@@ -20,57 +10,24 @@ import {
 	getMarkdownView,
 	getBacklinkContainer,
 	getCodeMirrorEditorView,
-	getContainerElement,
-	updateHoveredCursorColor,
+	updateHoveredReferenceColor,
 } from "./references";
 import {
 	startReferenceEffect,
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
-	endReferenceCursorEffect,
-	delay,
 } from "./effects";
-import { checkFocusCursor, handleRemoveHoveredCursor } from "./utils";
+import { handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
-import {
-	defaultHighlightSelection,
-	removeHighlight,
-	removeHighlights,
-} from "./mark";
+import { defaultHighlightSelection } from "./mark";
 
-export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
-	const editor = getMarkdownView(leaf).editor;
-	const backlinkContainer = getBacklinkContainer(editor);
-
-	let backlinks = [];
-	for (let i = 0; i < backlinkContainer.children.length; i++) {
-		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
-	}
-
-	for (let backlink of backlinks) {
-		let reference = backlink.getAttribute("reference")
-			? JSON.parse(backlink.getAttribute("reference")!)
-			: null;
-		if (reference) {
-			let referenceFrom = reference.referencedLocation.from;
-			let referenceTo = reference.referencedLocation.to;
-			let editorView = getCodeMirrorEditorView(editor);
-			// removeHighlights(editorView);
-			// removeHighlight(editorView, referenceFrom, referenceTo);
-
-			console.log("default highlight selection");
-			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
-		}
-	}
-}
-
-export async function handleMovementEffects(evt: MouseEvent) {
-	if (evt.metaKey || evt.ctrlKey) return;
-
+let lastMouse: MouseEvent | null = null;
+export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 	let span;
+
 	if (
 		evt.target &&
 		(evt.target instanceof HTMLSpanElement ||
@@ -82,73 +39,93 @@ export async function handleMovementEffects(evt: MouseEvent) {
 		while (!(span instanceof HTMLSpanElement) && span.parentElement != null) {
 			span = span.parentElement;
 		}
+	} else if (lastMouse) {
+		const mouseX = lastMouse.clientX;
+		const mouseY = lastMouse.clientY;
+		span = document.elementFromPoint(mouseX, mouseY);
 	}
-	if (
-		span &&
-		span instanceof HTMLSpanElement &&
-		span?.parentElement &&
-		span?.parentElement.classList.contains("reference-container-span")
-	) {
-		console.log("start hover reference effect");
-		if (getHover() != null) return;
-		if (!span.getAttribute("data")) {
-			span = span.parentElement;
-			span = span.querySelector(".reference-data-span") as HTMLSpanElement;
-			if (!span) throw new Error("Span element not found");
+
+	// if key not pressed, mouse movement should end hover effect immediately
+	if (!evt.metaKey && !evt.ctrlKey) {
+		if (getHover() != null) {
+			await endReferenceHoverEffect();
+			handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
+		} else if (getBacklinkHover() != null) {
+			await endBacklinkHoverEffect();
 		}
-		updateHoveredCursorColor(span, ACTION_TYPE.MOUSE);
-		startReferenceEffect(span, ACTION_TYPE.MOUSE);
-	} else if (
-		span &&
-		span instanceof HTMLSpanElement &&
-		span.getAttribute("reference")
-	) {
-		console.log("start hover backlink effect");
-		if (getBacklinkHover() != null) return;
-		startBacklinkEffect(span);
-	} else if (getHover() != null) {
-		console.log("end hover reference effect");
-		// Define the keys you're waiting for
-		const requiredKeys = [
-			"dataString",
-			"leafId",
-			"originalLeafId",
-			"temp",
-			"cursorViewport",
-			"peek",
-			"uuid",
-		];
-		// Function to check if all required keys are present
-		const allKeysPresent = () => requiredKeys.every((key) => key in getHover());
-		// Wait until all keys are present
-		if (!allKeysPresent()) {
-			await new Promise((resolve) => setTimeout(resolve, 50));
+		return;
+	} else {
+		console.log(span);
+		if (
+			span &&
+			span instanceof HTMLSpanElement &&
+			span?.parentElement &&
+			span?.parentElement.classList.contains("reference-container-span")
+		) {
+			console.log("start hover reference effect");
+			if (getHover() != null) return;
+			if (!span.getAttribute("data")) {
+				span = span.parentElement;
+				span = span.querySelector(".reference-data-span") as HTMLSpanElement;
+				if (!span) throw new Error("Span element not found");
+			}
+			updateHoveredReferenceColor(span, ACTION_TYPE.MOUSE);
+			startReferenceEffect(span, ACTION_TYPE.MOUSE);
+		} else if (
+			span &&
+			span instanceof HTMLSpanElement &&
+			span.getAttribute("reference")
+		) {
+			console.log("start hover backlink effect");
+			if (getBacklinkHover() != null) return;
+			startBacklinkEffect(span);
+		} else if (getHover() != null) {
+			console.log("end hover reference effect");
+			// Define the keys you're waiting for
+			const requiredKeys = [
+				"dataString",
+				"leafId",
+				"originalLeafId",
+				"temp",
+				"cursorViewport",
+				"peek",
+				"uuid",
+			];
+			// Function to check if all required keys are present
+
+			const allKeysPresent = () =>
+				requiredKeys.every((key) => key in getHover());
+			// Wait until all keys are present
+			if (!allKeysPresent()) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+			await endReferenceHoverEffect();
+			handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
+		} else if (getBacklinkHover() != null) {
+			console.log("end hover backlink effect");
+			// Define the keys you're waiting for
+			const requiredKeys = [
+				"dataString",
+				"leafId",
+				"originalLeafId",
+				"backlinkLeafId",
+				"temp",
+				"cursorViewport",
+				"peek",
+				"uuid",
+				"backlinkUUID",
+			];
+			// Function to check if all required keys are present
+			const allKeysPresent = () =>
+				requiredKeys.every((key) => key in getBacklinkHover());
+			// Wait until all keys are present
+			if (!allKeysPresent()) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
+			await endBacklinkHoverEffect();
 		}
-		await endReferenceHoverEffect();
-		handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
-	} else if (getBacklinkHover() != null) {
-		console.log("end hover backlink effect");
-		// Define the keys you're waiting for
-		const requiredKeys = [
-			"dataString",
-			"leafId",
-			"originalLeafId",
-			"backlinkLeafId",
-			"temp",
-			"cursorViewport",
-			"peek",
-			"uuid",
-			"backlinkUUID",
-		];
-		// Function to check if all required keys are present
-		const allKeysPresent = () =>
-			requiredKeys.every((key) => key in getBacklinkHover());
-		// Wait until all keys are present
-		if (!allKeysPresent()) {
-			await new Promise((resolve) => setTimeout(resolve, 50));
-		}
-		await endBacklinkHoverEffect();
 	}
+	await updateBacklinkMarkPositions();
 }
 
 export default class ReferencePlugin extends Plugin {
@@ -169,7 +146,6 @@ export default class ReferencePlugin extends Plugin {
 				this.app.workspace.on("active-leaf-change", async (ev) => {
 					// This should create referenceMarkers if they don't exist and update
 					// else update only
-
 					try {
 						const activeView =
 							this.app.workspace.getActiveViewOfType(MarkdownView);
@@ -203,6 +179,7 @@ export default class ReferencePlugin extends Plugin {
 				Math.abs(prevX - evt.clientX) + Math.abs(prevY - evt.clientY);
 			prevX = evt.clientX;
 			prevY = evt.clientY;
+			lastMouse = evt;
 			if (difference > 10) {
 				return;
 			}
@@ -210,23 +187,33 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		// on selection changes, event over click and keydown
-
 		this.registerDomEvent(document, "click", async (evt) => {
 			console.log("click");
-			await checkFocusCursor(evt);
+			console.log(evt);
+			handleMovementEffects(evt);
+			// await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) return;
-
-			await checkFocusCursor(evt);
+			handleMovementEffects(evt);
+			// await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
+			console.log(evt);
+			if (evt.metaKey || evt.ctrlKey) {
+				// Change the cursor style of the body
+				handleMovementEffects(evt);
+			}
 			// Copy with toggle off
-			if (
+			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
+				console.log("hello");
+				let currentLeaf = getThat().workspace.getLeaf();
+				await addReferencesToLeaf(currentLeaf);
+			} else if (
 				evt.key == "Ç" &&
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey &&

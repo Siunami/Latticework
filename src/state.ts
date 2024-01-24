@@ -216,12 +216,6 @@ export let state: any = EditorState.create({
 	],
 });
 
-export function syncBacklinks() {
-	state = state.update({
-		effects: backlinkEffect.of(JSON.stringify({ type: "sync" })),
-	}).state;
-}
-
 export function getThat(): App {
 	return state.field(that);
 }

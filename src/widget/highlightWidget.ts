@@ -6,8 +6,6 @@ import {
 	ViewPlugin,
 	ViewUpdate,
 	MatchDecorator,
-	gutter,
-	GutterMarker,
 } from "@codemirror/view";
 import { SVG_HOVER_COLOR } from "../constants";
 
