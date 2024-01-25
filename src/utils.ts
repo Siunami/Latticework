@@ -1,13 +1,5 @@
-import { MarkdownView, TextFileView, View } from "obsidian";
-import { REFERENCE_REGEX, ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
-import { startReferenceEffect, endReferenceCursorEffect } from "./effects";
-import {
-	getHoveredCursor,
-	updateHoveredCursor,
-	removeHoveredCursor,
-	getHover,
-} from "./state";
-import { updateReferenceColor } from "./references";
+import { MarkdownView } from "obsidian";
+import { REFERENCE_REGEX } from "./constants";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -186,36 +178,4 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 		}
 	}
 	return { matched, span: matchSpan };
-}
-
-// Remove an existmaining higlighted reference
-export function handleRemoveHoveredCursor(user: string) {
-	if (getHoveredCursor()) {
-		// cursors not associated with the user action
-		let nonCursors = getHoveredCursor()
-			.filter((element: any) => {
-				return element.user !== user;
-			})
-			.map((element: any) => element.cursor.closest("span"));
-
-		// white background if cursors are not associated with the user action
-		getHoveredCursor()
-			.filter((element: any) => element.user === user)
-			.forEach((element: any) => {
-				if (!nonCursors.includes(element.cursor.closest("span"))) {
-					let svg = element.cursor;
-					if (!svg) throw new Error("SVG not found");
-					if (svg.classList.contains("reference-icon"))
-						svg.style.backgroundColor = "white";
-					else {
-						svg.setAttribute("fill", "white");
-						svg.style.backgroundColor = "";
-					}
-					element.cursor.style.backgroundColor = "white";
-					// element.cursor.style.boxShadow = "none";
-				}
-			});
-
-		removeHoveredCursor(user);
-	}
 }

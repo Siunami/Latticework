@@ -1,16 +1,11 @@
 import {
-	state,
-	updateCursor,
 	updateHover,
-	getCursor,
 	getHover,
 	resetHover,
-	resetCursor,
 	getThat,
 	getBacklinkHover,
 	updateBacklinkHover,
 	resetBacklinkHover,
-	updateHoveredCursor,
 } from "./state";
 import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import {
@@ -24,7 +19,6 @@ import {
 	defaultHighlightSelection,
 	highlightSelection,
 	removeHighlight,
-	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
@@ -288,7 +282,7 @@ function endEffectRemoveHighlights(
 
 	let targetLeaf = workspace.getLeafById(leafId);
 	if (!targetLeaf) {
-		resetCursor();
+		// resetCursor();
 		throw new Error("Target leaf not found");
 	}
 
@@ -306,7 +300,6 @@ function endEffectRemoveHighlights(
 
 export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let source = getBacklinkHover();
-	let destination = getCursor();
 	let updateState = updateBacklinkHover;
 
 	// Mutex, prevent concurrent access to following section of code
@@ -334,12 +327,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	const backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
-
-	// Check if the cursor is already on the same reference
-	if (destination != null && destination.dataString == dataString) {
-		updateState(destination);
-		return;
-	}
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
@@ -460,19 +447,12 @@ export async function startReferenceEffect(
 	span: HTMLSpanElement | null | undefined,
 	type: string
 ) {
-	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
-	let destination = type == ACTION_TYPE.MOUSE ? getCursor() : getHover();
-	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
+	let source = getHover();
+	let updateState = updateHover;
 
 	// Mutex, prevent concurrent access to following section of code
-	if (source != null) {
-		if (ACTION_TYPE.CURSOR == type) {
-			// if there was another cursor effect, end it and start a new one
-			await endReferenceCursorEffect();
-		} else {
-			return;
-		}
-	}
+	if (source != null) return;
+
 	updateState({
 		type: `${type}-start`,
 	});
@@ -494,26 +474,11 @@ export async function startReferenceEffect(
 	const dataString = span.getAttribute("data");
 	if (!dataString) throw new Error("Data string not found");
 
-	if (
-		destination != null &&
-		destination.dataString == dataString &&
-		ACTION_TYPE.CURSOR != type
-	) {
-		updateHover(destination);
-		return;
-	}
-
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
 	let leavesByTab = collectLeavesByTabHelper();
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
-
-	let currLeaf = getThat().workspace.getLeaf();
-
-	// @ts-ignore
-	let currLeafID = currLeaf.id;
-	if (!currLeafID) throw new Error("currLeafID id not found");
 
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
@@ -534,7 +499,6 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
-	console.log(newLeaf && newLeaf.view instanceof MarkdownView);
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -543,7 +507,6 @@ export async function startReferenceEffect(
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
-		console.log("leaves are equal" + id === originalLeafId);
 		tempDirectionIndicator(
 			newLeaf,
 			text,
@@ -558,7 +521,6 @@ export async function startReferenceEffect(
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
-			// originalLeafId: currLeafID,
 			cursorViewport,
 		});
 	}
@@ -568,133 +530,6 @@ export async function startReferenceEffect(
 			originalLeafId,
 		});
 	}
-}
-
-export async function endReferenceCursorEffect() {
-	if (!getCursor() || Object.keys(getCursor()).length == 0) {
-		// End mutex lock
-		resetCursor();
-		return;
-	}
-
-	const {
-		dataString,
-		leafId,
-		originalLeafId,
-		temp,
-		cursorViewport,
-		peek,
-		uuid,
-		removed,
-	} = getCursor();
-	resetCursor();
-
-	if (getHover() != null && getHover().dataString == dataString) {
-		// End mutex lock
-		resetCursor();
-		return;
-	}
-
-	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
-	endEffectRemoveHighlights(workspace, leafId, uuid);
-
-	const activeLeaf = getThat().workspace.getLeaf();
-	// @ts-ignore id
-	const activeLeafId = activeLeaf.id;
-
-	let editorView = getEditorView(targetLeaf);
-
-	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-
-	// remove the highlight
-	removeHighlight(editorView, from, to);
-	// replace with default highlight
-	if (!removed) defaultHighlightSelection(editorView, from, to);
-
-	// removeHighlights(editorView);
-
-	if (activeLeafId === leafId) {
-		resetCursor();
-		let containerEl: HTMLElement = getContainerElement(targetLeaf);
-		if (containerEl != null) {
-			// @ts-ignore
-			containerEl.querySelector(".view-content")?.setAttribute("style", "");
-		}
-		return;
-	}
-
-	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
-		const view: MarkdownView = targetLeaf.view;
-		view.editor.scrollTo(0, cursorViewport.top);
-
-		// const result = await new Promise((resolve) => {
-		// 	const scrolling = setInterval(() => {
-		// 		const scrollAmount = 40;
-		// 		const currentScroll = view.editor.getScrollInfo().top;
-		// 		if (currentScroll == cursorViewport.top) {
-		// 			clearInterval(scrolling);
-		// 		} else if (currentScroll > cursorViewport.top) {
-		// 			if (currentScroll - scrollAmount < cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll - scrollAmount);
-		// 			}
-		// 		} else if (currentScroll < cursorViewport.top) {
-		// 			if (currentScroll + scrollAmount > cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll + scrollAmount);
-		// 			}
-		// 		}
-		// 	}, 10);
-		// });
-
-		// view.containerEl.querySelector(".cm-scroller")?.scrollTo({
-		// 	top: cursorViewport.top,
-		// 	behavior: "smooth",
-		// });
-
-		// if the hover is active, highlight the selection
-		if (getHover() != null) {
-			const { dataString, cursorViewport, leafId, originalLeafId } = getHover();
-			let [prefix, text, suffix, file, from, to] = processURI(dataString);
-			const cursorLeaf = workspace.getLeafById(leafId);
-			workspace.revealLeaf(cursorLeaf);
-			const editorView: EditorView = getEditorView(cursorLeaf);
-			highlightSelection(editorView, from, to);
-		} else {
-			let containerEl: HTMLElement = getContainerElement(targetLeaf);
-			if (containerEl != null) {
-				// @ts-ignore
-				containerEl.querySelector(".view-content")?.setAttribute("style", "");
-			}
-		}
-	}
-
-	if (temp && targetLeaf) {
-		targetLeaf.detach();
-	}
-
-	if (peek) {
-		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
-
-		workspace.revealLeaf(originalLeaf);
-	}
-
-	// if (!temp) {
-	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
-	// 	if (!originalLeaf) throw new Error("Original leaf not found");
-
-	// 	workspace.revealLeaf(originalLeaf);
-	// }
-	// End mutex lock
-	resetCursor();
 }
 
 export async function endReferenceHoverEffect() {
@@ -707,13 +542,6 @@ export async function endReferenceHoverEffect() {
 	let { dataString, leafId, originalLeafId, temp, cursorViewport, peek, uuid } =
 		getHover();
 	resetHover();
-
-	if (getCursor() != null && getCursor().dataString == dataString) {
-		// console.log("cursor reset");
-		// End mutex lock
-		resetHover();
-		return;
-	}
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
@@ -731,26 +559,12 @@ export async function endReferenceHoverEffect() {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
 
-		// if the cursor is active, highlight the selection
-		if (getCursor() != null && getCursor().dataString) {
-			const { dataString, cursorViewport, leafId, originalLeafId } =
-				getCursor();
-			let [prefix, text, suffix, file, from, to, portal, toggle] =
-				processURI(dataString);
-			const cursorLeaf = workspace.getLeafById(leafId);
-			workspace.revealLeaf(cursorLeaf);
-			const editorView: EditorView = getEditorView(cursorLeaf);
-			if (!editorView) throw new Error("Editor view not found");
-
-			highlightSelection(editorView, from, to);
-		} else {
-			let containerEl: HTMLElement = getContainerElement(targetLeaf);
-			if (containerEl != null) {
-				setTimeout(() => {
-					// @ts-ignore
-					containerEl.querySelector(".view-content")?.setAttribute("style", "");
-				}, 50);
-			}
+		let containerEl: HTMLElement = getContainerElement(targetLeaf);
+		if (containerEl != null) {
+			setTimeout(() => {
+				// @ts-ignore
+				containerEl.querySelector(".view-content")?.setAttribute("style", "");
+			}, 50);
 		}
 	}
 
@@ -772,12 +586,6 @@ export async function endReferenceHoverEffect() {
 
 		workspace.revealLeaf(originalLeaf);
 	}
-	// if (!temp) {
-	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
-	// 	if (!originalLeaf) throw new Error("Original leaf not found");
-
-	// 	workspace.revealLeaf(originalLeaf);
-	// }
 
 	// End mutex lock
 	resetHover();
@@ -803,12 +611,6 @@ export async function endBacklinkHoverEffect() {
 	} = getBacklinkHover();
 	resetBacklinkHover();
 
-	if (getCursor() != null && getCursor().dataString == dataString) {
-		// End mutex lock
-		resetBacklinkHover();
-		return;
-	}
-
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid, backlinkUUID);
@@ -826,12 +628,7 @@ export async function endBacklinkHoverEffect() {
 		}, 50);
 	}
 
-	let editorView: EditorView = getEditorView(targetLeaf);
-
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-	// removeHighlight(editorView, from, to);
-	// removeHighlights(editorView);
-
 	// backlink effect
 	const originalLeaf = workspace.getLeafById(backlinkLeafId);
 	if (!originalLeaf) {
@@ -844,16 +641,6 @@ export async function endBacklinkHoverEffect() {
 	defaultHighlightSelection(originalEditorView, from, to);
 
 	// removeHighlights(originalEditorView);
-
-	if (getCursor() != null && getCursor().dataString) {
-		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();
-		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-		const cursorLeaf = workspace.getLeafById(leafId);
-		workspace.revealLeaf(cursorLeaf);
-
-		const editorView: EditorView = getEditorView(cursorLeaf);
-		highlightSelection(editorView, from, to);
-	}
 
 	if (temp && targetLeaf) {
 		targetLeaf.detach();
@@ -868,15 +655,6 @@ export async function endBacklinkHoverEffect() {
 
 		workspace.revealLeaf(originalLeaf);
 	}
-
-	// if (temp) {
-	// 	targetLeaf.detach();
-	// 	// setTimeout(() => {
-	// 	// 	targetLeaf.detach();
-	// 	// }, 100);
-	// } else {
-	// 	// if the cursor is active, highlight the selection
-	// }
 
 	// End mutex lock
 	resetBacklinkHover();

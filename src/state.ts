@@ -22,80 +22,6 @@ export let that = StateField.define<App | null>({
 	},
 });
 
-export let hoveredCursor = StateField.define<any>({
-	create() {
-		return null;
-	},
-	update(value, tr: any) {
-		if (
-			tr["annotations"].length == 2 &&
-			tr["annotations"][0].value.type == "hoveredCursor"
-		) {
-			if (value)
-				return [
-					...value.filter(
-						(cursor: any) => cursor.user != tr["annotations"][0].value.user
-					),
-					{
-						cursor: tr["annotations"][0].value.cursor,
-						user: tr["annotations"][0].value.user,
-					},
-				];
-			return [
-				{
-					cursor: tr["annotations"][0].value.cursor,
-					user: tr["annotations"][0].value.user,
-				},
-			];
-		} else if (
-			tr["annotations"].length == 2 &&
-			tr["annotations"][0].value.type == "removeHoveredCursor"
-		) {
-			if (value)
-				return value.filter(
-					(cursor: any) => cursor.user != tr["annotations"][0].value.user
-				);
-			return value;
-		}
-		return value;
-	},
-});
-
-export let backlinks = StateField.define<Backlink[]>({
-	create() {
-		return [];
-	},
-	update(value, tr) {
-		/*
-			I  want to get the current activeLeaf and recompute the references
-			merge this into the references field
-		*/
-
-		if (tr.effects.length > 0) {
-			try {
-				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
-					tr.effects[0].value
-				);
-				if (data.type == "backlink") {
-					if (data.backlinks.length == 0) return value;
-					let referencingLocation =
-						data.backlinks[0]["referencingLocation"]["filename"];
-					let filteredValues = value.filter(
-						(backlink) =>
-							backlink.referencingLocation.filename != referencingLocation
-					);
-					return [...filteredValues, ...data.backlinks];
-				}
-				return value;
-			} catch (e) {
-				console.log(e);
-				return value;
-			}
-		}
-		return value;
-	},
-});
-
 export let hoverElement = StateField.define<object | null>({
 	create() {
 		return null;
@@ -148,42 +74,37 @@ export let backlinkHoverElement = StateField.define<object | null>({
 	},
 });
 
-export let cursorElement = StateField.define<object | null>({
+export let backlinks = StateField.define<Backlink[]>({
 	create() {
-		return null;
+		return [];
 	},
 	update(value, tr) {
 		if (tr.effects.length > 0) {
 			try {
-				let data = JSON.parse(tr.effects[0].value);
-				if (data.type == "cursor-start") {
-					return {};
-				} else if (data.type == "cursor") {
-					if (value) return Object.assign(value, data);
-					return data;
-				} else if (data.type == "cursor-off") {
-					return null;
-				}
-				return value;
-			} catch (e) {
-				console.log(e);
-				return value;
-			}
-		}
-		return value;
-	},
-});
-
-export let editorChange = StateField.define<null>({
-	create() {
-		return null;
-	},
-	update(value, tr) {
-		if (tr.effects.length > 0) {
-			try {
-				let data = JSON.parse(tr.effects[0].value);
-				if (data.type == "sync") {
-					return value;
+				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
+					tr.effects[0].value
+				);
+				if (data.type == "backlink") {
+					console.log(data.backlinks);
+					let referencingLocations = data.backlinks.map(
+						(backlink) => backlink.referencingLocation
+					);
+					let referencedLocations = data.backlinks.map(
+						(backlink) => backlink.referencedLocation
+					);
+					let filteredBacklinks = value.filter((backlink) => {
+						return !(
+							referencedLocations.includes(backlink.referencedLocation) &&
+							referencingLocations.includes(backlink.referencingLocation)
+						);
+						console.log(backlink);
+						return !data.backlinks.includes(backlink);
+					});
+					console.log(filteredBacklinks);
+					return [...filteredBacklinks, ...data.backlinks];
+				} else if (data.type == "remove-backlink") {
+					let filteredBacklinks = value.filter((backlink) => {});
+					return filteredBacklinks;
 				}
 				return value;
 			} catch (e) {
@@ -196,23 +117,15 @@ export let editorChange = StateField.define<null>({
 });
 
 export const thatAnnotation = Annotation.define<any>();
-export const hoveredCursorAnnotation = Annotation.define<any>();
 export const hoverEffect = StateEffect.define<string>();
 export const backlinkHoverEffect = StateEffect.define<string>();
-export const cursorEffect = StateEffect.define<string>();
 export const backlinkEffect = StateEffect.define<string>();
 
 export let state: any = EditorState.create({
-	extensions: [
-		that,
-		hoveredCursor,
-		backlinks,
-		hoverElement,
-		backlinkHoverElement,
-		cursorElement,
-		editorChange,
-	],
+	extensions: [that, backlinks, hoverElement, backlinkHoverElement],
 });
+
+// OBSIDIAN THAT
 
 export function getThat(): App {
 	return state.field(that);
@@ -227,29 +140,7 @@ export function updateThat(that: any) {
 	}).state;
 }
 
-export function getHoveredCursor() {
-	return state.field(hoveredCursor);
-}
-
-export function updateHoveredCursor(cursor: HTMLOrSVGElement, user: string) {
-	state = state.update({
-		annotations: hoveredCursorAnnotation.of({
-			type: "hoveredCursor",
-			cursor,
-			user,
-		}),
-	}).state;
-}
-
-export function removeHoveredCursor(user: string) {
-	state = state.update({
-		annotations: hoveredCursorAnnotation.of({
-			type: "removeHoveredCursor",
-			user,
-		}),
-	}).state;
-}
-
+// MOUSE HOVER
 export function getHover() {
 	return state.field(hoverElement);
 }
@@ -271,6 +162,8 @@ export function resetHover() {
 		),
 	}).state;
 }
+
+// BACKLINK HOVER
 
 export function getBacklinkHover() {
 	return state.field(backlinkHoverElement);
@@ -294,27 +187,7 @@ export function resetBacklinkHover() {
 	}).state;
 }
 
-export function getCursor() {
-	return state.field(cursorElement);
-}
-
-export function updateCursor(value: object) {
-	state = state.update({
-		effects: cursorEffect.of(
-			JSON.stringify(Object.assign(value, { type: "cursor" }))
-		),
-	}).state;
-}
-
-export function resetCursor() {
-	state = state.update({
-		effects: cursorEffect.of(
-			JSON.stringify({
-				type: "cursor-off",
-			})
-		),
-	}).state;
-}
+// BACKLINKS
 
 export function getBacklinks(): Backlink[] {
 	return state.field(backlinks);
@@ -324,6 +197,16 @@ export function updateBacklinks(value: Backlink[]) {
 	state = state.update({
 		effects: backlinkEffect.of(
 			JSON.stringify(Object.assign({ backlinks: value }, { type: "backlink" }))
+		),
+	}).state;
+}
+
+export function removeBacklinks(value: Backlink[]) {
+	state = state.update({
+		effects: backlinkEffect.of(
+			JSON.stringify(
+				Object.assign({ backlinks: value }, { type: "remove-backlink" })
+			)
 		),
 	}).state;
 }

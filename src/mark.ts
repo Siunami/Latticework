@@ -76,10 +76,6 @@ export function defaultHighlightSelection(
 
 	if (!effects.length) return false;
 
-	console.log("DEFAULT HIGHLIGHT SELECTION RANGES");
-	console.log(view.state.selection.ranges);
-	console.log(from, to);
-
 	if (!view.state.field(highlightField, false))
 		effects.push(StateEffect.appendConfig.of([highlightField, theme]));
 

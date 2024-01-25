@@ -1,27 +1,41 @@
-import { Plugin, MarkdownView, Notice, WorkspaceLeaf } from "obsidian";
+import {
+	Plugin,
+	MarkdownView,
+	Notice,
+	WorkspaceLeaf,
+	TFile,
+	TAbstractFile,
+} from "obsidian";
 
-import { updateThat, getHover, getBacklinkHover, getThat } from "./state";
+import {
+	updateThat,
+	getHover,
+	getBacklinkHover,
+	getThat,
+	updateBacklinks,
+} from "./state";
 import { highlights, referenceResources } from "./widget";
 import { updateClipboard } from "./clipboard";
 import {
 	generateBacklinks,
 	addReferencesToLeaf,
-	updateBacklinkMarkPositions,
 	getMarkdownView,
 	getCodeMirrorEditorView,
 	updateReferenceColor,
+	createBacklinkMark,
+	createBacklinkData,
 } from "./references";
 import {
 	startReferenceEffect,
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
+	delay,
 } from "./effects";
-import { decodeURIComponentString, handleRemoveHoveredCursor } from "./utils";
+import { decodeURIComponentString } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
-import { Backlink } from "./types";
 import { collectLeavesByTabHelper } from "./workspace";
 
 let lastMouse: MouseEvent | null = null;
@@ -49,7 +63,6 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 	if (!evt.metaKey && !evt.ctrlKey) {
 		if (getHover() != null) {
 			await endReferenceHoverEffect();
-			handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 		} else if (getBacklinkHover() != null) {
 			await endBacklinkHoverEffect();
 		}
@@ -99,7 +112,6 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
 			await endReferenceHoverEffect();
-			handleRemoveHoveredCursor(ACTION_TYPE.MOUSE);
 		} else if (getBacklinkHover() != null) {
 			console.log("end hover backlink effect");
 			// Define the keys you're waiting for
@@ -124,20 +136,18 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 			await endBacklinkHoverEffect();
 		}
 	}
-	console.log("handleMovementEffects");
-	await updateBacklinkMarkPositions();
 }
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
 		//
 		setTimeout(async () => {
-			const backlinks: Backlink[] = await generateBacklinks();
+			await generateBacklinks();
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			let promises: Promise<WorkspaceLeaf>[] = leaves.map(
 				(leaf: WorkspaceLeaf) => {
-					return addReferencesToLeaf(leaf, backlinks);
+					return addReferencesToLeaf(leaf);
 				}
 			);
 
@@ -165,7 +175,7 @@ export default class ReferencePlugin extends Plugin {
 		this.registerEditorExtension([
 			highlights,
 			referenceResources,
-			EditorView.updateListener.of(function (e) {
+			EditorView.updateListener.of(async function (e) {
 				// this recognizes when a paste event of more than a character has occured
 				// if this is a new reference, want to update the referenced page to reflect this
 				if (Math.abs(e.changes.desc.newLength - e.changes.desc.length) > 1) {
@@ -174,7 +184,7 @@ export default class ReferencePlugin extends Plugin {
 					// @ts-ignore - this is a private attribute
 					let inserted = e.changes.inserted;
 
-					let referencedFile: string;
+					let referencedFile: string | null = null;
 
 					inserted.forEach((change: { length: number; text: string[] }) => {
 						change.text.forEach((text) => {
@@ -188,16 +198,67 @@ export default class ReferencePlugin extends Plugin {
 							}
 						});
 					});
+					if (!referencedFile) return;
+					/*
+t {parent: t, deleted: false, vault: t, path: 'Prototyping.md', name: 'Prototyping.md', …}
+basename
+: 
+"Prototyping"
+deleted
+: 
+false
+extension
+: 
+"md"
+name
+: 
+"Prototyping.md"
+parent
+: 
+t {parent: null, deleted: false, vault: t, path: '/', name: '', …}
+path
+: 
+"Prototyping.md"
+saving
+: 
+false
+stat
+: 
+{ctime: 1700046851001, mtime: 1702685534232, size: 777}
+vault
+: 
+t {_: {…}, fileMap: {…}, config: {…}, configTs: 1706174615244, configDir: '.obsidian', …}
+[[Prototype]]
+: 
+e
+*/
+					// let leaf: WorkspaceLeaf = getThat().workspace.getLeaf();
 
-					let leavesByTab = collectLeavesByTabHelper();
-					let leaf = leavesByTab.flat().filter((leaf) => {
-						return leaf.getViewState().state.file == referencedFile;
-					})[0];
+					// console.log(leaf);
 
-					if (leaf) {
-						setTimeout(() => {
-							addReferencesToLeaf(leaf);
-						}, 2000); /// this timeout is to make sure the changes have finished writing to file.
+					// let markdownFile: TAbstractFile | TFile | null =
+					// 	getThat().vault.getAbstractFileByPath(referencedFile);
+
+					await delay(2000);
+					let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+					console.log(markdownFile);
+					// if (!(markdownFile instanceof TFile)) return;
+					if (markdownFile instanceof TFile) {
+						let fileData = await getThat().vault.read(markdownFile);
+
+						let fileBacklinks = createBacklinkData(fileData, markdownFile);
+						console.log(fileBacklinks);
+						updateBacklinks(fileBacklinks);
+
+						// setTimeout(() => {
+						// 	let leavesByTab = collectLeavesByTabHelper();
+						// 	let leaf = leavesByTab.flat().filter((leaf) => {
+						// 		return leaf.getViewState().state.file == referencedFile;
+						// 	})[0];
+						// 	if (leaf) {
+						// 		addReferencesToLeaf(leaf);
+						// 	}
+						// }, 2000); /// this timeout is to make sure the changes have finished writing to file.
 					}
 				}
 			}),
@@ -218,13 +279,13 @@ export default class ReferencePlugin extends Plugin {
 			handleMovementEffects(evt);
 		});
 
-		// on selection changes, event over click and keydown
-		this.registerDomEvent(document, "click", async (evt) => {
-			console.log("click");
-			handleMovementEffects(evt);
-			// await checkFocusCursor(evt);
-			updateBacklinkMarkPositions();
-		});
+		// // on selection changes, event over click and keydown
+		// this.registerDomEvent(document, "click", async (evt) => {
+		// 	console.log("click");
+		// 	handleMovementEffects(evt);
+		// 	// await checkFocusCursor(evt);
+		// 	updateBacklinkMarkPositions();
+		// });
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey || evt.key === "Backspace") return;
@@ -232,7 +293,7 @@ export default class ReferencePlugin extends Plugin {
 			console.log("keyup");
 			handleMovementEffects(evt);
 			// await checkFocusCursor(evt);
-			updateBacklinkMarkPositions();
+			// updateBacklinkMarkPositions();
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
