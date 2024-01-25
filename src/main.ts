@@ -10,7 +10,7 @@ import {
 	getMarkdownView,
 	getBacklinkContainer,
 	getCodeMirrorEditorView,
-	updateHoveredReferenceColor,
+	updateReferenceColor,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -18,11 +18,13 @@ import {
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
 } from "./effects";
-import { handleRemoveHoveredCursor } from "./utils";
+import { decodeURIComponentString, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
 import { defaultHighlightSelection } from "./mark";
+import { Backlink } from "./types";
+import { collectLeavesByTabHelper } from "./workspace";
 
 let lastMouse: MouseEvent | null = null;
 export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
@@ -69,7 +71,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 				span = span.querySelector(".reference-data-span") as HTMLSpanElement;
 				if (!span) throw new Error("Span element not found");
 			}
-			updateHoveredReferenceColor(span, ACTION_TYPE.MOUSE);
+			updateReferenceColor(span, ACTION_TYPE.MOUSE);
 			startReferenceEffect(span, ACTION_TYPE.MOUSE);
 		} else if (
 			span &&
@@ -130,13 +132,14 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
+		//
 		setTimeout(async () => {
-			await generateBacklinks();
+			const backlinks: Backlink[] = await generateBacklinks();
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
 
 			let promises: Promise<WorkspaceLeaf>[] = leaves.map(
 				(leaf: WorkspaceLeaf) => {
-					return addReferencesToLeaf(leaf);
+					return addReferencesToLeaf(leaf, backlinks);
 				}
 			);
 
@@ -165,8 +168,38 @@ export default class ReferencePlugin extends Plugin {
 			highlights,
 			referenceResources,
 			EditorView.updateListener.of(function (e) {
+				// this recognizes when a paste event of more than a character has occured
+				// if this is a new reference, want to update the referenced page to reflect this
 				if (Math.abs(e.changes.desc.newLength - e.changes.desc.length) > 1) {
-					updateBacklinkMarkPositions();
+					console.log("NEW PASTE EVENT");
+
+					// @ts-ignore - this is a private attribute
+					let inserted = e.changes.inserted;
+
+					let referencedFile: string;
+
+					inserted.forEach((change: { length: number; text: string[] }) => {
+						change.text.forEach((text) => {
+							const regex = /\[↗\]\(urn:([^)]*)\)/g;
+							let content = regex.exec(text);
+							if (content) {
+								console.log(content);
+								const [prefix, text, suffix, file, from, to, portal, toggle] =
+									content[1].split(":");
+								referencedFile = decodeURIComponentString(file);
+							}
+						});
+					});
+
+					setTimeout(() => {
+						let leavesByTab = collectLeavesByTabHelper();
+						let leaf = leavesByTab.flat().filter((leaf) => {
+							return leaf.getViewState().state.file == referencedFile;
+						})[0];
+						if (leaf) {
+							addReferencesToLeaf(leaf);
+						}
+					}, 1000);
 				}
 			}),
 		]);
@@ -189,7 +222,6 @@ export default class ReferencePlugin extends Plugin {
 		// on selection changes, event over click and keydown
 		this.registerDomEvent(document, "click", async (evt) => {
 			console.log("click");
-			console.log(evt);
 			handleMovementEffects(evt);
 			// await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();
@@ -203,7 +235,6 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
-			console.log(evt);
 			if (evt.metaKey || evt.ctrlKey) {
 				// Change the cursor style of the body
 				handleMovementEffects(evt);

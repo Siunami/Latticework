@@ -147,7 +147,7 @@ export function getLeafBBoxElements(leaf: WorkspaceLeaf) {
 	return { titleBbox, lineBbox };
 }
 
-export function updateBacklinkMarkPosition(
+export function layoutBacklinks(
 	leaf: WorkspaceLeaf,
 	backlinksToLeaf: Backlink[],
 	showPortals: boolean
@@ -237,7 +237,7 @@ export function updateBacklinkMarkPosition(
 
 let debounceTimer: NodeJS.Timeout;
 
-export async function updateBacklinkMarkPositions() {
+export async function updateBacklinkMarkPositions(backlinks?: Backlink[]) {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(async () => {
 		console.log("updatebacklinkmarkpositions");
@@ -245,9 +245,23 @@ export async function updateBacklinkMarkPositions() {
 			"markdown"
 		) as WorkspaceLeaf[];
 
-		setTimeout(async () => {
-			const allBacklinks: Backlink[] = await recomputeReferencesForPage();
+		// setTimeout(async () => {
+		let allBacklinks: Backlink[];
 
+		if (!backlinks) allBacklinks = await generateBacklinks();
+		else allBacklinks = backlinks;
+		// const allBacklinks: Backlink[] = await generateBacklinks();
+
+		// leaves.map(async (leaf) => {
+		// 	const backlinksToLeaf = allBacklinks.filter(
+		// 		// @ts-ignore
+		// 		(b) => b.referencedLocation.filename == leaf.view.file.path
+		// 	);
+		// 	// width 900, show the reference
+		// 	const showPortals = getContainerElement(leaf).innerWidth > 900;
+		// 	layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+		// });
+		await Promise.all(
 			leaves.map(async (leaf) => {
 				const backlinksToLeaf = allBacklinks.filter(
 					// @ts-ignore
@@ -255,20 +269,10 @@ export async function updateBacklinkMarkPositions() {
 				);
 				// width 900, show the reference
 				const showPortals = getContainerElement(leaf).innerWidth > 900;
-				updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
-			});
-			await Promise.all(
-				leaves.map(async (leaf) => {
-					const backlinksToLeaf = allBacklinks.filter(
-						// @ts-ignore
-						(b) => b.referencedLocation.filename == leaf.view.file.path
-					);
-					// width 900, show the reference
-					const showPortals = getContainerElement(leaf).innerWidth > 900;
-					updateBacklinkMarkPosition(leaf, backlinksToLeaf, showPortals);
-				})
-			);
-		}, 500);
+				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+			})
+		);
+		// }, 500);
 	}, 100);
 }
 
@@ -305,14 +309,11 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 let existingObserver: ResizeObserver | null = null;
 let existingListener: ((ev: Event) => any) | null = null;
 
-export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	const markdownView = getMarkdownView(leaf);
-	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
-	if (!workspaceTabs) {
-		throw new Error("Missing workspace tabs");
-	}
-
-	await updateBacklinkMarkPositions();
+export async function addReferencesToLeaf(
+	leaf: WorkspaceLeaf,
+	backlinks?: Backlink[]
+) {
+	await updateBacklinkMarkPositions(backlinks);
 	await delay(1000);
 	console.log("initial load");
 	generateDefaultHighlights(leaf);
@@ -348,9 +349,14 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 		await updateBacklinkMarkPositions();
 		await delay(1000);
 		console.log("resize load");
-
-		// generateDefaultHighlights(leaf);
+		generateDefaultHighlights(leaf);
 	});
+
+	const markdownView = getMarkdownView(leaf);
+	let workspaceTabs = markdownView.containerEl.closest(".workspace-tabs");
+	if (!workspaceTabs) {
+		throw new Error("Missing workspace tabs");
+	}
 
 	newObserver.observe(workspaceTabs);
 
@@ -420,13 +426,8 @@ function createBacklinkData(
 		);
 
 		const referencingLocation: DocumentLocation = {
-			// prefix: referencingFileData.slice(index - 25, index),
 			prefix: referencingSurroundingStrings.prefix,
 			text: referencingFileData.slice(index, index + match[0].length),
-			// suffix: referencingFileData.slice(
-			// 	index + match[0].length,
-			// 	index + match[0].length + 25
-			// ),
 			suffix: referencingSurroundingStrings.suffix,
 			filename: referencingFile.path,
 			from: match.index!, // TODO do weird string format
@@ -517,86 +518,65 @@ function createBacklinkData(
 	return backlinks;
 }
 
-export async function generateBacklinks() {
+export async function generateBacklinks(): Promise<Backlink[]> {
 	console.log("generating references");
-	setTimeout(async () => {
-		let backlinks: Backlink[] = [];
-		let markdownFiles = this.app.vault.getMarkdownFiles();
+	// setTimeout(async () => {
+	let backlinks: Backlink[] = [];
+	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-		await Promise.all(
-			markdownFiles.map((file: TFile) => this.app.vault.read(file))
-		).then((files) => {
-			const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
-				markdownFile: file,
-				fileData: files[index],
-			}));
+	await Promise.all(
+		markdownFiles.map((file: TFile) => this.app.vault.read(file))
+	).then((files) => {
+		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
+			markdownFile: file,
+			fileData: files[index],
+		}));
 
-			zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-				let fileBacklinks = createBacklinkData(
-					file.fileData,
-					file.markdownFile
-				);
-				updateBacklinks(fileBacklinks);
+		zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
+			let fileBacklinks = createBacklinkData(file.fileData, file.markdownFile);
+			updateBacklinks(fileBacklinks);
 
-				backlinks.push(...fileBacklinks);
-			});
+			backlinks.push(...fileBacklinks);
 		});
-	}, 0);
+	});
+	return backlinks;
+	// }, 0);
 }
 
-export function updateHoveredReferenceColor(
-	span: HTMLSpanElement,
-	user: string
-) {
+export function updateReferenceColor(span: HTMLSpanElement, user: string) {
 	// remove existing cursors
-	// const svg = span.querySelector("svg");
 	const portal: HTMLElement | null = span.querySelector(".portal");
 
 	if (span && !portal) {
-		console.log(span);
 		handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
 
-		// span = span.querySelector("span") as HTMLSpanElement;
 		span.style.backgroundColor = SVG_HOVER_COLOR;
 
 		updateHoveredCursor(span, user); // add the currently hovered reference icon
 	}
-
-	// if (span && svg && !portal) {
-	// 	handleRemoveHoveredCursor(user); // remove any existing hovered reference icon
-	// 	if (svg.classList.contains("reference-icon"))
-	// 		svg.style.backgroundColor = SVG_HOVER_COLOR;
-	// 	else {
-	// 		// svg.setAttribute("fill", SVG_HOVER_COLOR);
-	// 		span = span.querySelector("span") as HTMLSpanElement;
-	// 		span.style.backgroundColor = SVG_HOVER_COLOR;
-	// 	}
-
-	// 	updateHoveredCursor(svg, user); // add the currently hovered reference icon
-	// }
 }
 
-// Should only recompute for the particular page being opened or interacted with
-export async function recomputeReferencesForPage(): Promise<Backlink[]> {
-	await delay(10);
-	let references: Backlink[] = [];
-	let markdownFiles = this.app.vault.getMarkdownFiles();
+// // Should only recompute for the particular page being opened or interacted with
+// export async function recomputeReferencesForPage(): Promise<Backlink[]> {
+// 	await delay(10);
+// 	let references: Backlink[] = [];
+// 	let markdownFiles = this.app.vault.getMarkdownFiles();
 
-	let promises = markdownFiles.map((file: TFile) => this.app.vault.read(file));
+// 	let promises = markdownFiles.map((file: TFile) => this.app.vault.read(file));
 
-	let files = await Promise.all(promises);
-	const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
-		markdownFile: file,
-		fileData: files[index],
-	}));
-	zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
-		let fileBacklinks = createBacklinkData(file.fileData, file.markdownFile);
-		updateBacklinks(fileBacklinks);
+// 	let files = await Promise.all(promises);
+// 	const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
+// 		markdownFile: file,
+// 		fileData: files[index],
+// 	}));
+// 	zippedArray.forEach((file: { markdownFile: TFile; fileData: string }) => {
+// 		let fileBacklinks = createBacklinkData(file.fileData, file.markdownFile);
+// 		updateBacklinks(fileBacklinks);
 
-		references.push(...fileBacklinks);
-	});
-	return references;
-}
+// 		references.push(...fileBacklinks);
+// 	});
+// 	return references;
+// }
 
 export async function openBacklinkReference(ev: MouseEvent) {
 	let cursor = getCursor();

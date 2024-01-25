@@ -7,7 +7,7 @@ import {
 	removeHoveredCursor,
 	getHover,
 } from "./state";
-import { updateHoveredReferenceColor } from "./references";
+import { updateReferenceColor } from "./references";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
