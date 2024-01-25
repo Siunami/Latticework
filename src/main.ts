@@ -8,7 +8,6 @@ import {
 	addReferencesToLeaf,
 	updateBacklinkMarkPositions,
 	getMarkdownView,
-	getBacklinkContainer,
 	getCodeMirrorEditorView,
 	updateReferenceColor,
 } from "./references";
@@ -22,7 +21,6 @@ import { decodeURIComponentString, handleRemoveHoveredCursor } from "./utils";
 import { ACTION_TYPE } from "./constants";
 import { EditorView } from "@codemirror/view";
 import { serializeReference } from "./widget/referenceWidget";
-import { defaultHighlightSelection } from "./mark";
 import { Backlink } from "./types";
 import { collectLeavesByTabHelper } from "./workspace";
 
@@ -57,7 +55,6 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 		}
 		return;
 	} else {
-		console.log(span);
 		if (
 			span &&
 			span instanceof HTMLSpanElement &&
@@ -65,7 +62,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 			span?.parentElement.classList.contains("reference-container-span")
 		) {
 			console.log("start hover reference effect");
-			if (getHover() != null) return;
+			// if (getHover() != null) return;
 			if (!span.getAttribute("data")) {
 				span = span.parentElement;
 				span = span.querySelector(".reference-data-span") as HTMLSpanElement;
@@ -79,7 +76,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 			span.getAttribute("reference")
 		) {
 			console.log("start hover backlink effect");
-			if (getBacklinkHover() != null) return;
+			// if (getBacklinkHover() != null) return;
 			startBacklinkEffect(span);
 		} else if (getHover() != null) {
 			console.log("end hover reference effect");
@@ -127,6 +124,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 			await endBacklinkHoverEffect();
 		}
 	}
+	console.log("handleMovementEffects");
 	await updateBacklinkMarkPositions();
 }
 
@@ -191,15 +189,16 @@ export default class ReferencePlugin extends Plugin {
 						});
 					});
 
-					setTimeout(() => {
-						let leavesByTab = collectLeavesByTabHelper();
-						let leaf = leavesByTab.flat().filter((leaf) => {
-							return leaf.getViewState().state.file == referencedFile;
-						})[0];
-						if (leaf) {
+					let leavesByTab = collectLeavesByTabHelper();
+					let leaf = leavesByTab.flat().filter((leaf) => {
+						return leaf.getViewState().state.file == referencedFile;
+					})[0];
+
+					if (leaf) {
+						setTimeout(() => {
 							addReferencesToLeaf(leaf);
-						}
-					}, 1000);
+						}, 2000); /// this timeout is to make sure the changes have finished writing to file.
+					}
 				}
 			}),
 		]);
@@ -228,7 +227,9 @@ export default class ReferencePlugin extends Plugin {
 		});
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey) return;
+			if (evt.metaKey || evt.ctrlKey || evt.key === "Backspace") return;
+			console.log(evt);
+			console.log("keyup");
 			handleMovementEffects(evt);
 			// await checkFocusCursor(evt);
 			updateBacklinkMarkPositions();

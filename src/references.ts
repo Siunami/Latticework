@@ -245,34 +245,34 @@ export async function updateBacklinkMarkPositions(backlinks?: Backlink[]) {
 			"markdown"
 		) as WorkspaceLeaf[];
 
-		// setTimeout(async () => {
-		let allBacklinks: Backlink[];
+		setTimeout(async () => {
+			let allBacklinks: Backlink[];
 
-		if (!backlinks) allBacklinks = await generateBacklinks();
-		else allBacklinks = backlinks;
-		// const allBacklinks: Backlink[] = await generateBacklinks();
+			if (!backlinks) allBacklinks = await generateBacklinks();
+			else allBacklinks = backlinks;
+			// const allBacklinks: Backlink[] = await generateBacklinks();
 
-		// leaves.map(async (leaf) => {
-		// 	const backlinksToLeaf = allBacklinks.filter(
-		// 		// @ts-ignore
-		// 		(b) => b.referencedLocation.filename == leaf.view.file.path
-		// 	);
-		// 	// width 900, show the reference
-		// 	const showPortals = getContainerElement(leaf).innerWidth > 900;
-		// 	layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-		// });
-		await Promise.all(
-			leaves.map(async (leaf) => {
-				const backlinksToLeaf = allBacklinks.filter(
-					// @ts-ignore
-					(b) => b.referencedLocation.filename == leaf.view.file.path
-				);
-				// width 900, show the reference
-				const showPortals = getContainerElement(leaf).innerWidth > 900;
-				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-			})
-		);
-		// }, 500);
+			// leaves.map(async (leaf) => {
+			// 	const backlinksToLeaf = allBacklinks.filter(
+			// 		// @ts-ignore
+			// 		(b) => b.referencedLocation.filename == leaf.view.file.path
+			// 	);
+			// 	// width 900, show the reference
+			// 	const showPortals = getContainerElement(leaf).innerWidth > 900;
+			// 	layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+			// });
+			await Promise.all(
+				leaves.map(async (leaf) => {
+					const backlinksToLeaf = allBacklinks.filter(
+						// @ts-ignore
+						(b) => b.referencedLocation.filename == leaf.view.file.path
+					);
+					// width 900, show the reference
+					const showPortals = getContainerElement(leaf).innerWidth > 900;
+					layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+				})
+			);
+		}, 1000); // want to ensure file write has happened
 	}, 100);
 }
 
@@ -313,6 +313,7 @@ export async function addReferencesToLeaf(
 	leaf: WorkspaceLeaf,
 	backlinks?: Backlink[]
 ) {
+	console.log("add references to leaf");
 	await updateBacklinkMarkPositions(backlinks);
 	await delay(1000);
 	console.log("initial load");

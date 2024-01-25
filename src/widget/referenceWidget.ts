@@ -55,7 +55,7 @@ export function getReferencePosition(
 	let activeLine = lines[activeLineIndex];
 	// make copy of activeLine element
 	let activeLineCopy = processLine(activeLine);
-	// non-referenced parts of the text
+	// non-reference parts of the text
 	let parts = activeLineCopy.innerText.split("↗");
 
 	// get all references
@@ -82,13 +82,14 @@ export function getReferencePosition(
 	let startText = [
 		...parts.slice(0, index + 1),
 		...lineReferencesData.slice(0, index),
-	];
+	].join("");
+	startText = startText.replace(/\u{200B}/g, "");
 
 	// get all the prior lines to active line and the length of the text
 	let prevLineCharCount = Array.from(lines)
 		.slice(0, activeLineIndex)
 		.reduce((acc, line) => {
-			let processedLine = processLine(line);
+			let processedLine = processLine(line); // contents of a line is just a single arrow character
 			let parts = processedLine.innerText.split("↗");
 
 			let lineReferences = line?.querySelectorAll(".reference-data-span");
@@ -96,11 +97,13 @@ export function getReferencePosition(
 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
 			);
 			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
+			allSerializedText = allSerializedText.replace(/\u{200B}/g, "");
+			// let allSerializedText = [...parts, ...lineReferencesData].join("");
 			return allSerializedText.length + acc;
-		}, 0);
+		}, 0); //- 1; // substract one cause don't want a new line for the last line
 
 	// set range to replace with new reference serialization
-	let from = prevLineCharCount + startText.join("").length;
+	let from = prevLineCharCount + startText.length;
 	let to = from + reference.length;
 	return { from, to };
 }
@@ -119,9 +122,6 @@ export async function serializeReference(
 	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 	// referenceSpan.classList.toggle("reference-span-hidden");
 
-	// let newToggle = referenceSpan.classList.contains("reference-span-hidden")
-	// 	? "f"
-	// 	: "t";
 	let newToggle = toggleValue ? toggleValue : toggle === "f" ? "t" : "f";
 	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
@@ -134,11 +134,11 @@ export async function serializeReference(
 		text
 	);
 	if (results) {
-		const { from: transactionFrom, to: transactionTo } = results;
 		const transaction = view.state.update({
-			changes: { from: transactionFrom, to: transactionTo, insert: reference },
+			changes: { from: results.from, to: results.to, insert: reference },
 		});
 		view.dispatch(transaction);
+		console.log("updatebacklinkpositions");
 		await updateBacklinkMarkPositions();
 	}
 
@@ -168,6 +168,7 @@ class ReferenceWidget extends WidgetType {
 
 	// this runs when re-serialized as well
 	destroy() {
+		console.log(this.serialized);
 		if (this.serialized) {
 			this.serialized = false;
 			return;
@@ -208,7 +209,7 @@ class ReferenceWidget extends WidgetType {
 						decodeURIComponentString(file)
 				);
 			});
-			// console.log(backlinkContainer);
+
 			backlinks[backlinkIndex].remove();
 		}, 10);
 	}

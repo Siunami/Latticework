@@ -5,7 +5,6 @@ import {
 	StateEffect,
 } from "@codemirror/state";
 import { Backlink } from "./types";
-import { updateBacklinkMarkPositions } from "./references";
 import { App } from "obsidian";
 
 export let that = StateField.define<App | null>({
@@ -184,7 +183,6 @@ export let editorChange = StateField.define<null>({
 			try {
 				let data = JSON.parse(tr.effects[0].value);
 				if (data.type == "sync") {
-					// updateBacklinkMarkPositions();
 					return value;
 				}
 				return value;
