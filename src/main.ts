@@ -191,7 +191,6 @@ export default class ReferencePlugin extends Plugin {
 							const regex = /\[↗\]\(urn:([^)]*)\)/g;
 							let content = regex.exec(text);
 							if (content) {
-								console.log(content);
 								const [prefix, text, suffix, file, from, to, portal, toggle] =
 									content[1].split(":");
 								referencedFile = decodeURIComponentString(file);
@@ -199,66 +198,25 @@ export default class ReferencePlugin extends Plugin {
 						});
 					});
 					if (!referencedFile) return;
-					/*
-t {parent: t, deleted: false, vault: t, path: 'Prototyping.md', name: 'Prototyping.md', …}
-basename
-: 
-"Prototyping"
-deleted
-: 
-false
-extension
-: 
-"md"
-name
-: 
-"Prototyping.md"
-parent
-: 
-t {parent: null, deleted: false, vault: t, path: '/', name: '', …}
-path
-: 
-"Prototyping.md"
-saving
-: 
-false
-stat
-: 
-{ctime: 1700046851001, mtime: 1702685534232, size: 777}
-vault
-: 
-t {_: {…}, fileMap: {…}, config: {…}, configTs: 1706174615244, configDir: '.obsidian', …}
-[[Prototype]]
-: 
-e
-*/
-					// let leaf: WorkspaceLeaf = getThat().workspace.getLeaf();
-
-					// console.log(leaf);
-
-					// let markdownFile: TAbstractFile | TFile | null =
-					// 	getThat().vault.getAbstractFileByPath(referencedFile);
 
 					await delay(2000);
 					let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-					console.log(markdownFile);
-					// if (!(markdownFile instanceof TFile)) return;
 					if (markdownFile instanceof TFile) {
-						let fileData = await getThat().vault.read(markdownFile);
+						let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 
 						let fileBacklinks = createBacklinkData(fileData, markdownFile);
 						console.log(fileBacklinks);
 						updateBacklinks(fileBacklinks);
 
-						// setTimeout(() => {
-						// 	let leavesByTab = collectLeavesByTabHelper();
-						// 	let leaf = leavesByTab.flat().filter((leaf) => {
-						// 		return leaf.getViewState().state.file == referencedFile;
-						// 	})[0];
-						// 	if (leaf) {
-						// 		addReferencesToLeaf(leaf);
-						// 	}
-						// }, 2000); /// this timeout is to make sure the changes have finished writing to file.
+						setTimeout(() => {
+							let leavesByTab = collectLeavesByTabHelper();
+							let leaf = leavesByTab.flat().filter((leaf) => {
+								return leaf.getViewState().state.file == referencedFile;
+							})[0];
+							if (leaf) {
+								addReferencesToLeaf(leaf);
+							}
+						}, 2000); /// this timeout is to make sure the changes have finished writing to file.
 					}
 				}
 			}),

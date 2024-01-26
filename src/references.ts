@@ -146,6 +146,7 @@ export function layoutBacklinks(
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
 
+	// Get all existing
 	let backlinks = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
@@ -193,7 +194,7 @@ export function layoutBacklinks(
 	// Now account for possible position overlaps and shift downwards
 	// also consider whether the portals should be shown or not.
 	let lastYBottom = -Infinity; // for large documents 😁
-	let margin = 4;
+	// let margin = 4;
 	referenceMarkers
 		.sort(
 			(a, b) =>
@@ -218,8 +219,10 @@ export function layoutBacklinks(
 
 			// get positioning
 			let top = parseInt(marker!.getAttribute("top")!);
-			top = Math.max(top, lastYBottom + margin);
-			lastYBottom = top + marker.getBoundingClientRect().height + margin;
+			// top = Math.max(top, lastYBottom + margin);
+			top = Math.max(top, lastYBottom);
+			// lastYBottom = top + marker.getBoundingClientRect().height + margin;
+			lastYBottom = top + marker.getBoundingClientRect().height;
 			marker.setAttribute("top", top.toString());
 			marker.style.top = top - titleBbox.top + 32 + "px";
 			marker.style.left = lineBbox.width + 40 + "px";
@@ -237,6 +240,7 @@ export async function updateBacklinkMarkPositions() {
 		) as WorkspaceLeaf[];
 
 		let allBacklinks: Backlink[] = getBacklinks();
+		console.log(allBacklinks);
 
 		// console.log(getBacklinks());
 		// if (!backlinks) allBacklinks = await generateBacklinks();
@@ -254,7 +258,7 @@ export async function updateBacklinkMarkPositions() {
 		// 	const showPortals = getContainerElement(leaf).innerWidth > 900;
 		// 	layoutBacklinks(leaf, backlinksToLeaf, showPortals);
 		// });
-		leaves.map(async (leaf) => {
+		const promises = leaves.map(async (leaf) => {
 			let file = getMarkdownView(leaf)?.file;
 			if (file) {
 				const backlinksToLeaf = allBacklinks.filter(
@@ -264,14 +268,36 @@ export async function updateBacklinkMarkPositions() {
 				// width 900, show the reference
 				const showPortals = getContainerElement(leaf).innerWidth > 900;
 				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+				generateDefaultHighlights(leaf);
 			}
 		});
 
-		// setTimeout(async () => {
-
-		// 	// await Promise.all();
-		// }, 1000); // want to ensure file write has happened
+		await Promise.all(promises);
 	}, 100);
+
+	// console.log("updatebacklinkmarkpositions");
+	// const leaves = getThat().workspace.getLeavesOfType(
+	// 	"markdown"
+	// ) as WorkspaceLeaf[];
+
+	// let allBacklinks: Backlink[] = getBacklinks();
+	// console.log(allBacklinks);
+
+	// const promises = leaves.map(async (leaf) => {
+	// 	let file = getMarkdownView(leaf)?.file;
+	// 	if (file) {
+	// 		const backlinksToLeaf = allBacklinks.filter(
+	// 			// @ts-ignore
+	// 			(b) => b.referencedLocation.filename == file.path
+	// 		);
+	// 		// width 900, show the reference
+	// 		const showPortals = getContainerElement(leaf).innerWidth > 900;
+	// 		layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+	// 		generateDefaultHighlights(leaf);
+	// 	}
+	// });
+
+	// await Promise.all(promises);
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {
@@ -309,10 +335,10 @@ let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	console.log("add references to leaf");
-	await updateBacklinkMarkPositions();
-	await delay(1000);
 	console.log("initial load");
-	generateDefaultHighlights(leaf);
+
+	await updateBacklinkMarkPositions();
+	// await delay(1000);
 
 	// const scroller = getContainerElement(markdownView.editor).querySelector(
 	// 	".cm-scroller"

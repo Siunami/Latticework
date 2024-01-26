@@ -43,10 +43,10 @@ If your plugin does not need CSS, delete this file.
 	border-bottom-right-radius: 3px;
 }
 
-.backlink-data-span::after  {
+/* .backlink-data-span::after  {
 	border-top-left-radius: 3px;
 	border-bottom-left-radius: 3px;
-}
+} */
 
 .text-accent {
 	color: var(--text-accent);

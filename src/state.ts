@@ -86,19 +86,20 @@ export let backlinks = StateField.define<Backlink[]>({
 				);
 				if (data.type == "backlink") {
 					console.log(data.backlinks);
+					if (data.backlinks.length == 0) return value;
 					let referencingLocations = data.backlinks.map(
 						(backlink) => backlink.referencingLocation
 					);
+					let location = referencingLocations[0].filename;
 					let referencedLocations = data.backlinks.map(
 						(backlink) => backlink.referencedLocation
 					);
 					let filteredBacklinks = value.filter((backlink) => {
+						return backlink.referencingLocation.filename != location;
 						return !(
 							referencedLocations.includes(backlink.referencedLocation) &&
 							referencingLocations.includes(backlink.referencingLocation)
 						);
-						console.log(backlink);
-						return !data.backlinks.includes(backlink);
 					});
 					console.log(filteredBacklinks);
 					return [...filteredBacklinks, ...data.backlinks];

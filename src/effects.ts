@@ -303,7 +303,9 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let updateState = updateBacklinkHover;
 
 	// Mutex, prevent concurrent access to following section of code
-	if (source != null) return;
+	if (source != null) {
+		await endBacklinkHoverEffect();
+	}
 	updateState({
 		type: `${ACTION_TYPE.BACKLINK}-start`,
 	});
@@ -451,7 +453,9 @@ export async function startReferenceEffect(
 	let updateState = updateHover;
 
 	// Mutex, prevent concurrent access to following section of code
-	if (source != null) return;
+	if (source != null) {
+		await endReferenceHoverEffect();
+	}
 
 	updateState({
 		type: `${type}-start`,
