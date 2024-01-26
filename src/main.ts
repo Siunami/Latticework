@@ -24,6 +24,7 @@ import {
 	updateReferenceColor,
 	createBacklinkMark,
 	createBacklinkData,
+	updateBacklinkMarkPositions,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -61,7 +62,15 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 
 	// if key not pressed, mouse movement should end hover effect immediately
 	if (!evt.metaKey && !evt.ctrlKey) {
-		if (getHover() != null) {
+		if (
+			span &&
+			span instanceof HTMLSpanElement &&
+			span.getAttribute("reference")
+		) {
+			console.log("start hover backlink effect");
+			// if (getBacklinkHover() != null) return;
+			startBacklinkEffect(span);
+		} else if (getHover() != null) {
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
 			await endBacklinkHoverEffect();
@@ -246,12 +255,25 @@ export default class ReferencePlugin extends Plugin {
 		// });
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey || evt.key === "Backspace") return;
-			console.log(evt);
+			if (evt.metaKey || evt.ctrlKey) return;
 			console.log("keyup");
 			handleMovementEffects(evt);
-			// await checkFocusCursor(evt);
-			// updateBacklinkMarkPositions();
+			// await updateBacklinkMarkPositions();
+
+			await delay(500);
+			let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+			if (markdownFile instanceof TFile) {
+				let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
+				console.log(fileData);
+				let fileBacklinks = createBacklinkData(fileData, markdownFile);
+				console.log(fileBacklinks);
+				updateBacklinks(fileBacklinks);
+
+				let leaf = getThat().workspace.getLeaf();
+				if (leaf) {
+					addReferencesToLeaf(leaf);
+				}
+			}
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {

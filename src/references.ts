@@ -242,22 +242,6 @@ export async function updateBacklinkMarkPositions() {
 		let allBacklinks: Backlink[] = getBacklinks();
 		console.log(allBacklinks);
 
-		// console.log(getBacklinks());
-		// if (!backlinks) allBacklinks = await generateBacklinks();
-		// else allBacklinks = backlinks;
-		// console.log(allBacklinks);
-
-		// const allBacklinks: Backlink[] = await generateBacklinks();
-
-		// leaves.map(async (leaf) => {
-		// 	const backlinksToLeaf = allBacklinks.filter(
-		// 		// @ts-ignore
-		// 		(b) => b.referencedLocation.filename == leaf.view.file.path
-		// 	);
-		// 	// width 900, show the reference
-		// 	const showPortals = getContainerElement(leaf).innerWidth > 900;
-		// 	layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-		// });
 		const promises = leaves.map(async (leaf) => {
 			let file = getMarkdownView(leaf)?.file;
 			if (file) {
@@ -274,30 +258,6 @@ export async function updateBacklinkMarkPositions() {
 
 		await Promise.all(promises);
 	}, 100);
-
-	// console.log("updatebacklinkmarkpositions");
-	// const leaves = getThat().workspace.getLeavesOfType(
-	// 	"markdown"
-	// ) as WorkspaceLeaf[];
-
-	// let allBacklinks: Backlink[] = getBacklinks();
-	// console.log(allBacklinks);
-
-	// const promises = leaves.map(async (leaf) => {
-	// 	let file = getMarkdownView(leaf)?.file;
-	// 	if (file) {
-	// 		const backlinksToLeaf = allBacklinks.filter(
-	// 			// @ts-ignore
-	// 			(b) => b.referencedLocation.filename == file.path
-	// 		);
-	// 		// width 900, show the reference
-	// 		const showPortals = getContainerElement(leaf).innerWidth > 900;
-	// 		layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-	// 		generateDefaultHighlights(leaf);
-	// 	}
-	// });
-
-	// await Promise.all(promises);
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {
@@ -335,8 +295,6 @@ let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	console.log("add references to leaf");
-	console.log("initial load");
-
 	await updateBacklinkMarkPositions();
 	// await delay(1000);
 
@@ -368,10 +326,8 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	const newObserver = new ResizeObserver(async () => {
+		console.log("resize reload");
 		await updateBacklinkMarkPositions();
-		await delay(1000);
-		console.log("resize load");
-		generateDefaultHighlights(leaf);
 	});
 
 	const markdownView = getMarkdownView(leaf);

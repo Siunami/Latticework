@@ -98,7 +98,6 @@ function tempDirectionIndicator(
 		// (which I know you find in the mark layout routine)
 		// to the scrollTop + innerHeight
 		const editor = getMarkdownView(leaf).editor;
-		const backlinkContainer = getBacklinkContainer(editor);
 
 		const windowHeight = leaf.view.containerEl
 			.querySelector(".cm-scroller")
@@ -208,8 +207,6 @@ function tempDirectionIndicator(
 		}
 	}
 
-	console.log(!visibleElements.includes(dataString));
-	// if (!visibleElements.includes(dataString)) {
 	let startTop = leaf.view.editor.getScrollInfo().top;
 
 	let positions = findTextPositions(
@@ -229,11 +226,9 @@ function tempDirectionIndicator(
 		},
 		true
 	);
-	console.log(startTop);
 	setTimeout(() => {
 		// if (temp) return;
 		let endTop = leaf.view.editor.getScrollInfo().top;
-		console.log(endTop);
 
 		let container = leaf.containerEl.querySelector(".view-content");
 		container.classList.remove("no-shadow");
