@@ -23,6 +23,7 @@ import { Backlink } from "src/types";
 
 function processLine(line: Element) {
 	let lineCopy = line?.cloneNode(true) as HTMLElement;
+	console.log(lineCopy.innerText);
 	lineCopy?.querySelectorAll(".reference-span").forEach((span) => {
 		span.innerHTML = "↗";
 	});
@@ -83,7 +84,15 @@ export function getReferencePosition(
 		...parts.slice(0, index + 1),
 		...lineReferencesData.slice(0, index),
 	].join("");
-	startText = startText.replace(/\u{200B}/g, "");
+
+	let whiteSpaceCount = 0;
+
+	for (let i = 0; i < startText.length; i++) {
+		console.log(startText[i], startText.charCodeAt(i));
+		if (startText.charCodeAt(i) === 8203) {
+			whiteSpaceCount++;
+		}
+	}
 
 	// get all the prior lines to active line and the length of the text
 	let prevLineCharCount = Array.from(lines)
@@ -97,13 +106,21 @@ export function getReferencePosition(
 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
 			);
 			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
-			allSerializedText = allSerializedText.replace(/\u{200B}/g, "");
+
+			for (let i = 0; i < allSerializedText.length; i++) {
+				console.log(allSerializedText[i], allSerializedText.charCodeAt(i));
+				if (allSerializedText.charCodeAt(i) === 8203) {
+					console.log("got an 8203");
+					console.log(processedLine.innerText);
+					acc--;
+				}
+			}
 			// let allSerializedText = [...parts, ...lineReferencesData].join("");
 			return allSerializedText.length + acc;
 		}, 0); //- 1; // substract one cause don't want a new line for the last line
 
 	// set range to replace with new reference serialization
-	let from = prevLineCharCount + startText.length;
+	let from = prevLineCharCount + startText.length - whiteSpaceCount;
 	let to = from + reference.length;
 	return { from, to };
 }
