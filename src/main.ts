@@ -255,7 +255,8 @@ export default class ReferencePlugin extends Plugin {
 		// });
 
 		this.registerDomEvent(document, "keyup", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey) return;
+			// backspace is to prevent the backlink from being created when it's deleted
+			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
 			console.log("keyup");
 			handleMovementEffects(evt);
 			// await updateBacklinkMarkPositions();
