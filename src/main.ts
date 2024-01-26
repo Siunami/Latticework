@@ -22,9 +22,7 @@ import {
 	getMarkdownView,
 	getCodeMirrorEditorView,
 	updateReferenceColor,
-	createBacklinkMark,
 	createBacklinkData,
-	updateBacklinkMarkPositions,
 } from "./references";
 import {
 	startReferenceEffect,

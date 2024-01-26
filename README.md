@@ -19,10 +19,3 @@ CMD+Shift+C -> Copy the selected text with a reference
 Hover over a reference to peek. Click to keep in view.
 
 CMD+Click on a reference -> Will toggle the text in the reference on and off
-
-## Bugs
-
-Toggle bug where an invisible character messes up the serialization positioning function. The transaction occurs one position too far. This is because obsidian inserts a "&#x200B;" character that is invisible to view, but affects the index position
-
-- This flow basically breaks when you use the bullet point nested lists
-  ![Bug.png](Bug.png)

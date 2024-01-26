@@ -24,7 +24,6 @@ import {
 } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
-import { delay } from "./effects";
 import { defaultHighlightSelection } from "./mark";
 
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
@@ -296,29 +295,6 @@ let existingListener: ((ev: Event) => any) | null = null;
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	console.log("add references to leaf");
 	await updateBacklinkMarkPositions();
-	// await delay(1000);
-
-	// const scroller = getContainerElement(markdownView.editor).querySelector(
-	// 	".cm-scroller"
-	// )!;
-
-	// // Remove the existing listener before adding a new one
-	// if (existingListener) {
-	// 	scroller.removeEventListener("scroll", existingListener);
-	// }
-
-	// const newListener = async (ev: Event) => {
-	// 	await updateBacklinkMarkPositions();
-	// 	await delay(2000);
-	// 	console.log("scroll load");
-
-	// 	generateDefaultHighlights(leaf);
-	// };
-
-	// scroller.addEventListener("scroll", newListener);
-
-	// // Update the existing listener
-	// existingListener = newListener;
 
 	// Remove the existing observer before creating a new one
 	if (existingObserver) {
@@ -499,7 +475,6 @@ export function createBacklinkData(
 
 export async function generateBacklinks(): Promise<Backlink[]> {
 	console.log("generating references");
-	// setTimeout(async () => {
 	let backlinks: Backlink[] = [];
 	let markdownFiles = await this.app.vault.getMarkdownFiles();
 
@@ -519,7 +494,6 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 		});
 	});
 	return backlinks;
-	// }, 0);
 }
 
 export function updateReferenceColor(span: HTMLSpanElement, user: string) {

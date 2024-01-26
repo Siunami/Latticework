@@ -92,21 +92,13 @@ export let backlinks = StateField.define<Backlink[]>({
 						(backlink) => backlink.referencingLocation
 					);
 					let location = referencingLocations[0].filename;
-					let referencedLocations = data.backlinks.map(
-						(backlink) => backlink.referencedLocation
-					);
+
 					let filteredBacklinks = value.filter((backlink) => {
 						return backlink.referencingLocation.filename != location;
-						return !(
-							referencedLocations.includes(backlink.referencedLocation) &&
-							referencingLocations.includes(backlink.referencingLocation)
-						);
-					});
+					}); // remove all backlinks from the same file
 					console.log(filteredBacklinks);
 					return [...filteredBacklinks, ...data.backlinks];
 				} else if (data.type == "remove-backlink") {
-					const obj1 = { foo: "bar" };
-					const obj2 = { foo: "bar" };
 					const removeBacklink = data.backlinks[0];
 					let filteredBacklinks = value.filter((backlink) => {
 						return !isEqual(removeBacklink, backlink);
