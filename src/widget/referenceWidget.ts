@@ -20,6 +20,7 @@ import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
+import { removeBacklinks } from "src/state";
 
 function processLine(line: Element) {
 	let lineCopy = line?.cloneNode(true) as HTMLElement;
@@ -195,19 +196,17 @@ class ReferenceWidget extends WidgetType {
 			let content = regex.exec(this.name);
 			if (!content) throw new Error("Invalid reference");
 
-			let reference = content[0];
 			let dataString = content[1];
 			const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 				dataString.split(":");
 
 			let decodedFile = decodeURIComponentString(file);
-			// const leaves = getThat().workspace.getLeavesOfType("markdown");
 			let leavesByTab = collectLeavesByTabHelper();
 			let leaf = leavesByTab.flat().filter((leaf) => {
 				return leaf.getViewState().state.file == decodedFile;
 			})[0];
-			let view = getEditorView(leaf);
 
+			let view = getEditorView(leaf);
 			removeHighlight(view, parseInt(from), parseInt(to));
 			const editor = getMarkdownView(leaf).editor;
 			const backlinkContainer = getBacklinkContainer(editor);
@@ -228,6 +227,12 @@ class ReferenceWidget extends WidgetType {
 			});
 
 			backlinks[backlinkIndex].remove();
+
+			const backlinkReference = backlinks[backlinkIndex];
+			if (!backlinkReference) return;
+			const referenceData = backlinkReference.getAttribute("reference");
+			if (!referenceData) return;
+			removeBacklinks([JSON.parse(referenceData)]);
 		}, 10);
 	}
 

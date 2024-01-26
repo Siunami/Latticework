@@ -6,6 +6,7 @@ import {
 } from "@codemirror/state";
 import { Backlink } from "./types";
 import { App } from "obsidian";
+import { isEqual } from "lodash";
 
 export let that = StateField.define<App | null>({
 	create() {
@@ -104,7 +105,13 @@ export let backlinks = StateField.define<Backlink[]>({
 					console.log(filteredBacklinks);
 					return [...filteredBacklinks, ...data.backlinks];
 				} else if (data.type == "remove-backlink") {
-					let filteredBacklinks = value.filter((backlink) => {});
+					const obj1 = { foo: "bar" };
+					const obj2 = { foo: "bar" };
+					const removeBacklink = data.backlinks[0];
+					let filteredBacklinks = value.filter((backlink) => {
+						return !isEqual(removeBacklink, backlink);
+					});
+
 					return filteredBacklinks;
 				}
 				return value;
