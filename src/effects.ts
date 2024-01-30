@@ -99,9 +99,8 @@ function tempDirectionIndicator(
 		// to the scrollTop + innerHeight
 		const editor = getMarkdownView(leaf).editor;
 
-		const windowHeight = leaf.view.containerEl
-			.querySelector(".cm-scroller")
-			.getBoundingClientRect().height;
+		const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+		const windowHeight = scroller.getBoundingClientRect().height;
 		const scrollTop =
 			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 		const scrollBottom = scrollTop + windowHeight;
@@ -115,7 +114,11 @@ function tempDirectionIndicator(
 		let visibleElements: HTMLElement[] = [];
 		for (let i = 0; i < references.length; i++) {
 			let bbox = references[i].getBoundingClientRect();
-			if (bbox.top >= scrollTop && bbox.bottom <= scrollBottom) {
+
+			if (
+				bbox.top + scroller.scrollTop >= scrollTop &&
+				bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+			) {
 				visibleElements.push(references[i]);
 			}
 		}
@@ -149,7 +152,6 @@ function tempDirectionIndicator(
 		setTimeout(() => {
 			// if (temp) return;
 			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(endTop);
 
 			let container = leaf.containerEl.querySelector(".view-content");
 			container.classList.remove("no-shadow");
@@ -195,6 +197,8 @@ function tempDirectionIndicator(
 		let top = parseFloat(cssProperties["top"].replace("px", ""));
 		if (top == null) continue;
 
+		console.log(top);
+		console.log(scrollTop, scrollBottom);
 		if (
 			scrollTop <= top &&
 			top <= scrollBottom &&
@@ -297,14 +301,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let source = getBacklinkHover();
 	let updateState = updateBacklinkHover;
 
-	// Mutex, prevent concurrent access to following section of code
-	if (source != null) {
-		await endBacklinkHoverEffect();
-	}
-	updateState({
-		type: `${ACTION_TYPE.BACKLINK}-start`,
-	});
-
 	if (!span) return;
 
 	// Toggle hover state
@@ -314,6 +310,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		?.classList.add("reference-span-selected");
 
 	span.classList.add("reference-data-span-selected");
+
+	// Mutex, prevent concurrent access to following section of code
+	if (source != null && source.uuid == uuid) {
+		return;
+	} else if (source != null && source.uuid != uuid) {
+		// if hovering a new backlink, end the previous and continue
+		await endBacklinkHoverEffect();
+	}
+	updateState({
+		type: `${ACTION_TYPE.BACKLINK}-start`,
+	});
 
 	updateState({
 		uuid,
@@ -413,6 +420,18 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
+
+	if (!backlinkSpan) {
+		if (backlink.dataString.slice(0, -1) == "f") {
+			backlinkSpan = newLeaf.containerEl.querySelector(
+				`span[data="${backlink.dataString.slice(0, -1)}t"]`
+			);
+		} else {
+			backlinkSpan = newLeaf.containerEl.querySelector(
+				`span[data="${backlink.dataString.slice(0, -1)}f"]`
+			);
+		}
+	}
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
@@ -551,8 +570,17 @@ export async function endReferenceHoverEffect() {
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	removeHighlight(editorView, from, to);
 	defaultHighlightSelection(editorView, from, to);
-
 	// removeHighlights(editorView);
+
+	// let container =
+	// 	getContainerElement(targetLeaf).querySelector(".view-content");
+	// if (container) {
+	// 	container.classList.remove("no-shadow");
+	// 	container.classList.remove("new-shadow");
+	// 	container.classList.remove("top-shadow");
+	// 	container.classList.remove("bottom-shadow");
+	// 	container.classList.add("no-shadow");
+	// }
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -638,6 +666,16 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlight(originalEditorView, from, to);
 	defaultHighlightSelection(originalEditorView, from, to);
+
+	let container =
+		getContainerElement(originalLeaf).querySelector(".view-content");
+	if (container) {
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+		container.classList.add("no-shadow");
+	}
 
 	// removeHighlights(originalEditorView);
 

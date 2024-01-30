@@ -239,7 +239,6 @@ export async function updateBacklinkMarkPositions() {
 		) as WorkspaceLeaf[];
 
 		let allBacklinks: Backlink[] = getBacklinks();
-		console.log(allBacklinks);
 
 		const promises = leaves.map(async (leaf) => {
 			let file = getMarkdownView(leaf)?.file;
@@ -327,13 +326,13 @@ export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
 	return leaf.view as MarkdownView;
 }
 
-function getFilename(leaf: WorkspaceLeaf): string {
-	const { file } = getMarkdownView(leaf);
-	if (!file) {
-		throw new Error("Unexpected missing file");
-	}
-	return file.name;
-}
+// function getFilename(leaf: WorkspaceLeaf): string {
+// 	const { file } = getMarkdownView(leaf);
+// 	if (!file) {
+// 		throw new Error("Unexpected missing file");
+// 	}
+// 	return file.name;
+// }
 
 function findMatchPositions(line: string, regex: RegExp) {
 	let match;

@@ -1,5 +1,6 @@
 import { MarkdownView } from "obsidian";
 import { REFERENCE_REGEX } from "./constants";
+import { match } from "assert";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -58,7 +59,6 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 		.slice(from - 25, from)
 		.split("\n")
 		.slice(-1)[0];
-	// .slice(from - 25 > 0 ? from - 25 : 0, from)
 
 	let suffix = document.slice(to, to + 25).split("\n")[0];
 	return { prefix, suffix };
@@ -77,16 +77,25 @@ export function findTextPositions(
 		rollingIndex += data.length;
 		return data;
 	});
+	let matchIndex: number | null = null;
 
+	// I'm matching true or false suffix since cache may have stored either
+	// making this part of the code match indifferent
 	if (text.includes(prefix + searchTerm + suffix)) {
-		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		matchIndex = text.indexOf(prefix + searchTerm + suffix);
+	} else if (text.includes(prefix + searchTerm.slice(0, -2) + "f)" + suffix)) {
+		matchIndex = text.indexOf(prefix + searchTerm.slice(0, -2) + "f)" + suffix);
+	} else if (text.includes(prefix + searchTerm.slice(0, -2) + "t)" + suffix)) {
+		matchIndex = text.indexOf(prefix + searchTerm.slice(0, -2) + "t)" + suffix);
+	}
+
+	if (matchIndex != null) {
+		let index: number = matchIndex as number; // casting as typescript is missing that null has been checked
 		let startIndex =
-			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
-			1;
+			lines.findIndex((line: any) => line.index > index + prefix.length) - 1;
 		let endIndex =
 			lines.findIndex(
-				(line: any) =>
-					line.index > matchIndex + prefix.length + searchTerm.length
+				(line: any) => line.index > index + prefix.length + searchTerm.length
 			) - 1;
 
 		if (startIndex == -2) startIndex = lines.length - 1;
@@ -108,6 +117,7 @@ export function findTextPositions(
 			lines,
 		};
 	}
+
 	return null;
 }
 

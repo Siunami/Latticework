@@ -86,7 +86,6 @@ export let backlinks = StateField.define<Backlink[]>({
 					tr.effects[0].value
 				);
 				if (data.type == "backlink") {
-					console.log(data.backlinks);
 					if (data.backlinks.length == 0) return value;
 					let referencingLocations = data.backlinks.map(
 						(backlink) => backlink.referencingLocation
@@ -96,7 +95,6 @@ export let backlinks = StateField.define<Backlink[]>({
 					let filteredBacklinks = value.filter((backlink) => {
 						return backlink.referencingLocation.filename != location;
 					}); // remove all backlinks from the same file
-					console.log(filteredBacklinks);
 					return [...filteredBacklinks, ...data.backlinks];
 				} else if (data.type == "remove-backlink") {
 					const removeBacklink = data.backlinks[0];

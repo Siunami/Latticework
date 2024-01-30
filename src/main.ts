@@ -67,10 +67,12 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 		) {
 			console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
-			startBacklinkEffect(span);
+			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
+			console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
+			console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
 		return;
@@ -89,7 +91,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 				if (!span) throw new Error("Span element not found");
 			}
 			updateReferenceColor(span, ACTION_TYPE.MOUSE);
-			startReferenceEffect(span, ACTION_TYPE.MOUSE);
+			await startReferenceEffect(span, ACTION_TYPE.MOUSE);
 		} else if (
 			span &&
 			span instanceof HTMLSpanElement &&
@@ -97,7 +99,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 		) {
 			console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
-			startBacklinkEffect(span);
+			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
 			console.log("end hover reference effect");
 			// Define the keys you're waiting for
@@ -147,7 +149,6 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
-		//
 		setTimeout(async () => {
 			await generateBacklinks();
 			const leaves = this.app.workspace.getLeavesOfType("markdown");
@@ -212,7 +213,6 @@ export default class ReferencePlugin extends Plugin {
 						let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 
 						let fileBacklinks = createBacklinkData(fileData, markdownFile);
-						console.log(fileBacklinks);
 						updateBacklinks(fileBacklinks);
 
 						setTimeout(() => {
@@ -241,7 +241,7 @@ export default class ReferencePlugin extends Plugin {
 			if (difference > 10) {
 				return;
 			}
-			handleMovementEffects(evt);
+			await handleMovementEffects(evt);
 		});
 
 		// // on selection changes, event over click and keydown
@@ -252,33 +252,31 @@ export default class ReferencePlugin extends Plugin {
 		// 	updateBacklinkMarkPositions();
 		// });
 
-		this.registerDomEvent(document, "keyup", async (evt) => {
-			// backspace is to prevent the backlink from being created when it's deleted
-			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
-			console.log("keyup");
-			handleMovementEffects(evt);
-			// await updateBacklinkMarkPositions();
+		// this.registerDomEvent(document, "keyup", async (evt) => {
+		// 	// backspace is to prevent the backlink from being created when it's deleted
+		// 	if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
+		// 	console.log("keyup");
+		// 	await handleMovementEffects(evt);
+		// 	// await updateBacklinkMarkPositions();
 
-			await delay(500);
-			let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-			if (markdownFile instanceof TFile) {
-				let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
-				console.log(fileData);
-				let fileBacklinks = createBacklinkData(fileData, markdownFile);
-				console.log(fileBacklinks);
-				updateBacklinks(fileBacklinks);
+		// 	await delay(500);
+		// 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+		// 	if (markdownFile instanceof TFile) {
+		// 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
+		// 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
+		// 		updateBacklinks(fileBacklinks);
 
-				let leaf = getThat().workspace.getLeaf();
-				if (leaf) {
-					addReferencesToLeaf(leaf);
-				}
-			}
-		});
+		// 		let leaf = getThat().workspace.getLeaf();
+		// 		if (leaf) {
+		// 			addReferencesToLeaf(leaf);
+		// 		}
+		// 	}
+		// });
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) {
 				// Change the cursor style of the body
-				handleMovementEffects(evt);
+				await handleMovementEffects(evt);
 			}
 			// Copy with toggle off
 			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
@@ -324,12 +322,7 @@ export default class ReferencePlugin extends Plugin {
 					}
 				});
 
-				if (
-					spans.every((span) =>
-						span.classList.contains("reference-span-hidden")
-					) ||
-					hasOneHidden
-				) {
+				if (hasOneHidden) {
 					new Notice("Toggle annotations on");
 
 					for (const span of spans) {
