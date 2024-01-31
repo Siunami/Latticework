@@ -6,48 +6,37 @@ import {
 	ViewPlugin,
 	ViewUpdate,
 	MatchDecorator,
-	gutter,
-	GutterMarker,
 } from "@codemirror/view";
 
 import {
 	openReference,
 	createReferenceIcon,
 	updateBacklinkMarkPositions,
+	getMarkdownView,
+	getBacklinkContainer,
 } from "../references";
-import { decodeURIComponentString, encodeURIComponentString } from "src/utils";
-import { getThat, updateCursor } from "src/state";
-import { Editor, MarkdownView } from "obsidian";
+import { decodeURIComponentString } from "src/utils";
 import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
+import { Backlink } from "src/types";
+import { getThat, removeBacklinks } from "src/state";
+import { TFile } from "obsidian";
+import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
-function processLine(line: Element) {
-	let lineCopy = line?.cloneNode(true) as HTMLElement;
-	lineCopy?.querySelectorAll(".reference-span").forEach((span) => {
-		span.innerHTML = "↗";
-	});
-
-	return lineCopy;
-}
-
-export function getReferencePosition(
+export async function getReferencePosition(
 	view: EditorView,
 	currLine: HTMLSpanElement,
 	reference: string,
 	content: string
 ) {
 	let lines = view.contentDOM.querySelectorAll(".cm-line");
-	// let currLine = referenceSpan?.parentElement?.parentElement;
 
 	// get the index of the activeLine
 	let activeLineIndex;
 	let seenActive = false;
-	console.log(currLine);
-	console.log("^currline");
 
 	lines.forEach((line, i) => {
-		console.log(line);
 		if (seenActive) return;
 		if (line == currLine) {
 			seenActive = true;
@@ -55,23 +44,11 @@ export function getReferencePosition(
 		}
 	});
 
-	console.log(currLine);
-
-	// const editor: Editor | undefined =
-	// 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
-	// if (!editor) return;
-	// const cursor = editor.getCursor();
-	// console.log(cursor);
-	// console.log(activeLineIndex);
-
 	if (activeLineIndex === undefined) return;
-	let activeLine = lines[activeLineIndex];
-	// make copy of activeLine element
-	let activeLineCopy = processLine(activeLine);
-	// non-referenced parts of the text
-	let parts = activeLineCopy.innerText.split("↗");
 
-	// get all references
+	let activeLine = lines[activeLineIndex];
+
+	// get all references on active line
 	let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
 
 	// get the full serialized version for these references
@@ -80,6 +57,8 @@ export function getReferencePosition(
 	);
 
 	if (!content) throw new Error("Reference not found");
+
+	// identify which reference on that line is being serialized
 	let index: number | null = null;
 	lineReferencesData.forEach((reference, i) => {
 		if (!index) {
@@ -89,41 +68,58 @@ export function getReferencePosition(
 		}
 	});
 
-	// const index = lineReferencesData.reduce(
-	// 	(prevI1ndex, currentValue, currentIndex) => {
-	// 		if (currentValue.includes(content[0])) {
-	// 			return currentIndex;
-	// 		}
-	// 		return prevIndex;
-	// 	},
-	// 	null
-	// );
-
 	if (!index && index != 0) throw new Error("Reference not found");
 
-	// get the text before the reference
-	let startText = [
-		...parts.slice(0, index + 1),
-		...lineReferencesData.slice(0, index),
-	];
+	// get and process raw text
+	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	if (!(markdownFile instanceof TFile)) return;
+	let fileData = await getThat().vault.read(markdownFile);
+
+	const newLines = fileData.split("\n").map((line) => {
+		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
+	});
 
 	// get all the prior lines to active line and the length of the text
 	let prevLineCharCount = Array.from(lines)
 		.slice(0, activeLineIndex)
-		.reduce((acc, line) => {
-			let processedLine = processLine(line);
-			let parts = processedLine.innerText.split("↗");
+		.reduce((acc, line, index) => {
+			let parts = newLines[index].split("↗");
 
 			let lineReferences = line?.querySelectorAll(".reference-data-span");
 			let lineReferencesData = Array.from(lineReferences || []).map(
 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
 			);
 			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
+
+			// account for zero-width spaces
+			for (let i = 0; i < allSerializedText.length; i++) {
+				if (allSerializedText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+					acc--;
+				}
+			}
+
 			return allSerializedText.length + acc;
 		}, 0);
 
+	// non-reference parts of the text on current active line
+	let parts = newLines[activeLineIndex].split("↗");
+
+	// get the text before the reference
+	let startText = [
+		...parts.slice(0, index + 1),
+		...lineReferencesData.slice(0, index),
+	].join("");
+
+	// account for zero-width spaces
+	let whiteSpaceCount = 0;
+	for (let i = 0; i < startText.length; i++) {
+		if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+			whiteSpaceCount++;
+		}
+	}
+
 	// set range to replace with new reference serialization
-	let from = prevLineCharCount + startText.join("").length;
+	let from = prevLineCharCount + startText.length - whiteSpaceCount;
 	let to = from + reference.length;
 	return { from, to };
 }
@@ -132,7 +128,7 @@ export async function serializeReference(
 	content: any,
 	referenceSpan: HTMLElement,
 	view: EditorView,
-	toggleValue: string | null = null
+	hideReference: string | null = null
 ) {
 	content = typeof content == "string" ? content : content[1];
 
@@ -142,127 +138,27 @@ export async function serializeReference(
 	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 	// referenceSpan.classList.toggle("reference-span-hidden");
 
-	// let newToggle = referenceSpan.classList.contains("reference-span-hidden")
-	// 	? "f"
-	// 	: "t";
-	let newToggle = toggleValue ? toggleValue : toggle === "f" ? "t" : "f";
+	let newToggle = hideReference ? hideReference : toggle === "f" ? "t" : "f";
 	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
 
-	const results = getReferencePosition(
+	const results = await getReferencePosition(
 		view,
 		currLine as HTMLElement,
 		reference,
 		text
 	);
 	if (results) {
-		const { from: transactionFrom, to: transactionTo } = results;
 		const transaction = view.state.update({
-			changes: { from: transactionFrom, to: transactionTo, insert: reference },
+			changes: { from: results.from, to: results.to, insert: reference },
 		});
 		view.dispatch(transaction);
+		console.log("updatebacklinkpositions");
 		await updateBacklinkMarkPositions();
 	}
 
 	return;
-
-	// // referenceSpan.classList.toggle("reference-span-hidden", newToggle === "f");
-	// console.log("newToggle: " + newToggle);
-
-	// let lines = view.contentDOM.querySelectorAll(".cm-line");
-	// let currLine = referenceSpan?.parentElement?.parentElement;
-
-	// // get the index of the activeLine
-	// let activeLineIndex;
-	// let seenActive = false;
-	// lines.forEach((line, i) => {
-	// 	if (seenActive) return;
-	// 	if (line == currLine) {
-	// 		seenActive = true;
-	// 		activeLineIndex = i;
-	// 	}
-	// });
-
-	// // const editor: Editor | undefined =
-	// // 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
-	// // if (!editor) return;
-	// // const cursor = editor.getCursor();
-	// // console.log(cursor);
-	// // console.log(activeLineIndex);
-
-	// if (activeLineIndex === undefined) return;
-	// let activeLine = lines[activeLineIndex];
-	// // make copy of activeLine element
-	// let activeLineCopy = processLine(activeLine);
-	// // non-referenced parts of the text
-	// let parts = activeLineCopy.innerText.split("↗");
-
-	// // get all references
-	// let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
-
-	// // get the full serialized version for these references
-	// let lineReferencesData = Array.from(lineReferences || []).map(
-	// 	(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-	// );
-
-	// if (content) {
-	// 	let index: number | null = null;
-	// 	lineReferencesData.forEach((reference, i) => {
-	// 		if (!index) {
-	// 			if (reference.includes(content)) {
-	// 				index = i;
-	// 			}
-	// 		}
-	// 	});
-
-	// 	// const index = lineReferencesData.reduce(
-	// 	// 	(prevIndex, currentValue, currentIndex) => {
-	// 	// 		if (currentValue.includes(content[0])) {
-	// 	// 			return currentIndex;
-	// 	// 		}
-	// 	// 		return prevIndex;
-	// 	// 	},
-	// 	// 	null
-	// 	// );
-
-	// 	if (!index && index != 0) throw new Error("Reference not found");
-
-	// 	// get the text before the reference
-	// 	let startText = [
-	// 		...parts.slice(0, index + 1),
-	// 		...lineReferencesData.slice(0, index),
-	// 	];
-
-	// 	// get all the prior lines to active line and the length of the text
-	// 	let prevLineCharCount = Array.from(lines)
-	// 		.slice(0, activeLineIndex)
-	// 		.reduce((acc, line) => {
-	// 			let processedLine = processLine(line);
-	// 			let parts = processedLine.innerText.split("↗");
-
-	// 			let lineReferences = line?.querySelectorAll(".reference-data-span");
-	// 			let lineReferencesData = Array.from(lineReferences || []).map(
-	// 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-	// 			);
-	// 			let allSerializedText =
-	// 				[...parts, ...lineReferencesData].join("") + "\n";
-	// 			return allSerializedText.length + acc;
-	// 		}, 0);
-
-	// 	// set range to replace with new reference serialization
-	// 	let from = prevLineCharCount + startText.join("").length;
-	// 	let to = from + reference.length;
-
-	// 	const transaction = view.state.update({
-	// 		changes: { from, to, insert: reference },
-	// 	});
-	// 	console.log(transaction);
-	// 	view.dispatch(transaction);
-	// 	await updateBacklinkMarkPositions();
-
-	// 	// await this.updateName(reference, from, to);
-	// }
 }
 
 /* new placeholder */
@@ -272,7 +168,8 @@ class ReferenceWidget extends WidgetType {
 		private view: EditorView,
 		private pos: number,
 		private referenceSpan: Element | null = null,
-		private parentElement: HTMLElement | null | undefined = null
+		private parentElement: HTMLElement | null | undefined = null,
+		private serialized: boolean = false
 	) {
 		super();
 	}
@@ -281,54 +178,59 @@ class ReferenceWidget extends WidgetType {
 		return this.name === other.name;
 	}
 
-	async updateName(name: string, from: number, to: number) {
-		// const transaction = this.view.state.update({
-		// 	changes: { from, to, insert: name },
-		// });
-		// this.view.dispatch(transaction);
-		// await updateBacklinkMarkPositions();
-		this.name = name;
-	}
-
 	getView() {
 		return this.view;
 	}
 
+	// this runs when re-serialized as well
 	destroy() {
+		console.log(this.serialized);
+		if (this.serialized) {
+			this.serialized = false;
+			return;
+		}
 		setTimeout(() => {
-			console.log("remove highlight");
-			console.log(this.name);
-			console.log(this.pos);
-			console.log(this.view);
-			console.log(this.referenceSpan);
-			console.log(this.parentElement);
 			const regex = /\[↗\]\(urn:([^)]*)\)/g;
 			let content = regex.exec(this.name);
 			if (!content) throw new Error("Invalid reference");
 
+			let dataString = content[1];
 			const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-				content[1].split(":");
+				dataString.split(":");
 
 			let decodedFile = decodeURIComponentString(file);
-			// const leaves = getThat().workspace.getLeavesOfType("markdown");
 			let leavesByTab = collectLeavesByTabHelper();
 			let leaf = leavesByTab.flat().filter((leaf) => {
 				return leaf.getViewState().state.file == decodedFile;
 			})[0];
-			let view = getEditorView(leaf);
 
-			// const results = getReferencePosition(
-			// 	view,
-			// 	this.parentElement as HTMLSpanElement,
-			// 	this.name,
-			// 	text
-			// );
-			// if (!results) return;
-			console.log(view);
+			let view = getEditorView(leaf);
 			removeHighlight(view, parseInt(from), parseInt(to));
-			updateCursor({
-				delete: true,
+			const editor = getMarkdownView(leaf).editor;
+			const backlinkContainer = getBacklinkContainer(editor);
+			const backlinks = Array.from(
+				backlinkContainer.querySelectorAll(".reference-data-span")
+			);
+			const backlinkData = backlinks.map((backlink: HTMLElement) => {
+				let reference = backlink.getAttribute("reference");
+				if (!reference) return {};
+				return JSON.parse(reference);
 			});
+			const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
+				return (
+					backlink.dataString === dataString &&
+					backlink.referencedLocation.filename ===
+						decodeURIComponentString(file)
+				);
+			});
+
+			const backlinkReference = backlinks[backlinkIndex];
+			if (!backlinkReference) return;
+
+			const referenceData = backlinkReference.getAttribute("reference");
+			if (!referenceData) return;
+			removeBacklinks([JSON.parse(referenceData)]);
+			backlinkReference.remove();
 		}, 10);
 	}
 
@@ -340,9 +242,7 @@ class ReferenceWidget extends WidgetType {
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			content[1].split(":");
 
-		// highlightDefaultSelection(this.view, parseFloat(from), parseFloat(to));
-
-		const { span, svg } = createReferenceIcon(
+		const span = createReferenceIcon(
 			portal == "portal" ? "inline reference widget |*|" : null
 		);
 
@@ -367,99 +267,16 @@ class ReferenceWidget extends WidgetType {
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
+				openReference(ev);
+			} else {
+				this.serialized = true;
 				await serializeReference(content, referenceSpan, this.view);
-				// referenceSpan.
 				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 				if (referenceSpan) {
 					this.referenceSpan = referenceSpan;
 					this.parentElement = referenceSpan?.parentElement?.parentElement;
 				}
-
-				// // Serialize the toggle state for reference into file
-				// // KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
-				// referenceSpan.classList.toggle("reference-span-hidden");
-
-				// let newToggle = referenceSpan.classList.contains(
-				// 	"reference-span-hidden"
-				// )
-				// 	? "f"
-				// 	: "t";
-				// let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
-
-				// let lines = this.getView().contentDOM.querySelectorAll(".cm-line");
-
-				// // get the index of the activeLine
-				// let activeLineIndex;
-				// let seenActive = false;
-				// lines.forEach((line, i) => {
-				// 	if (seenActive) return;
-				// 	if (line.classList.contains("cm-active")) {
-				// 		seenActive = true;
-				// 		activeLineIndex = i;
-				// 	}
-				// });
-
-				// // const editor: Editor | undefined =
-				// // 	getThat().workspace.getActiveViewOfType(MarkdownView)?.editor;
-				// // if (!editor) return;
-				// // const cursor = editor.getCursor();
-				// // console.log(cursor);
-				// // console.log(activeLineIndex);
-
-				// if (activeLineIndex === undefined) return;
-				// let activeLine = lines[activeLineIndex];
-				// // make copy of activeLine element
-				// let activeLineCopy = processLine(activeLine);
-				// // non-referenced parts of the text
-				// let parts = activeLineCopy.innerText.split("↗");
-
-				// // get all references
-				// let lineReferences = activeLine?.querySelectorAll(
-				// 	".reference-data-span"
-				// );
-
-				// // get the full serialized version for these references
-				// let lineReferencesData = Array.from(lineReferences || []).map(
-				// 	(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-				// );
-				// if (content && content[1]) {
-				// 	// identify which reference is being toggled
-				// 	let index = lineReferencesData.indexOf(content[0]);
-				// 	if (index == -1) throw new Error("Reference not found");
-
-				// 	// get the text before the reference
-				// 	let startText = [
-				// 		...parts.slice(0, index + 1),
-				// 		...lineReferencesData.slice(0, index),
-				// 	];
-
-				// 	// get all the prior lines to active line and the length of the text
-				// 	let prevLineCharCount = Array.from(lines)
-				// 		.slice(0, activeLineIndex)
-				// 		.reduce((acc, line) => {
-				// 			let processedLine = processLine(line);
-				// 			let parts = processedLine.innerText.split("↗");
-
-				// 			let lineReferences = line?.querySelectorAll(
-				// 				".reference-data-span"
-				// 			);
-				// 			let lineReferencesData = Array.from(lineReferences || []).map(
-				// 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-				// 			);
-				// 			let allSerializedText =
-				// 				[...parts, ...lineReferencesData].join("") + "\n";
-				// 			return allSerializedText.length + acc;
-				// 		}, 0);
-
-				// 	// set range to replace with new reference serialization
-				// 	let from = prevLineCharCount + startText.join("").length;
-				// 	let to = from + reference.length;
-
-				// 	await this.updateName(reference, from, to);
-				// }
-			} else {
-				openReference(ev);
 			}
 		});
 

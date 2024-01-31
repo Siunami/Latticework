@@ -12,6 +12,7 @@
 	"author": "",
 	"license": "MIT",
 	"devDependencies": {
+		"@types/lodash": "^4.14.202",
 		"@types/node": "^16.11.6",
 		"@types/uuid": "^9.0.7",
 		"@typescript-eslint/eslint-plugin": "5.29.0",
@@ -26,6 +27,7 @@
 		"@codemirror/language": "^6.9.2",
 		"@codemirror/search": "^6.5.4",
 		"@codemirror/view": "^6.22.0",
+		"lodash": "^4.17.21",
 		"uuid": "^9.0.1"
 	}
 }

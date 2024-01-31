@@ -1,16 +1,11 @@
 import {
-	state,
-	updateCursor,
 	updateHover,
-	getCursor,
 	getHover,
 	resetHover,
-	resetCursor,
 	getThat,
 	getBacklinkHover,
 	updateBacklinkHover,
 	resetBacklinkHover,
-	updateHoveredCursor,
 } from "./state";
 import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import {
@@ -99,147 +94,74 @@ function tempDirectionIndicator(
 	isSame: boolean,
 	user?: string
 ) {
-	if (user === ACTION_TYPE.BACKLINK) {
-		// Oh! I’d compare the bbox of the range
-		// (which I know you find in the mark layout routine)
-		// to the scrollTop + innerHeight
-		const editor = getMarkdownView(leaf).editor;
-		const backlinkContainer = getBacklinkContainer(editor);
-
-		const windowHeight = leaf.view.containerEl
-			.querySelector(".cm-scroller")
-			.getBoundingClientRect().height;
-		const scrollTop =
-			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-		const scrollBottom = scrollTop + windowHeight;
-
-		// Get the elements that are between the top and bottom of the screen
-		// @ts-ignore
-		let container = editor.containerEl;
-		let content = container.querySelector(".cm-content");
-		let references = content.querySelectorAll(".reference-data-span");
-
-		let visibleElements: HTMLElement[] = [];
-		for (let i = 0; i < references.length; i++) {
-			let bbox = references[i].getBoundingClientRect();
-			if (bbox.top >= scrollTop && bbox.bottom <= scrollBottom) {
-				visibleElements.push(references[i]);
-			}
-		}
-
-		let dataStrings = visibleElements.map((el: HTMLElement) =>
-			el.getAttribute("data")
-		);
-
-		let startTop = leaf.view.editor.getScrollInfo().top;
-
-		if (!dataStrings.includes(dataString)) {
-			let positions = findTextPositions(
-				leaf.view.data,
-				text,
-				prefix.slice(0, prefix.length - 1),
-				suffix.slice(1, suffix.length)
-			);
-			if (!positions) throw new Error("Positions not found");
-			let rangeStart = positions.rangeStart;
-			let rangeEnd = positions.rangeEnd;
-
-			leaf.view.editor.scrollIntoView(
-				{
-					from: Object.assign(rangeStart, { ch: 0 }),
-					to: Object.assign(rangeEnd, { ch: 0 }),
-				},
-				true
-			);
-		}
-
-		setTimeout(() => {
-			// if (temp) return;
-			let endTop = leaf.view.editor.getScrollInfo().top;
-			console.log(endTop);
-
-			let container = leaf.containerEl.querySelector(".view-content");
-			container.classList.remove("no-shadow");
-			container.classList.remove("new-shadow");
-			container.classList.remove("top-shadow");
-			container.classList.remove("bottom-shadow");
-
-			if (startTop === endTop && isSame) {
-				container.classList.add("no-shadow");
-			} else if (startTop === endTop && !isSame) {
-				container.classList.add("new-shadow");
-			} else if (startTop < endTop) {
-				// show mark above
-				container.classList.add("top-shadow");
-			} else {
-				// show mark below
-				container.classList.add("bottom-shadow");
-			}
-		}, 25);
-
-		return;
-	}
-
-	// Oh! I’d compare the bbox of the range
-	// (which I know you find in the mark layout routine)
-	// to the scrollTop + innerHeight
 	const editor = getMarkdownView(leaf).editor;
-	const backlinkContainer = getBacklinkContainer(editor);
 
-	const windowHeight = leaf.view.containerEl
-		.querySelector(".cm-scroller")
-		.getBoundingClientRect().height;
+	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+	const windowHeight = scroller.getBoundingClientRect().height;
 	const scrollTop =
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
 
-	// Get the elements that are between the top and bottom of the screen
-	let visibleElements: string[] = [];
-	for (let i = 0; i < backlinkContainer.children.length; i++) {
-		let style = backlinkContainer.children[i].getAttribute("style");
-		if (style == null) continue;
-		let cssProperties = parseCSSString(style);
-		let top = parseFloat(cssProperties["top"].replace("px", ""));
-		if (top == null) continue;
+	let references;
+
+	if (user === ACTION_TYPE.BACKLINK) {
+		// Get the elements that are between the top and bottom of the screen
+		// @ts-ignore
+		let container = editor.containerEl;
+		let content = container.querySelector(".cm-content");
+		references = content.querySelectorAll(".reference-data-span");
+	} else {
+		references = leaf.containerEl.querySelectorAll(".reference-data-span");
+	}
+
+	let visibleElements: HTMLElement[] = [];
+	for (let i = 0; i < references.length; i++) {
+		let bbox = references[i].getBoundingClientRect();
 
 		if (
-			scrollTop <= top &&
-			top <= scrollBottom &&
-			backlinkContainer.children[i]
+			bbox.top + scroller.scrollTop >= scrollTop &&
+			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
 		) {
-			let reference = backlinkContainer.children[i].getAttribute("reference");
-			if (reference) {
-				visibleElements.push(JSON.parse(reference).dataString);
-			}
+			visibleElements.push(references[i]);
 		}
 	}
 
-	console.log(!visibleElements.includes(dataString));
-	// if (!visibleElements.includes(dataString)) {
+	let dataStrings = visibleElements.map((el: HTMLElement) => {
+		if (user === ACTION_TYPE.BACKLINK) {
+			return el.getAttribute("data");
+		} else {
+			let reference = el.getAttribute("reference");
+			if (reference) {
+				return JSON.parse(reference).dataString;
+			}
+		}
+	});
+
 	let startTop = leaf.view.editor.getScrollInfo().top;
 
-	let positions = findTextPositions(
-		leaf.view.data,
-		text,
-		prefix.slice(0, prefix.length - 1),
-		suffix.slice(1, suffix.length)
-	);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
+	if (!dataStrings.includes(dataString)) {
+		let positions = findTextPositions(
+			leaf.view.data,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) throw new Error("Positions not found");
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
 
-	leaf.view.editor.scrollIntoView(
-		{
-			from: Object.assign(rangeStart, { ch: 0 }),
-			to: Object.assign(rangeEnd, { ch: 0 }),
-		},
-		true
-	);
-	console.log(startTop);
+		leaf.view.editor.scrollIntoView(
+			{
+				from: Object.assign(rangeStart, { ch: 0 }),
+				to: Object.assign(rangeEnd, { ch: 0 }),
+			},
+			true
+		);
+	}
+
 	setTimeout(() => {
 		// if (temp) return;
 		let endTop = leaf.view.editor.getScrollInfo().top;
-		console.log(endTop);
 
 		let container = leaf.containerEl.querySelector(".view-content");
 		container.classList.remove("no-shadow");
@@ -259,8 +181,177 @@ function tempDirectionIndicator(
 			container.classList.add("bottom-shadow");
 		}
 	}, 25);
-	// }
+
+	return;
 }
+
+// function tempDirectionIndicator2(
+// 	leaf: any,
+// 	text: string,
+// 	prefix: string,
+// 	suffix: string,
+// 	dataString: string,
+// 	isSame: boolean,
+// 	user?: string
+// ) {
+// 	if (user === ACTION_TYPE.BACKLINK) {
+// 		// Oh! I’d compare the bbox of the range
+// 		// (which I know you find in the mark layout routine)
+// 		// to the scrollTop + innerHeight
+// 		const editor = getMarkdownView(leaf).editor;
+
+// 		const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+// 		const windowHeight = scroller.getBoundingClientRect().height;
+// 		const scrollTop =
+// 			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+// 		const scrollBottom = scrollTop + windowHeight;
+
+// 		// Get the elements that are between the top and bottom of the screen
+// 		// @ts-ignore
+// 		let container = editor.containerEl;
+// 		let content = container.querySelector(".cm-content");
+// 		let references = content.querySelectorAll(".reference-data-span");
+
+// 		let visibleElements: HTMLElement[] = [];
+// 		for (let i = 0; i < references.length; i++) {
+// 			let bbox = references[i].getBoundingClientRect();
+
+// 			if (
+// 				bbox.top + scroller.scrollTop >= scrollTop &&
+// 				bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+// 			) {
+// 				visibleElements.push(references[i]);
+// 			}
+// 		}
+
+// 		let dataStrings = visibleElements.map((el: HTMLElement) =>
+// 			el.getAttribute("data")
+// 		);
+
+// 		let startTop = leaf.view.editor.getScrollInfo().top;
+
+// 		if (!dataStrings.includes(dataString)) {
+// 			let positions = findTextPositions(
+// 				leaf.view.data,
+// 				text,
+// 				prefix.slice(0, prefix.length - 1),
+// 				suffix.slice(1, suffix.length)
+// 			);
+// 			if (!positions) throw new Error("Positions not found");
+// 			let rangeStart = positions.rangeStart;
+// 			let rangeEnd = positions.rangeEnd;
+
+// 			leaf.view.editor.scrollIntoView(
+// 				{
+// 					from: Object.assign(rangeStart, { ch: 0 }),
+// 					to: Object.assign(rangeEnd, { ch: 0 }),
+// 				},
+// 				true
+// 			);
+// 		}
+
+// 		setTimeout(() => {
+// 			// if (temp) return;
+// 			let endTop = leaf.view.editor.getScrollInfo().top;
+
+// 			let container = leaf.containerEl.querySelector(".view-content");
+// 			container.classList.remove("no-shadow");
+// 			container.classList.remove("new-shadow");
+// 			container.classList.remove("top-shadow");
+// 			container.classList.remove("bottom-shadow");
+
+// 			if (startTop === endTop && isSame) {
+// 				container.classList.add("no-shadow");
+// 			} else if (startTop === endTop && !isSame) {
+// 				container.classList.add("new-shadow");
+// 			} else if (startTop < endTop) {
+// 				// show mark above
+// 				container.classList.add("top-shadow");
+// 			} else {
+// 				// show mark below
+// 				container.classList.add("bottom-shadow");
+// 			}
+// 		}, 25);
+
+// 		return;
+// 	}
+
+// 	// Oh! I’d compare the bbox of the range
+// 	// (which I know you find in the mark layout routine)
+// 	// to the scrollTop + innerHeight
+// 	const editor = getMarkdownView(leaf).editor;
+// 	const backlinkContainer = getBacklinkContainer(editor);
+
+// 	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+// 	const windowHeight = scroller.getBoundingClientRect().height;
+// 	const scrollTop =
+// 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+// 	const scrollBottom = scrollTop + windowHeight;
+
+// 	// Get the elements that are between the top and bottom of the screen
+// 	let visibleElements: HTMLElement[] = [];
+// 	for (let i = 0; i < backlinkContainer.children.length; i++) {
+// 		let bbox = backlinkContainer.children[i].getBoundingClientRect();
+
+// 		if (
+// 			bbox.top + scroller.scrollTop >= scrollTop &&
+// 			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+// 		) {
+// 			visibleElements.push(backlinkContainer.children[i] as HTMLElement);
+// 		}
+// 	}
+
+// 	let dataStrings = visibleElements.map((el: HTMLElement) => {
+// 		let reference = el.getAttribute("reference");
+// 		if (reference) {
+// 			return JSON.parse(reference).dataString;
+// 		}
+// 	});
+
+// 	let startTop = leaf.view.editor.getScrollInfo().top;
+// 	if (!dataStrings.includes(dataString)) {
+// 		let positions = findTextPositions(
+// 			leaf.view.data,
+// 			text,
+// 			prefix.slice(0, prefix.length - 1),
+// 			suffix.slice(1, suffix.length)
+// 		);
+// 		if (!positions) throw new Error("Positions not found");
+// 		let rangeStart = positions.rangeStart;
+// 		let rangeEnd = positions.rangeEnd;
+
+// 		leaf.view.editor.scrollIntoView(
+// 			{
+// 				from: Object.assign(rangeStart, { ch: 0 }),
+// 				to: Object.assign(rangeEnd, { ch: 0 }),
+// 			},
+// 			true
+// 		);
+// 	}
+// 	setTimeout(() => {
+// 		// if (temp) return;
+// 		let endTop = leaf.view.editor.getScrollInfo().top;
+
+// 		let container = leaf.containerEl.querySelector(".view-content");
+// 		container.classList.remove("no-shadow");
+// 		container.classList.remove("new-shadow");
+// 		container.classList.remove("top-shadow");
+// 		container.classList.remove("bottom-shadow");
+
+// 		if (startTop === endTop && isSame) {
+// 			container.classList.add("no-shadow");
+// 		} else if (startTop === endTop && !isSame) {
+// 			container.classList.add("new-shadow");
+// 		} else if (startTop < endTop) {
+// 			// show mark above
+// 			container.classList.add("top-shadow");
+// 		} else {
+// 			// show mark below
+// 			container.classList.add("bottom-shadow");
+// 		}
+// 	}, 25);
+// 	// }
+// }
 
 function endEffectRemoveHighlights(
 	workspace: Workspace,
@@ -288,7 +379,7 @@ function endEffectRemoveHighlights(
 
 	let targetLeaf = workspace.getLeafById(leafId);
 	if (!targetLeaf) {
-		resetCursor();
+		// resetCursor();
 		throw new Error("Target leaf not found");
 	}
 
@@ -306,14 +397,7 @@ function endEffectRemoveHighlights(
 
 export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let source = getBacklinkHover();
-	let destination = getCursor();
 	let updateState = updateBacklinkHover;
-
-	// Mutex, prevent concurrent access to following section of code
-	if (source != null) return;
-	updateState({
-		type: `${ACTION_TYPE.BACKLINK}-start`,
-	});
 
 	if (!span) return;
 
@@ -325,6 +409,17 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	span.classList.add("reference-data-span-selected");
 
+	// Mutex, prevent concurrent access to following section of code
+	if (source != null && source.uuid == uuid) {
+		return;
+	} else if (source != null && source.uuid != uuid) {
+		// if hovering a new backlink, end the previous and continue
+		await endBacklinkHoverEffect();
+	}
+	updateState({
+		type: `${ACTION_TYPE.BACKLINK}-start`,
+	});
+
 	updateState({
 		uuid,
 	});
@@ -334,12 +429,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	const backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
-
-	// Check if the cursor is already on the same reference
-	if (destination != null && destination.dataString == dataString) {
-		updateState(destination);
-		return;
-	}
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
@@ -365,13 +454,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
-		// let positions = findTextPositions(
-		// 	backlinkLeaf.view.data,
-		// 	text,
-		// 	prefix.slice(0, prefix.length - 1),
-		// 	suffix.slice(1, suffix.length)
-		// );
-		// if (!positions) throw new Error("Positions not found");
 
 		updateState({
 			dataString,
@@ -382,8 +464,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	let referencingFile = backlink.referencingLocation.filename;
 
-	// if (currTabIdx != -1) {
-	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
@@ -406,10 +486,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
 	];
 	if (matches.length == 0) throw new Error("Matches not found");
-	// This one switch, this one does the correct scroll
-	// tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
 
-	// This one does the correct grabbing of span elements
 	tempDirectionIndicator(
 		newLeaf,
 		backlink.referencingLocation.text,
@@ -429,6 +506,18 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
+
+	if (!backlinkSpan) {
+		if (backlink.dataString.slice(-1) == "f") {
+			backlinkSpan = newLeaf.containerEl.querySelector(
+				`span[data="${backlink.dataString.slice(0, -1)}t"]`
+			);
+		} else if (backlink.dataString.slice(-1) == "t") {
+			backlinkSpan = newLeaf.containerEl.querySelector(
+				`span[data="${backlink.dataString.slice(0, -1)}f"]`
+			);
+		}
+	}
 
 	// Can't guarantee that this will be visible.
 	if (backlinkSpan) {
@@ -460,19 +549,15 @@ export async function startReferenceEffect(
 	span: HTMLSpanElement | null | undefined,
 	type: string
 ) {
-	let source = type == ACTION_TYPE.MOUSE ? getHover() : getCursor();
-	let destination = type == ACTION_TYPE.MOUSE ? getCursor() : getHover();
-	let updateState = type == ACTION_TYPE.MOUSE ? updateHover : updateCursor;
+	let source = getHover();
+	let updateState = updateHover;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) {
-		if (ACTION_TYPE.CURSOR == type) {
-			// if there was another cursor effect, end it and start a new one
-			await endReferenceCursorEffect();
-		} else {
-			return;
-		}
+		if (source.dataString == span?.getAttribute("data")) return;
+		else await endReferenceHoverEffect();
 	}
+
 	updateState({
 		type: `${type}-start`,
 	});
@@ -494,26 +579,11 @@ export async function startReferenceEffect(
 	const dataString = span.getAttribute("data");
 	if (!dataString) throw new Error("Data string not found");
 
-	if (
-		destination != null &&
-		destination.dataString == dataString &&
-		ACTION_TYPE.CURSOR != type
-	) {
-		updateHover(destination);
-		return;
-	}
-
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
 	let leavesByTab = collectLeavesByTabHelper();
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
-
-	let currLeaf = getThat().workspace.getLeaf();
-
-	// @ts-ignore
-	let currLeafID = currLeaf.id;
-	if (!currLeafID) throw new Error("currLeafID id not found");
 
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
@@ -534,7 +604,6 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
-	console.log(newLeaf && newLeaf.view instanceof MarkdownView);
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
@@ -543,7 +612,6 @@ export async function startReferenceEffect(
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
-		console.log("leaves are equal" + id === originalLeafId);
 		tempDirectionIndicator(
 			newLeaf,
 			text,
@@ -558,7 +626,6 @@ export async function startReferenceEffect(
 		updateState({
 			dataString,
 			originalTop: editorView.documentTop,
-			// originalLeafId: currLeafID,
 			cursorViewport,
 		});
 	}
@@ -568,135 +635,6 @@ export async function startReferenceEffect(
 			originalLeafId,
 		});
 	}
-}
-
-export async function endReferenceCursorEffect() {
-	if (!getCursor() || Object.keys(getCursor()).length == 0) {
-		// End mutex lock
-		resetCursor();
-		return;
-	}
-
-	const {
-		dataString,
-		leafId,
-		originalLeafId,
-		temp,
-		cursorViewport,
-		peek,
-		uuid,
-		removed,
-	} = getCursor();
-	resetCursor();
-
-	console.log("REMMOVED: " + removed);
-
-	if (getHover() != null && getHover().dataString == dataString) {
-		// End mutex lock
-		resetCursor();
-		return;
-	}
-
-	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
-	endEffectRemoveHighlights(workspace, leafId, uuid);
-
-	const activeLeaf = getThat().workspace.getLeaf();
-	// @ts-ignore id
-	const activeLeafId = activeLeaf.id;
-
-	let editorView = getEditorView(targetLeaf);
-
-	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-
-	// remove the highlight
-	removeHighlight(editorView, from, to);
-	// replace with default highlight
-	if (!removed) defaultHighlightSelection(editorView, from, to);
-
-	// removeHighlights(editorView);
-
-	if (activeLeafId === leafId) {
-		resetCursor();
-		let containerEl: HTMLElement = getContainerElement(targetLeaf);
-		if (containerEl != null) {
-			// @ts-ignore
-			containerEl.querySelector(".view-content")?.setAttribute("style", "");
-		}
-		return;
-	}
-
-	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
-		const view: MarkdownView = targetLeaf.view;
-		view.editor.scrollTo(0, cursorViewport.top);
-
-		// const result = await new Promise((resolve) => {
-		// 	const scrolling = setInterval(() => {
-		// 		const scrollAmount = 40;
-		// 		const currentScroll = view.editor.getScrollInfo().top;
-		// 		if (currentScroll == cursorViewport.top) {
-		// 			clearInterval(scrolling);
-		// 		} else if (currentScroll > cursorViewport.top) {
-		// 			if (currentScroll - scrollAmount < cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll - scrollAmount);
-		// 			}
-		// 		} else if (currentScroll < cursorViewport.top) {
-		// 			if (currentScroll + scrollAmount > cursorViewport.top) {
-		// 				view.editor.scrollTo(0, cursorViewport.top);
-		// 				clearInterval(scrolling);
-		// 				resolve("done");
-		// 			} else {
-		// 				view.editor.scrollTo(0, currentScroll + scrollAmount);
-		// 			}
-		// 		}
-		// 	}, 10);
-		// });
-
-		// view.containerEl.querySelector(".cm-scroller")?.scrollTo({
-		// 	top: cursorViewport.top,
-		// 	behavior: "smooth",
-		// });
-
-		// if the hover is active, highlight the selection
-		if (getHover() != null) {
-			const { dataString, cursorViewport, leafId, originalLeafId } = getHover();
-			let [prefix, text, suffix, file, from, to] = processURI(dataString);
-			const cursorLeaf = workspace.getLeafById(leafId);
-			workspace.revealLeaf(cursorLeaf);
-			const editorView: EditorView = getEditorView(cursorLeaf);
-			highlightSelection(editorView, from, to);
-		} else {
-			let containerEl: HTMLElement = getContainerElement(targetLeaf);
-			if (containerEl != null) {
-				// @ts-ignore
-				containerEl.querySelector(".view-content")?.setAttribute("style", "");
-			}
-		}
-	}
-
-	if (temp && targetLeaf) {
-		targetLeaf.detach();
-	}
-
-	if (peek) {
-		let originalLeaf = workspace.getLeafById(originalLeafId);
-		if (!originalLeaf) throw new Error("Original leaf not found");
-
-		workspace.revealLeaf(originalLeaf);
-	}
-
-	// if (!temp) {
-	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
-	// 	if (!originalLeaf) throw new Error("Original leaf not found");
-
-	// 	workspace.revealLeaf(originalLeaf);
-	// }
-	// End mutex lock
-	resetCursor();
 }
 
 export async function endReferenceHoverEffect() {
@@ -710,13 +648,6 @@ export async function endReferenceHoverEffect() {
 		getHover();
 	resetHover();
 
-	if (getCursor() != null && getCursor().dataString == dataString) {
-		// console.log("cursor reset");
-		// End mutex lock
-		resetHover();
-		return;
-	}
-
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid);
@@ -727,32 +658,26 @@ export async function endReferenceHoverEffect() {
 	removeHighlight(editorView, from, to);
 	defaultHighlightSelection(editorView, from, to);
 
-	// removeHighlights(editorView);
+	// let container =
+	// 	getContainerElement(targetLeaf).querySelector(".view-content");
+	// if (container) {
+	// 	container.classList.remove("no-shadow");
+	// 	container.classList.remove("new-shadow");
+	// 	container.classList.remove("top-shadow");
+	// 	container.classList.remove("bottom-shadow");
+	// 	container.classList.add("no-shadow");
+	// }
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
 
-		// if the cursor is active, highlight the selection
-		if (getCursor() != null && getCursor().dataString) {
-			const { dataString, cursorViewport, leafId, originalLeafId } =
-				getCursor();
-			let [prefix, text, suffix, file, from, to, portal, toggle] =
-				processURI(dataString);
-			const cursorLeaf = workspace.getLeafById(leafId);
-			workspace.revealLeaf(cursorLeaf);
-			const editorView: EditorView = getEditorView(cursorLeaf);
-			if (!editorView) throw new Error("Editor view not found");
-
-			highlightSelection(editorView, from, to);
-		} else {
-			let containerEl: HTMLElement = getContainerElement(targetLeaf);
-			if (containerEl != null) {
-				setTimeout(() => {
-					// @ts-ignore
-					containerEl.querySelector(".view-content")?.setAttribute("style", "");
-				}, 50);
-			}
+		let containerEl: HTMLElement = getContainerElement(targetLeaf);
+		if (containerEl != null) {
+			setTimeout(() => {
+				// @ts-ignore
+				containerEl.querySelector(".view-content")?.setAttribute("style", "");
+			}, 50);
 		}
 	}
 
@@ -774,12 +699,6 @@ export async function endReferenceHoverEffect() {
 
 		workspace.revealLeaf(originalLeaf);
 	}
-	// if (!temp) {
-	// 	let originalLeaf = workspace.getLeafById(originalLeafId);
-	// 	if (!originalLeaf) throw new Error("Original leaf not found");
-
-	// 	workspace.revealLeaf(originalLeaf);
-	// }
 
 	// End mutex lock
 	resetHover();
@@ -803,13 +722,7 @@ export async function endBacklinkHoverEffect() {
 		uuid,
 		backlinkUUID,
 	} = getBacklinkHover();
-	resetBacklinkHover();
-
-	if (getCursor() != null && getCursor().dataString == dataString) {
-		// End mutex lock
-		resetBacklinkHover();
-		return;
-	}
+	// resetBacklinkHover();
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
@@ -828,12 +741,7 @@ export async function endBacklinkHoverEffect() {
 		}, 50);
 	}
 
-	let editorView: EditorView = getEditorView(targetLeaf);
-
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
-	// removeHighlight(editorView, from, to);
-	// removeHighlights(editorView);
-
 	// backlink effect
 	const originalLeaf = workspace.getLeafById(backlinkLeafId);
 	if (!originalLeaf) {
@@ -844,17 +752,16 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlight(originalEditorView, from, to);
 	defaultHighlightSelection(originalEditorView, from, to);
-
 	// removeHighlights(originalEditorView);
 
-	if (getCursor() != null && getCursor().dataString) {
-		const { dataString, cursorViewport, leafId, originalLeafId } = getCursor();
-		let [prefix, text, suffix, file, from, to] = processURI(dataString);
-		const cursorLeaf = workspace.getLeafById(leafId);
-		workspace.revealLeaf(cursorLeaf);
-
-		const editorView: EditorView = getEditorView(cursorLeaf);
-		highlightSelection(editorView, from, to);
+	let container =
+		getContainerElement(originalLeaf).querySelector(".view-content");
+	if (container) {
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+		container.classList.add("no-shadow");
 	}
 
 	if (temp && targetLeaf) {
@@ -870,15 +777,6 @@ export async function endBacklinkHoverEffect() {
 
 		workspace.revealLeaf(originalLeaf);
 	}
-
-	// if (temp) {
-	// 	targetLeaf.detach();
-	// 	// setTimeout(() => {
-	// 	// 	targetLeaf.detach();
-	// 	// }, 100);
-	// } else {
-	// 	// if the cursor is active, highlight the selection
-	// }
 
 	// End mutex lock
 	resetBacklinkHover();

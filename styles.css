@@ -17,12 +17,9 @@ If your plugin does not need CSS, delete this file.
 }
 
 .reference-span {
-	/* background-color: var(--background-secondary); */
-	/* background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%); */
 	background-color: var(--color-base-35);
 
-	cursor: alias;
-	/* color: color-mix(in srgb, var(--text-normal) 45%, var(--text-muted) 55%); */
+	cursor: pointer;
 	color: var(--text-normal);
 	padding-left: 3px;
 	padding-right: 3px;
@@ -32,10 +29,9 @@ If your plugin does not need CSS, delete this file.
 
 .reference-data-span::after {
 	content: "↗";
-	/* background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%); */
 	background-color: var(--color-base-35);
 	color: var(--text-accent);
-	cursor: alias;
+	cursor: pointer;
 
 	padding-left: 3px;
 	padding-right: 3px;
@@ -54,19 +50,14 @@ If your plugin does not need CSS, delete this file.
 
 .reference-span-selected {
 	color: #1e1e1e;
-	/* background-color: var(--color-base-70); */
 	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
 }
 
 .reference-span-selected:hover {
-	/* color: var(--text-on-accent); */
-	/* background-color: var(--color-base-70); */
 	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
 }
 
 .reference-data-span-selected::after {
-	/* background-color: var(--color-base-70); */
-	/* background-color: var(--color-accent-2); */
 	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
 }
 
@@ -77,6 +68,7 @@ If your plugin does not need CSS, delete this file.
 .backlink-span {
 	background-color: color-mix(in srgb, var(--color-base-30) 50%, var(--color-base-40) 50%) ;
 	border-radius: 3px;
+	padding-left: 3px;
 	color: var(--text-normal);
 }
 
@@ -109,6 +101,7 @@ If your plugin does not need CSS, delete this file.
 .highlight {
 	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
 	color: black;
+	z-index: 100;
 }
 
 .default-highlight {

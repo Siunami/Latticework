@@ -154,9 +154,6 @@ export async function openFileInAdjacentTab(
 
 		console.log("open file new tab");
 
-		console.log(leaf);
-		console.log(originalLeaf);
-
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
@@ -167,12 +164,6 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(leaf);
 
 		console.log("open existing file right tab");
-		// const originalLeaf = leavesByTab[currTabIdx].filter(
-		// 	(t: WorkspaceLeaf) => getContainerElement(t).style.display != "none"
-		// )[0];
-
-		console.log(leaf);
-		console.log(originalLeaf);
 
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (leftAdjacentTabNames.includes(file)) {
@@ -185,13 +176,6 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(leaf);
 
 		console.log("open existing file left tab");
-
-		// const originalLeaf = leavesByTab[currTabIdx].filter(
-		// 	(t: WorkspaceLeaf) => getContainerElement(t).style.display != "none"
-		// )[0];
-
-		console.log(leaf);
-		console.log(originalLeaf);
 
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTab.length > 0) {
@@ -208,8 +192,6 @@ export async function openFileInAdjacentTab(
 		workspace.setActiveLeaf(currLeaf);
 
 		console.log("open new file right tab");
-		console.log(newLeaf);
-		console.log(originalLeaf);
 
 		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
@@ -226,8 +208,6 @@ export async function openFileInAdjacentTab(
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
 
 		console.log("open new file left tab");
-		console.log(newLeaf);
-		console.log(originalLeaf);
 
 		return { newLeaf, temp: true, originalLeaf };
 	} else {
@@ -237,8 +217,6 @@ export async function openFileInAdjacentTab(
 		await openFileInLeaf(newLeaf, file);
 
 		console.log("open new file left tab");
-		console.log(newLeaf);
-		console.log(currLeaf);
 
 		return { newLeaf, temp: true, originalLeaf: currLeaf };
 	}

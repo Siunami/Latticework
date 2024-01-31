@@ -1,13 +1,6 @@
-import { MarkdownView, TextFileView, View } from "obsidian";
-import { REFERENCE_REGEX, ACTION_TYPE, SVG_HOVER_COLOR } from "./constants";
-import { startReferenceEffect, endReferenceCursorEffect } from "./effects";
-import {
-	getHoveredCursor,
-	updateHoveredCursor,
-	removeHoveredCursor,
-	getHover,
-} from "./state";
-import { updateHoveredCursorColor } from "./references";
+import { MarkdownView } from "obsidian";
+import { REFERENCE_REGEX } from "./constants";
+import { match } from "assert";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -66,7 +59,6 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 		.slice(from - 25, from)
 		.split("\n")
 		.slice(-1)[0];
-	// .slice(from - 25 > 0 ? from - 25 : 0, from)
 
 	let suffix = document.slice(to, to + 25).split("\n")[0];
 	return { prefix, suffix };
@@ -85,16 +77,25 @@ export function findTextPositions(
 		rollingIndex += data.length;
 		return data;
 	});
+	let matchIndex: number | null = null;
 
+	// I'm matching true or false suffix since cache may have stored either
+	// making this part of the code match indifferent
 	if (text.includes(prefix + searchTerm + suffix)) {
-		let matchIndex = text.indexOf(prefix + searchTerm + suffix);
+		matchIndex = text.indexOf(prefix + searchTerm + suffix);
+	} else if (text.includes(prefix + searchTerm.slice(0, -2) + "f)" + suffix)) {
+		matchIndex = text.indexOf(prefix + searchTerm.slice(0, -2) + "f)" + suffix);
+	} else if (text.includes(prefix + searchTerm.slice(0, -2) + "t)" + suffix)) {
+		matchIndex = text.indexOf(prefix + searchTerm.slice(0, -2) + "t)" + suffix);
+	}
+
+	if (matchIndex != null) {
+		let index: number = matchIndex as number; // casting as typescript is missing that null has been checked
 		let startIndex =
-			lines.findIndex((line: any) => line.index > matchIndex + prefix.length) -
-			1;
+			lines.findIndex((line: any) => line.index > index + prefix.length) - 1;
 		let endIndex =
 			lines.findIndex(
-				(line: any) =>
-					line.index > matchIndex + prefix.length + searchTerm.length
+				(line: any) => line.index > index + prefix.length + searchTerm.length
 			) - 1;
 
 		if (startIndex == -2) startIndex = lines.length - 1;
@@ -116,6 +117,7 @@ export function findTextPositions(
 			lines,
 		};
 	}
+
 	return null;
 }
 
@@ -164,17 +166,6 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 							throw new Error("Element not instance of Element");
 						let container = evt.target as Element;
 
-						// let activeLine;
-						// if (container.classList.contains("cm-active")) {
-						// 	activeLine = container;
-						// }
-						// // else if (container.closest(".cm-active")) {
-						// // 	activeLine = container.closest(".cm-active");
-						// // }
-						// else {
-						// 	activeLine = container.querySelector(".cm-active");
-						// }
-						// if (!activeLine) throw new Error("Element not instance of Element");
 						// find html span element in target that has a data attribute equal to contents
 						let span = container;
 						if (!span.getAttribute("data"))
@@ -197,50 +188,4 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 		}
 	}
 	return { matched, span: matchSpan };
-}
-
-// Remove an existmaining higlighted reference
-export function handleRemoveHoveredCursor(user: string) {
-	if (getHoveredCursor()) {
-		// cursors not associated with the user action
-		let nonCursors = getHoveredCursor()
-			.filter((element: any) => {
-				return element.user !== user;
-			})
-			.map((element: any) => element.cursor.closest("span"));
-
-		// white background if cursors are not associated with the user action
-		getHoveredCursor()
-			.filter((element: any) => element.user === user)
-			.forEach((element: any) => {
-				if (!nonCursors.includes(element.cursor.closest("span"))) {
-					let svg = element.cursor;
-					if (!svg) throw new Error("SVG not found");
-					if (svg.classList.contains("reference-icon"))
-						svg.style.backgroundColor = "white";
-					else {
-						svg.setAttribute("fill", "white");
-						svg.style.backgroundColor = "";
-					}
-					element.cursor.style.backgroundColor = "white";
-					// element.cursor.style.boxShadow = "none";
-				}
-			});
-
-		removeHoveredCursor(user);
-	}
-}
-
-export async function checkFocusCursor(evt: Event) {
-	let { matched, span } = checkCursorPositionAtDatastring(evt);
-
-	if (matched && span) {
-		await endReferenceCursorEffect(); // this takes 100ms to close existing peek tab
-		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
-		updateHoveredCursorColor(span, ACTION_TYPE.CURSOR);
-		await startReferenceEffect(span, ACTION_TYPE.CURSOR);
-	} else {
-		await endReferenceCursorEffect();
-		handleRemoveHoveredCursor(ACTION_TYPE.CURSOR);
-	}
 }

@@ -1,17 +1,9 @@
-import { Plugin, MarkdownView, Editor } from "obsidian";
-import {
-	processURI,
-	parseEditorPosition,
-	encodeURIComponentString,
-	getPrefixAndSuffix,
-} from "./utils";
+import { MarkdownView } from "obsidian";
+import { encodeURIComponentString, getPrefixAndSuffix } from "./utils";
 
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
 // [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
-export async function updateClipboard(
-	toggle: boolean = false,
-	only: boolean = false
-) {
+export async function updateClipboard(toggle: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	// Make sure the user is editing a Markdown file.
 	if (view) {
@@ -25,10 +17,9 @@ export async function updateClipboard(
 				prefix
 			)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(
 				suffix
-			)}:${encodeURIComponentString(view.file.path)}:${from}:${to}:${
-				// only ? "portal" : "no-portal"
-				"portal"
-			}:${toggle ? "t" : "f"})`;
+			)}:${encodeURIComponentString(
+				view.file.path
+			)}:${from}:${to}:${"portal"}:${toggle ? "t" : "f"})`;
 
 			// Write the selected text to the clipboard
 			await navigator.clipboard.writeText(reference);
