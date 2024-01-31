@@ -305,7 +305,9 @@ export default class ReferencePlugin extends Plugin {
 				(evt.metaKey || evt.ctrlKey) &&
 				evt.shiftKey
 			) {
-				// Copy with S on
+				// Toggle all references on line on and off with CMD+SHIFT+S
+
+				// grab all references on active line
 				let target = evt.target as HTMLElement;
 				let children = Array.from(target.children);
 				let currentLine = children.filter((child) =>
@@ -316,6 +318,7 @@ export default class ReferencePlugin extends Plugin {
 					currentLine.querySelectorAll(".reference-span")
 				);
 
+				// check if any are hidden
 				let hasOneHidden = false;
 				spans.forEach((span) => {
 					if (span.classList.contains("reference-span-hidden")) {
@@ -323,44 +326,77 @@ export default class ReferencePlugin extends Plugin {
 					}
 				});
 
-				if (hasOneHidden) {
-					new Notice("Toggle annotations on");
+				new Notice(
+					hasOneHidden ? "Toggle annotations on" : "Toggle annotations off"
+				);
 
-					for (const span of spans) {
-						// Want to serialize references at some point
-						let referenceSpan = span.parentElement?.querySelector(
-							".reference-data-span"
-						);
-						let content = referenceSpan?.getAttribute("data");
-						const activeView = this.app.workspace.getLeaf();
-						const editor = getMarkdownView(activeView).editor;
-						const editorView = getCodeMirrorEditorView(editor);
+				for (const span of spans) {
+					// Want to serialize references at some point
+					let referenceSpan = span.parentElement?.querySelector(
+						".reference-data-span"
+					);
+					let content = referenceSpan?.getAttribute("data");
+					const activeView = this.app.workspace.getLeaf();
+					const editor = getMarkdownView(activeView).editor;
+					const editorView = getCodeMirrorEditorView(editor);
 
-						if (span.classList.contains("reference-span-hidden")) {
-							span.classList.remove("reference-span-hidden");
-						}
-						await serializeReference(content, span, editorView, "t");
+					if (
+						span.classList.contains("reference-span-hidden") &&
+						hasOneHidden
+					) {
+						span.classList.remove("reference-span-hidden");
+					} else if (
+						!span.classList.contains("reference-span-hidden") &&
+						!hasOneHidden
+					) {
+						span.classList.add("reference-span-hidden");
 					}
-				} else {
-					new Notice("Toggle annotations off");
-
-					for (const span of spans) {
-						let referenceSpan = span.parentElement?.querySelector(
-							".reference-data-span"
-						);
-
-						let content = referenceSpan?.getAttribute("data");
-						const activeView = this.app.workspace.getLeaf();
-						const editor = getMarkdownView(activeView).editor;
-						const editorView = getCodeMirrorEditorView(editor);
-
-						// Add the class if it doesn't exist
-						if (!span.classList.contains("reference-span-hidden")) {
-							span.classList.add("reference-span-hidden");
-						}
-						await serializeReference(content, span, editorView, "f");
-					}
+					await serializeReference(
+						content,
+						span,
+						editorView,
+						hasOneHidden ? "t" : "f"
+					);
 				}
+
+				// if (hasOneHidden) {
+				// 	new Notice("Toggle annotations on");
+
+				// 	for (const span of spans) {
+				// 		// Want to serialize references at some point
+				// 		let referenceSpan = span.parentElement?.querySelector(
+				// 			".reference-data-span"
+				// 		);
+				// 		let content = referenceSpan?.getAttribute("data");
+				// 		const activeView = this.app.workspace.getLeaf();
+				// 		const editor = getMarkdownView(activeView).editor;
+				// 		const editorView = getCodeMirrorEditorView(editor);
+
+				// 		if (span.classList.contains("reference-span-hidden")) {
+				// 			span.classList.remove("reference-span-hidden");
+				// 		}
+				// 		await serializeReference(content, span, editorView, "t");
+				// 	}
+				// } else {
+				// 	new Notice("Toggle annotations off");
+
+				// 	for (const span of spans) {
+				// 		let referenceSpan = span.parentElement?.querySelector(
+				// 			".reference-data-span"
+				// 		);
+
+				// 		let content = referenceSpan?.getAttribute("data");
+				// 		const activeView = this.app.workspace.getLeaf();
+				// 		const editor = getMarkdownView(activeView).editor;
+				// 		const editorView = getCodeMirrorEditorView(editor);
+
+				// 		// Add the class if it doesn't exist
+				// 		if (!span.classList.contains("reference-span-hidden")) {
+				// 			span.classList.add("reference-span-hidden");
+				// 		}
+				// 		await serializeReference(content, span, editorView, "f");
+				// 	}
+				// }
 			}
 		});
 	}

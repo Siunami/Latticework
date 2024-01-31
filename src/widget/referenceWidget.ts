@@ -22,65 +22,7 @@ import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
 import { getThat, removeBacklinks } from "src/state";
 import { TFile } from "obsidian";
-import { REFERENCE_REGEX } from "src/constants";
-
-function processLine(line: Element) {
-	let lineCopy = line?.cloneNode(true) as HTMLElement;
-	console.log(lineCopy.innerText);
-	lineCopy?.querySelectorAll(".reference-span").forEach((span) => {
-		span.innerHTML = "↗";
-	});
-
-	return lineCopy;
-}
-
-function countMarkdownFormattingChars(text: string): number {
-	// Regular expressions for different types of Markdown formatting
-	const markdownRegexes = [
-		/\*\*[^*]+\*\*/g, // Bold
-		/__[^_]+__/g, // Bold
-		/\*[^*]+\*/g, // Italic
-		/_[^_]+_/g, // Italic
-		/~~[^~]+~~/g, // Strikethrough
-		/\[[^\]]+\]\([^)]+\)/g, // Link
-		/!\[[^\]]+\]\([^)]+\)/g, // Image
-		/^#{1,6} .+/gm, // Heading
-		/^> .+/gm, // Blockquote
-		/^- .+/gm, // Unordered list
-		/^\d+\. .+/gm, // Ordered list
-		/`[^`]+`/g, // Inline code
-		/```[^`]+```/g, // Code block
-		/\[\[[^\]]+\]\]/g, // Obsidian link
-		/\^\[[^\]]+\]/g, // Footnote
-		/==[^=]+==/g, // Highlight
-		/<[^>]+>/g, // HTML tags
-		/::[^:]+::/g, // Obsidian tag
-		/\[[^\]]+\]\[\]/g, // Empty link reference
-		/\[[^\]]+\]\[[^\]]+\]/g, // Full link reference
-		/\[[^\]]+\]: .+/g, // Link reference definition
-		/!\[[^\]]+\]\[\]/g, // Empty image reference
-		/!\[[^\]]+\]\[[^\]]+\]/g, // Full image reference
-		/!\[[^\]]+\]: .+/g, // Image reference definition
-	];
-
-	let count = 0;
-
-	// Count the number of formatting characters for each type of formatting
-	for (let regex of markdownRegexes) {
-		let match;
-		while ((match = regex.exec(text)) !== null) {
-			// Add the length of the matched formatting to the count
-			count +=
-				match[0].length -
-				match[0].replace(/[*_~[\]()`#>!\-.=^{}<>:]/g, "").length;
-		}
-	}
-
-	return count;
-}
-
-// 8203 is a zero-width space character
-const ZERO_WIDTH_SPACE_CODE = 8203;
+import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
 export async function getReferencePosition(
 	view: EditorView,
@@ -89,14 +31,6 @@ export async function getReferencePosition(
 	content: string
 ) {
 	let lines = view.contentDOM.querySelectorAll(".cm-line");
-
-	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	if (!(markdownFile instanceof TFile)) return;
-	let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
-
-	const newLines = fileData.split("\n").map((line) => {
-		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
-	});
 
 	// get the index of the activeLine
 	let activeLineIndex;
@@ -114,13 +48,7 @@ export async function getReferencePosition(
 
 	let activeLine = lines[activeLineIndex];
 
-	// // make copy of activeLine element
-	// let activeLineCopy = processLine(activeLine);
-
-	// non-reference parts of the text
-	let parts = newLines[activeLineIndex].split("↗");
-
-	// get all references
+	// get all references on active line
 	let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
 
 	// get the full serialized version for these references
@@ -129,6 +57,8 @@ export async function getReferencePosition(
 	);
 
 	if (!content) throw new Error("Reference not found");
+
+	// identify which reference on that line is being serialized
 	let index: number | null = null;
 	lineReferencesData.forEach((reference, i) => {
 		if (!index) {
@@ -140,34 +70,19 @@ export async function getReferencePosition(
 
 	if (!index && index != 0) throw new Error("Reference not found");
 
-	// get the text before the reference
-	let startText = [
-		...parts.slice(0, index + 1),
-		...lineReferencesData.slice(0, index),
-	].join("");
+	// get and process raw text
+	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	if (!(markdownFile instanceof TFile)) return;
+	let fileData = await getThat().vault.read(markdownFile);
 
-	let whiteSpaceCount = 0;
-
-	for (let i = 0; i < startText.length; i++) {
-		if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-			whiteSpaceCount++;
-		}
-	}
-
-	// These lines are doing nothing, because the markdown formating has been replaced with a special text nested in styling divs
-	// console.log(countMarkdownFormattingChars(parts.slice(0, index + 1).join("")));
-	// whiteSpaceCount += countMarkdownFormattingChars(
-	// 	parts.slice(0, index + 1).join("")
-	// );
+	const newLines = fileData.split("\n").map((line) => {
+		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
+	});
 
 	// get all the prior lines to active line and the length of the text
 	let prevLineCharCount = Array.from(lines)
 		.slice(0, activeLineIndex)
 		.reduce((acc, line, index) => {
-			console.log("acc: " + acc);
-
-			// let processedLine = processLine(line); // contents of a line is just a single arrow character
-			// let parts = processedLine.innerText.split("↗");
 			let parts = newLines[index].split("↗");
 
 			let lineReferences = line?.querySelectorAll(".reference-data-span");
@@ -176,27 +91,32 @@ export async function getReferencePosition(
 			);
 			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
 
+			// account for zero-width spaces
 			for (let i = 0; i < allSerializedText.length; i++) {
-				// console.log(allSerializedText[i], allSerializedText.charCodeAt(i));
 				if (allSerializedText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
 					acc--;
 				}
 			}
 
-			// let count = countMarkdownFormattingChars(parts.join(""));
-			// acc -= countMarkdownFormattingChars(parts.join(""));
-
-			// console.log("count: " + count);
-
-			console.log("acc: " + acc);
-
-			console.log("allSerializedText.length: " + allSerializedText.length);
-			console.log(allSerializedText.length + acc);
-
-			// let allSerializedText = [...parts, ...lineReferencesData].join("");
 			return allSerializedText.length + acc;
-			// return allSerializedText.length + count + acc;
-		}, 0); //- 1; // substract one cause don't want a new line for the last line
+		}, 0);
+
+	// non-reference parts of the text on current active line
+	let parts = newLines[activeLineIndex].split("↗");
+
+	// get the text before the reference
+	let startText = [
+		...parts.slice(0, index + 1),
+		...lineReferencesData.slice(0, index),
+	].join("");
+
+	// account for zero-width spaces
+	let whiteSpaceCount = 0;
+	for (let i = 0; i < startText.length; i++) {
+		if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+			whiteSpaceCount++;
+		}
+	}
 
 	// set range to replace with new reference serialization
 	let from = prevLineCharCount + startText.length - whiteSpaceCount;
@@ -348,14 +268,9 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
 				openReference(ev);
-
-				// // Serialize the toggle state for reference into file
-				// // KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
-				// referenceSpan.classList.toggle("reference-span-hidden");
 			} else {
 				this.serialized = true;
 				await serializeReference(content, referenceSpan, this.view);
-				// referenceSpan.
 				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 				if (referenceSpan) {
