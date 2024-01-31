@@ -19,6 +19,7 @@ import {
 	defaultHighlightSelection,
 	highlightSelection,
 	removeHighlight,
+	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
 import {
@@ -93,143 +94,71 @@ function tempDirectionIndicator(
 	isSame: boolean,
 	user?: string
 ) {
-	if (user === ACTION_TYPE.BACKLINK) {
-		// Oh! I’d compare the bbox of the range
-		// (which I know you find in the mark layout routine)
-		// to the scrollTop + innerHeight
-		const editor = getMarkdownView(leaf).editor;
-
-		const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
-		const windowHeight = scroller.getBoundingClientRect().height;
-		const scrollTop =
-			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-		const scrollBottom = scrollTop + windowHeight;
-
-		// Get the elements that are between the top and bottom of the screen
-		// @ts-ignore
-		let container = editor.containerEl;
-		let content = container.querySelector(".cm-content");
-		let references = content.querySelectorAll(".reference-data-span");
-
-		let visibleElements: HTMLElement[] = [];
-		for (let i = 0; i < references.length; i++) {
-			let bbox = references[i].getBoundingClientRect();
-
-			if (
-				bbox.top + scroller.scrollTop >= scrollTop &&
-				bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
-			) {
-				visibleElements.push(references[i]);
-			}
-		}
-
-		let dataStrings = visibleElements.map((el: HTMLElement) =>
-			el.getAttribute("data")
-		);
-
-		let startTop = leaf.view.editor.getScrollInfo().top;
-
-		if (!dataStrings.includes(dataString)) {
-			let positions = findTextPositions(
-				leaf.view.data,
-				text,
-				prefix.slice(0, prefix.length - 1),
-				suffix.slice(1, suffix.length)
-			);
-			if (!positions) throw new Error("Positions not found");
-			let rangeStart = positions.rangeStart;
-			let rangeEnd = positions.rangeEnd;
-
-			leaf.view.editor.scrollIntoView(
-				{
-					from: Object.assign(rangeStart, { ch: 0 }),
-					to: Object.assign(rangeEnd, { ch: 0 }),
-				},
-				true
-			);
-		}
-
-		setTimeout(() => {
-			// if (temp) return;
-			let endTop = leaf.view.editor.getScrollInfo().top;
-
-			let container = leaf.containerEl.querySelector(".view-content");
-			container.classList.remove("no-shadow");
-			container.classList.remove("new-shadow");
-			container.classList.remove("top-shadow");
-			container.classList.remove("bottom-shadow");
-
-			if (startTop === endTop && isSame) {
-				container.classList.add("no-shadow");
-			} else if (startTop === endTop && !isSame) {
-				container.classList.add("new-shadow");
-			} else if (startTop < endTop) {
-				// show mark above
-				container.classList.add("top-shadow");
-			} else {
-				// show mark below
-				container.classList.add("bottom-shadow");
-			}
-		}, 25);
-
-		return;
-	}
-
-	// Oh! I’d compare the bbox of the range
-	// (which I know you find in the mark layout routine)
-	// to the scrollTop + innerHeight
 	const editor = getMarkdownView(leaf).editor;
-	const backlinkContainer = getBacklinkContainer(editor);
 
-	const windowHeight = leaf.view.containerEl
-		.querySelector(".cm-scroller")
-		.getBoundingClientRect().height;
+	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+	const windowHeight = scroller.getBoundingClientRect().height;
 	const scrollTop =
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
 
-	// Get the elements that are between the top and bottom of the screen
-	let visibleElements: string[] = [];
-	for (let i = 0; i < backlinkContainer.children.length; i++) {
-		let style = backlinkContainer.children[i].getAttribute("style");
-		if (style == null) continue;
-		let cssProperties = parseCSSString(style);
-		let top = parseFloat(cssProperties["top"].replace("px", ""));
-		if (top == null) continue;
+	let references;
 
-		console.log(top);
-		console.log(scrollTop, scrollBottom);
+	if (user === ACTION_TYPE.BACKLINK) {
+		// Get the elements that are between the top and bottom of the screen
+		// @ts-ignore
+		let container = editor.containerEl;
+		let content = container.querySelector(".cm-content");
+		references = content.querySelectorAll(".reference-data-span");
+	} else {
+		references = leaf.containerEl.querySelectorAll(".reference-data-span");
+	}
+
+	let visibleElements: HTMLElement[] = [];
+	for (let i = 0; i < references.length; i++) {
+		let bbox = references[i].getBoundingClientRect();
+
 		if (
-			scrollTop <= top &&
-			top <= scrollBottom &&
-			backlinkContainer.children[i]
+			bbox.top + scroller.scrollTop >= scrollTop &&
+			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
 		) {
-			let reference = backlinkContainer.children[i].getAttribute("reference");
-			if (reference) {
-				visibleElements.push(JSON.parse(reference).dataString);
-			}
+			visibleElements.push(references[i]);
 		}
 	}
 
+	let dataStrings = visibleElements.map((el: HTMLElement) => {
+		if (user === ACTION_TYPE.BACKLINK) {
+			return el.getAttribute("data");
+		} else {
+			let reference = el.getAttribute("reference");
+			if (reference) {
+				return JSON.parse(reference).dataString;
+			}
+		}
+	});
+
 	let startTop = leaf.view.editor.getScrollInfo().top;
 
-	let positions = findTextPositions(
-		leaf.view.data,
-		text,
-		prefix.slice(0, prefix.length - 1),
-		suffix.slice(1, suffix.length)
-	);
-	if (!positions) throw new Error("Positions not found");
-	let rangeStart = positions.rangeStart;
-	let rangeEnd = positions.rangeEnd;
+	if (!dataStrings.includes(dataString)) {
+		let positions = findTextPositions(
+			leaf.view.data,
+			text,
+			prefix.slice(0, prefix.length - 1),
+			suffix.slice(1, suffix.length)
+		);
+		if (!positions) throw new Error("Positions not found");
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
 
-	leaf.view.editor.scrollIntoView(
-		{
-			from: Object.assign(rangeStart, { ch: 0 }),
-			to: Object.assign(rangeEnd, { ch: 0 }),
-		},
-		true
-	);
+		leaf.view.editor.scrollIntoView(
+			{
+				from: Object.assign(rangeStart, { ch: 0 }),
+				to: Object.assign(rangeEnd, { ch: 0 }),
+			},
+			true
+		);
+	}
+
 	setTimeout(() => {
 		// if (temp) return;
 		let endTop = leaf.view.editor.getScrollInfo().top;
@@ -252,8 +181,177 @@ function tempDirectionIndicator(
 			container.classList.add("bottom-shadow");
 		}
 	}, 25);
-	// }
+
+	return;
 }
+
+// function tempDirectionIndicator2(
+// 	leaf: any,
+// 	text: string,
+// 	prefix: string,
+// 	suffix: string,
+// 	dataString: string,
+// 	isSame: boolean,
+// 	user?: string
+// ) {
+// 	if (user === ACTION_TYPE.BACKLINK) {
+// 		// Oh! I’d compare the bbox of the range
+// 		// (which I know you find in the mark layout routine)
+// 		// to the scrollTop + innerHeight
+// 		const editor = getMarkdownView(leaf).editor;
+
+// 		const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+// 		const windowHeight = scroller.getBoundingClientRect().height;
+// 		const scrollTop =
+// 			leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+// 		const scrollBottom = scrollTop + windowHeight;
+
+// 		// Get the elements that are between the top and bottom of the screen
+// 		// @ts-ignore
+// 		let container = editor.containerEl;
+// 		let content = container.querySelector(".cm-content");
+// 		let references = content.querySelectorAll(".reference-data-span");
+
+// 		let visibleElements: HTMLElement[] = [];
+// 		for (let i = 0; i < references.length; i++) {
+// 			let bbox = references[i].getBoundingClientRect();
+
+// 			if (
+// 				bbox.top + scroller.scrollTop >= scrollTop &&
+// 				bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+// 			) {
+// 				visibleElements.push(references[i]);
+// 			}
+// 		}
+
+// 		let dataStrings = visibleElements.map((el: HTMLElement) =>
+// 			el.getAttribute("data")
+// 		);
+
+// 		let startTop = leaf.view.editor.getScrollInfo().top;
+
+// 		if (!dataStrings.includes(dataString)) {
+// 			let positions = findTextPositions(
+// 				leaf.view.data,
+// 				text,
+// 				prefix.slice(0, prefix.length - 1),
+// 				suffix.slice(1, suffix.length)
+// 			);
+// 			if (!positions) throw new Error("Positions not found");
+// 			let rangeStart = positions.rangeStart;
+// 			let rangeEnd = positions.rangeEnd;
+
+// 			leaf.view.editor.scrollIntoView(
+// 				{
+// 					from: Object.assign(rangeStart, { ch: 0 }),
+// 					to: Object.assign(rangeEnd, { ch: 0 }),
+// 				},
+// 				true
+// 			);
+// 		}
+
+// 		setTimeout(() => {
+// 			// if (temp) return;
+// 			let endTop = leaf.view.editor.getScrollInfo().top;
+
+// 			let container = leaf.containerEl.querySelector(".view-content");
+// 			container.classList.remove("no-shadow");
+// 			container.classList.remove("new-shadow");
+// 			container.classList.remove("top-shadow");
+// 			container.classList.remove("bottom-shadow");
+
+// 			if (startTop === endTop && isSame) {
+// 				container.classList.add("no-shadow");
+// 			} else if (startTop === endTop && !isSame) {
+// 				container.classList.add("new-shadow");
+// 			} else if (startTop < endTop) {
+// 				// show mark above
+// 				container.classList.add("top-shadow");
+// 			} else {
+// 				// show mark below
+// 				container.classList.add("bottom-shadow");
+// 			}
+// 		}, 25);
+
+// 		return;
+// 	}
+
+// 	// Oh! I’d compare the bbox of the range
+// 	// (which I know you find in the mark layout routine)
+// 	// to the scrollTop + innerHeight
+// 	const editor = getMarkdownView(leaf).editor;
+// 	const backlinkContainer = getBacklinkContainer(editor);
+
+// 	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+// 	const windowHeight = scroller.getBoundingClientRect().height;
+// 	const scrollTop =
+// 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+// 	const scrollBottom = scrollTop + windowHeight;
+
+// 	// Get the elements that are between the top and bottom of the screen
+// 	let visibleElements: HTMLElement[] = [];
+// 	for (let i = 0; i < backlinkContainer.children.length; i++) {
+// 		let bbox = backlinkContainer.children[i].getBoundingClientRect();
+
+// 		if (
+// 			bbox.top + scroller.scrollTop >= scrollTop &&
+// 			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+// 		) {
+// 			visibleElements.push(backlinkContainer.children[i] as HTMLElement);
+// 		}
+// 	}
+
+// 	let dataStrings = visibleElements.map((el: HTMLElement) => {
+// 		let reference = el.getAttribute("reference");
+// 		if (reference) {
+// 			return JSON.parse(reference).dataString;
+// 		}
+// 	});
+
+// 	let startTop = leaf.view.editor.getScrollInfo().top;
+// 	if (!dataStrings.includes(dataString)) {
+// 		let positions = findTextPositions(
+// 			leaf.view.data,
+// 			text,
+// 			prefix.slice(0, prefix.length - 1),
+// 			suffix.slice(1, suffix.length)
+// 		);
+// 		if (!positions) throw new Error("Positions not found");
+// 		let rangeStart = positions.rangeStart;
+// 		let rangeEnd = positions.rangeEnd;
+
+// 		leaf.view.editor.scrollIntoView(
+// 			{
+// 				from: Object.assign(rangeStart, { ch: 0 }),
+// 				to: Object.assign(rangeEnd, { ch: 0 }),
+// 			},
+// 			true
+// 		);
+// 	}
+// 	setTimeout(() => {
+// 		// if (temp) return;
+// 		let endTop = leaf.view.editor.getScrollInfo().top;
+
+// 		let container = leaf.containerEl.querySelector(".view-content");
+// 		container.classList.remove("no-shadow");
+// 		container.classList.remove("new-shadow");
+// 		container.classList.remove("top-shadow");
+// 		container.classList.remove("bottom-shadow");
+
+// 		if (startTop === endTop && isSame) {
+// 			container.classList.add("no-shadow");
+// 		} else if (startTop === endTop && !isSame) {
+// 			container.classList.add("new-shadow");
+// 		} else if (startTop < endTop) {
+// 			// show mark above
+// 			container.classList.add("top-shadow");
+// 		} else {
+// 			// show mark below
+// 			container.classList.add("bottom-shadow");
+// 		}
+// 	}, 25);
+// 	// }
+// }
 
 function endEffectRemoveHighlights(
 	workspace: Workspace,
@@ -356,13 +454,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
-		// let positions = findTextPositions(
-		// 	backlinkLeaf.view.data,
-		// 	text,
-		// 	prefix.slice(0, prefix.length - 1),
-		// 	suffix.slice(1, suffix.length)
-		// );
-		// if (!positions) throw new Error("Positions not found");
 
 		updateState({
 			dataString,
@@ -373,8 +464,6 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 	let referencingFile = backlink.referencingLocation.filename;
 
-	// if (currTabIdx != -1) {
-	// && currTab != -1) {
 	// // Check adjacent tabs for file and open file if needed
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
@@ -397,10 +486,7 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
 	];
 	if (matches.length == 0) throw new Error("Matches not found");
-	// This one switch, this one does the correct scroll
-	// tempDirectionIndicator(newLeaf, text, prefix, suffix, dataString);
 
-	// This one does the correct grabbing of span elements
 	tempDirectionIndicator(
 		newLeaf,
 		backlink.referencingLocation.text,
@@ -422,11 +508,11 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	);
 
 	if (!backlinkSpan) {
-		if (backlink.dataString.slice(0, -1) == "f") {
+		if (backlink.dataString.slice(-1) == "f") {
 			backlinkSpan = newLeaf.containerEl.querySelector(
 				`span[data="${backlink.dataString.slice(0, -1)}t"]`
 			);
-		} else {
+		} else if (backlink.dataString.slice(-1) == "t") {
 			backlinkSpan = newLeaf.containerEl.querySelector(
 				`span[data="${backlink.dataString.slice(0, -1)}f"]`
 			);
@@ -468,7 +554,8 @@ export async function startReferenceEffect(
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) {
-		await endReferenceHoverEffect();
+		if (source.dataString == span?.getAttribute("data")) return;
+		else await endReferenceHoverEffect();
 	}
 
 	updateState({
@@ -570,7 +657,6 @@ export async function endReferenceHoverEffect() {
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	removeHighlight(editorView, from, to);
 	defaultHighlightSelection(editorView, from, to);
-	// removeHighlights(editorView);
 
 	// let container =
 	// 	getContainerElement(targetLeaf).querySelector(".view-content");
@@ -636,7 +722,7 @@ export async function endBacklinkHoverEffect() {
 		uuid,
 		backlinkUUID,
 	} = getBacklinkHover();
-	resetBacklinkHover();
+	// resetBacklinkHover();
 
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
@@ -666,6 +752,7 @@ export async function endBacklinkHoverEffect() {
 
 	removeHighlight(originalEditorView, from, to);
 	defaultHighlightSelection(originalEditorView, from, to);
+	// removeHighlights(originalEditorView);
 
 	let container =
 		getContainerElement(originalLeaf).querySelector(".view-content");
@@ -676,8 +763,6 @@ export async function endBacklinkHoverEffect() {
 		container.classList.remove("bottom-shadow");
 		container.classList.add("no-shadow");
 	}
-
-	// removeHighlights(originalEditorView);
 
 	if (temp && targetLeaf) {
 		targetLeaf.detach();

@@ -68,7 +68,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 			console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
 			await startBacklinkEffect(span);
-		} else if (getHover() != null) {
+		} else if (getHover() != null && !span?.classList.contains("cm-line")) {
 			console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
@@ -233,6 +233,7 @@ export default class ReferencePlugin extends Plugin {
 		let prevY = 0;
 
 		this.registerDomEvent(document, "mousemove", async (evt) => {
+			// if (evt.metaKey || evt.ctrlKey) return;
 			let difference =
 				Math.abs(prevX - evt.clientX) + Math.abs(prevY - evt.clientY);
 			prevX = evt.clientX;
@@ -252,26 +253,26 @@ export default class ReferencePlugin extends Plugin {
 		// 	updateBacklinkMarkPositions();
 		// });
 
-		// this.registerDomEvent(document, "keyup", async (evt) => {
-		// 	// backspace is to prevent the backlink from being created when it's deleted
-		// 	if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
-		// 	console.log("keyup");
-		// 	await handleMovementEffects(evt);
-		// 	// await updateBacklinkMarkPositions();
+		this.registerDomEvent(document, "keyup", async (evt) => {
+			// backspace is to prevent the backlink from being created when it's deleted
+			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
+			console.log("keyup");
+			await handleMovementEffects(evt);
+			// await updateBacklinkMarkPositions();
 
-		// 	await delay(500);
-		// 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-		// 	if (markdownFile instanceof TFile) {
-		// 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
-		// 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
-		// 		updateBacklinks(fileBacklinks);
+			await delay(500);
+			let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+			if (markdownFile instanceof TFile) {
+				let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
+				let fileBacklinks = createBacklinkData(fileData, markdownFile);
+				updateBacklinks(fileBacklinks);
 
-		// 		let leaf = getThat().workspace.getLeaf();
-		// 		if (leaf) {
-		// 			addReferencesToLeaf(leaf);
-		// 		}
-		// 	}
-		// });
+				let leaf = getThat().workspace.getLeaf();
+				if (leaf) {
+					addReferencesToLeaf(leaf);
+				}
+			}
+		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) {
@@ -335,13 +336,10 @@ export default class ReferencePlugin extends Plugin {
 						const editor = getMarkdownView(activeView).editor;
 						const editorView = getCodeMirrorEditorView(editor);
 
-						await serializeReference(content, span, editorView, "f");
-
-						if (!span.classList.contains("reference-span-hidden")) {
-							span.classList.add("reference-span-hidden");
+						if (span.classList.contains("reference-span-hidden")) {
+							span.classList.remove("reference-span-hidden");
 						}
-
-						span.classList.remove("reference-span-hidden");
+						await serializeReference(content, span, editorView, "t");
 					}
 				} else {
 					new Notice("Toggle annotations off");
@@ -356,15 +354,11 @@ export default class ReferencePlugin extends Plugin {
 						const editor = getMarkdownView(activeView).editor;
 						const editorView = getCodeMirrorEditorView(editor);
 
-						await serializeReference(content, span, editorView, "t");
-
-						// Remove the class if it exists
-						if (span.classList.contains("reference-span-hidden")) {
-							span.classList.remove("reference-span-hidden");
+						// Add the class if it doesn't exist
+						if (!span.classList.contains("reference-span-hidden")) {
+							span.classList.add("reference-span-hidden");
 						}
-
-						// Add the class
-						span.classList.add("reference-span-hidden");
+						await serializeReference(content, span, editorView, "f");
 					}
 				}
 			}

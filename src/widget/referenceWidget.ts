@@ -208,7 +208,7 @@ export async function serializeReference(
 	content: any,
 	referenceSpan: HTMLElement,
 	view: EditorView,
-	toggleValue: string | null = null
+	hideReference: string | null = null
 ) {
 	content = typeof content == "string" ? content : content[1];
 
@@ -218,7 +218,7 @@ export async function serializeReference(
 	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 	// referenceSpan.classList.toggle("reference-span-hidden");
 
-	let newToggle = toggleValue ? toggleValue : toggle === "f" ? "t" : "f";
+	let newToggle = hideReference ? hideReference : toggle === "f" ? "t" : "f";
 	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
@@ -304,13 +304,13 @@ class ReferenceWidget extends WidgetType {
 				);
 			});
 
-			backlinks[backlinkIndex].remove();
-
 			const backlinkReference = backlinks[backlinkIndex];
 			if (!backlinkReference) return;
+
 			const referenceData = backlinkReference.getAttribute("reference");
 			if (!referenceData) return;
 			removeBacklinks([JSON.parse(referenceData)]);
+			backlinkReference.remove();
 		}, 10);
 	}
 

@@ -430,6 +430,7 @@ export function createBacklinkData(
 				Math.max(portalTextIndex - 25, 0),
 				portalTextIndex
 			);
+
 			if (
 				portalText.substring(Math.max(portalTextIndex - 25, 0), portalTextIndex)
 					.length > 0 &&
@@ -441,6 +442,7 @@ export function createBacklinkData(
 				portalTextIndex + 1,
 				Math.max(portalTextIndex + 25, portalText.length)
 			);
+
 			if (
 				portalText.substring(
 					portalTextIndex + 1,
