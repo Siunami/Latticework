@@ -32,9 +32,12 @@ import {
 	delay,
 } from "./effects";
 import { decodeURIComponentString } from "./utils";
-import { ACTION_TYPE } from "./constants";
+import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import { EditorView } from "@codemirror/view";
-import { serializeReference } from "./widget/referenceWidget";
+import {
+	destroyReferenceWidget,
+	serializeReference,
+} from "./widget/referenceWidget";
 import { collectLeavesByTabHelper } from "./workspace";
 
 let lastMouse: MouseEvent | null = null;
@@ -184,6 +187,33 @@ export default class ReferencePlugin extends Plugin {
 			highlights,
 			referenceResources,
 			EditorView.updateListener.of(async function (e) {
+				console.log(e);
+				console.log(e.startState.doc);
+				console.log(e.state.doc);
+
+				// @ts-ignore -> changedRanges
+				let ranges = e.changedRanges;
+				if (ranges.length > 0) {
+					let fromA = ranges[0].fromA;
+					let toA = ranges[0].toA;
+
+					let deletedText = e.startState.doc.slice(fromA, toA);
+					console.log("deletedText: " + deletedText);
+					// match all reference regex
+
+					const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
+					matches.forEach((match) => {
+						if (match.index?.toString()) {
+							const start: number = match.index;
+							const end: number = start + match[0].length;
+							console.log("start: " + start);
+							console.log("end: " + end);
+							let text = deletedText.slice(start, end).toString();
+							destroyReferenceWidget(text);
+						}
+					});
+				}
+
 				// this recognizes when a paste event of more than a character has occured
 				// if this is a new reference, want to update the referenced page to reflect this
 				if (Math.abs(e.changes.desc.newLength - e.changes.desc.length) > 1) {
