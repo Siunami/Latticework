@@ -187,10 +187,6 @@ export default class ReferencePlugin extends Plugin {
 			highlights,
 			referenceResources,
 			EditorView.updateListener.of(async function (e) {
-				console.log(e);
-				console.log(e.startState.doc);
-				console.log(e.state.doc);
-
 				// @ts-ignore -> changedRanges
 				let ranges = e.changedRanges;
 				if (ranges.length > 0) {
@@ -198,7 +194,6 @@ export default class ReferencePlugin extends Plugin {
 					let toA = ranges[0].toA;
 
 					let deletedText = e.startState.doc.slice(fromA, toA);
-					console.log("deletedText: " + deletedText);
 					// match all reference regex
 
 					const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
@@ -206,8 +201,7 @@ export default class ReferencePlugin extends Plugin {
 						if (match.index?.toString()) {
 							const start: number = match.index;
 							const end: number = start + match[0].length;
-							console.log("start: " + start);
-							console.log("end: " + end);
+
 							let text = deletedText.slice(start, end).toString();
 							destroyReferenceWidget(text);
 						}

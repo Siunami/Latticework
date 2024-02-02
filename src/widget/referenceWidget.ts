@@ -14,13 +14,19 @@ import {
 	updateBacklinkMarkPositions,
 	getMarkdownView,
 	getBacklinkContainer,
+	generateBacklinks,
 } from "../references";
 import { decodeURIComponentString } from "src/utils";
-import { removeHighlight } from "src/mark";
+import { highlightSelection, removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
-import { getThat, removeBacklinks } from "src/state";
+import {
+	getBacklinks,
+	getThat,
+	removeBacklinks,
+	updateBacklinks,
+} from "src/state";
 import { TFile } from "obsidian";
 import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
@@ -67,8 +73,6 @@ export async function getReferencePosition(
 				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
 			);
 			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
-
-			console.log(line);
 
 			// account for zero-width spaces
 			for (let i = 0; i < allSerializedText.length; i++) {
@@ -170,6 +174,25 @@ export async function serializeReference(
 		});
 		view.dispatch(transaction);
 		console.log("updatebacklinkpositions");
+		// updateBacklinks()
+		// console.log(getBacklinks());
+		let backlink = getBacklinks().filter(
+			(backlink) => backlink.dataString == content
+		)[0];
+		// console.log(backlink);
+		// if (backlink) {
+		// 	console.log(referenceSpan);
+		// 	// removeBacklinks([backlink]);
+		// 	console.log(getBacklinks());
+		// 	backlink.dataString = reference;
+		// 	updateBacklinks([backlink]);
+		// 	console.log(getBacklinks());
+		// 	await generateBacklinks();
+
+		// } else {
+		// 	await generateBacklinks();
+		// }
+		await generateBacklinks();
 		await updateBacklinkMarkPositions();
 	}
 
@@ -216,6 +239,8 @@ export function destroyReferenceWidget(name: string) {
 
 		const referenceData = backlinkReference.getAttribute("reference");
 		if (!referenceData) return;
+
+		console.log(referenceData);
 		removeBacklinks([JSON.parse(referenceData)]);
 		backlinkReference.remove();
 	}, 10);
@@ -289,6 +314,12 @@ class ReferenceWidget extends WidgetType {
 			} else {
 				this.serialized = true;
 				await serializeReference(content, referenceSpan, this.view);
+				// console.log(parseInt(from), parseInt(to));
+				// try {
+				// 	highlightSelection(this.view, parseInt(from), parseInt(to));
+				// } catch (e) {
+				// 	console.log(e);
+				// }
 				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 				if (referenceSpan) {
