@@ -14,13 +14,19 @@ import {
 	updateBacklinkMarkPositions,
 	getMarkdownView,
 	getBacklinkContainer,
+	generateBacklinks,
 } from "../references";
 import { decodeURIComponentString } from "src/utils";
-import { removeHighlight } from "src/mark";
+import { highlightSelection, removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
-import { getThat, removeBacklinks } from "src/state";
+import {
+	getBacklinks,
+	getThat,
+	removeBacklinks,
+	updateBacklinks,
+} from "src/state";
 import { TFile } from "obsidian";
 import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
@@ -46,7 +52,46 @@ export async function getReferencePosition(
 
 	if (activeLineIndex === undefined) return;
 
+	// get and process raw text
+	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	if (!(markdownFile instanceof TFile)) return;
+	let fileData = await getThat().vault.read(markdownFile);
+
+	const newLines = fileData.split("\n").map((line) => {
+		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
+	});
+
+	// get all the prior lines to active line and the length of the text
+	let prevLineCharCount = Array.from(lines)
+		.slice(0, activeLineIndex)
+		.reduce((acc, line, index) => {
+			let collapseIndicator = line.querySelector(".cm-foldPlaceholder");
+			let parts = newLines[index].split("↗");
+
+			let lineReferences = line?.querySelectorAll(".reference-data-span");
+			let lineReferencesData = Array.from(lineReferences || []).map(
+				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
+			);
+			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
+
+			// account for zero-width spaces
+			for (let i = 0; i < allSerializedText.length; i++) {
+				if (allSerializedText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+					acc--;
+				}
+			}
+
+			// if (collapseIndicator) {
+			// 	console.log("COLLAPSE INDICATOR PREV LINE");
+
+			// 	acc += 4;
+			// }
+
+			return allSerializedText.length + acc;
+		}, 0);
+
 	let activeLine = lines[activeLineIndex];
+	let collapseIndicator = activeLine.querySelector(".cm-foldPlaceholder");
 
 	// get all references on active line
 	let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
@@ -70,37 +115,6 @@ export async function getReferencePosition(
 
 	if (!index && index != 0) throw new Error("Reference not found");
 
-	// get and process raw text
-	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	if (!(markdownFile instanceof TFile)) return;
-	let fileData = await getThat().vault.read(markdownFile);
-
-	const newLines = fileData.split("\n").map((line) => {
-		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
-	});
-
-	// get all the prior lines to active line and the length of the text
-	let prevLineCharCount = Array.from(lines)
-		.slice(0, activeLineIndex)
-		.reduce((acc, line, index) => {
-			let parts = newLines[index].split("↗");
-
-			let lineReferences = line?.querySelectorAll(".reference-data-span");
-			let lineReferencesData = Array.from(lineReferences || []).map(
-				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-			);
-			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
-
-			// account for zero-width spaces
-			for (let i = 0; i < allSerializedText.length; i++) {
-				if (allSerializedText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-					acc--;
-				}
-			}
-
-			return allSerializedText.length + acc;
-		}, 0);
-
 	// non-reference parts of the text on current active line
 	let parts = newLines[activeLineIndex].split("↗");
 
@@ -111,15 +125,20 @@ export async function getReferencePosition(
 	].join("");
 
 	// account for zero-width spaces
-	let whiteSpaceCount = 0;
+	let lineAcc = 0;
 	for (let i = 0; i < startText.length; i++) {
 		if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-			whiteSpaceCount++;
+			lineAcc++;
 		}
 	}
 
+	// if (collapseIndicator) {
+	// 	console.log("COLLAPSE INDICATOR CURRENT LINE");
+	// 	lineAcc -= 4;
+	// }
+
 	// set range to replace with new reference serialization
-	let from = prevLineCharCount + startText.length - whiteSpaceCount;
+	let from = prevLineCharCount + startText.length - lineAcc;
 	let to = from + reference.length;
 	return { from, to };
 }
@@ -155,10 +174,76 @@ export async function serializeReference(
 		});
 		view.dispatch(transaction);
 		console.log("updatebacklinkpositions");
+		// updateBacklinks()
+		// console.log(getBacklinks());
+		let backlink = getBacklinks().filter(
+			(backlink) => backlink.dataString == content
+		)[0];
+		// console.log(backlink);
+		// if (backlink) {
+		// 	console.log(referenceSpan);
+		// 	// removeBacklinks([backlink]);
+		// 	console.log(getBacklinks());
+		// 	backlink.dataString = reference;
+		// 	updateBacklinks([backlink]);
+		// 	console.log(getBacklinks());
+		// 	await generateBacklinks();
+
+		// } else {
+		// 	await generateBacklinks();
+		// }
+		await generateBacklinks();
 		await updateBacklinkMarkPositions();
 	}
 
 	return;
+}
+
+export function destroyReferenceWidget(name: string) {
+	setTimeout(() => {
+		const regex = /\[↗\]\(urn:([^)]*)\)/g;
+		let content = regex.exec(name);
+		if (!content) throw new Error("Invalid reference");
+
+		let dataString = content[1];
+		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+			dataString.split(":");
+
+		let decodedFile = decodeURIComponentString(file);
+		let leavesByTab = collectLeavesByTabHelper();
+		let leaf = leavesByTab.flat().filter((leaf) => {
+			return leaf.getViewState().state.file == decodedFile;
+		})[0];
+
+		let view = getEditorView(leaf);
+		removeHighlight(view, parseInt(from), parseInt(to));
+		const editor = getMarkdownView(leaf).editor;
+		const backlinkContainer = getBacklinkContainer(editor);
+		const backlinks = Array.from(
+			backlinkContainer.querySelectorAll(".reference-data-span")
+		);
+		const backlinkData = backlinks.map((backlink: HTMLElement) => {
+			let reference = backlink.getAttribute("reference");
+			if (!reference) return {};
+			return JSON.parse(reference);
+		});
+		const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
+			return (
+				backlink.dataString === dataString &&
+				backlink.referencedLocation.filename === decodeURIComponentString(file)
+			);
+		});
+
+		const backlinkReference = backlinks[backlinkIndex];
+		if (!backlinkReference) return;
+
+		const referenceData = backlinkReference.getAttribute("reference");
+		if (!referenceData) return;
+
+		console.log(referenceData);
+		removeBacklinks([JSON.parse(referenceData)]);
+		backlinkReference.remove();
+	}, 10);
 }
 
 /* new placeholder */
@@ -184,54 +269,12 @@ class ReferenceWidget extends WidgetType {
 
 	// this runs when re-serialized as well
 	destroy() {
-		console.log(this.serialized);
+		console.log(this.serialized, "destroy");
 		if (this.serialized) {
 			this.serialized = false;
 			return;
 		}
-		setTimeout(() => {
-			const regex = /\[↗\]\(urn:([^)]*)\)/g;
-			let content = regex.exec(this.name);
-			if (!content) throw new Error("Invalid reference");
-
-			let dataString = content[1];
-			const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-				dataString.split(":");
-
-			let decodedFile = decodeURIComponentString(file);
-			let leavesByTab = collectLeavesByTabHelper();
-			let leaf = leavesByTab.flat().filter((leaf) => {
-				return leaf.getViewState().state.file == decodedFile;
-			})[0];
-
-			let view = getEditorView(leaf);
-			removeHighlight(view, parseInt(from), parseInt(to));
-			const editor = getMarkdownView(leaf).editor;
-			const backlinkContainer = getBacklinkContainer(editor);
-			const backlinks = Array.from(
-				backlinkContainer.querySelectorAll(".reference-data-span")
-			);
-			const backlinkData = backlinks.map((backlink: HTMLElement) => {
-				let reference = backlink.getAttribute("reference");
-				if (!reference) return {};
-				return JSON.parse(reference);
-			});
-			const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
-				return (
-					backlink.dataString === dataString &&
-					backlink.referencedLocation.filename ===
-						decodeURIComponentString(file)
-				);
-			});
-
-			const backlinkReference = backlinks[backlinkIndex];
-			if (!backlinkReference) return;
-
-			const referenceData = backlinkReference.getAttribute("reference");
-			if (!referenceData) return;
-			removeBacklinks([JSON.parse(referenceData)]);
-			backlinkReference.remove();
-		}, 10);
+		destroyReferenceWidget(this.name);
 	}
 
 	toDOM() {
@@ -271,6 +314,12 @@ class ReferenceWidget extends WidgetType {
 			} else {
 				this.serialized = true;
 				await serializeReference(content, referenceSpan, this.view);
+				// console.log(parseInt(from), parseInt(to));
+				// try {
+				// 	highlightSelection(this.view, parseInt(from), parseInt(to));
+				// } catch (e) {
+				// 	console.log(e);
+				// }
 				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 				if (referenceSpan) {
