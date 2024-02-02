@@ -23,6 +23,7 @@ import {
 	getCodeMirrorEditorView,
 	updateReferenceColor,
 	createBacklinkData,
+	getContainerElement,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -158,6 +159,35 @@ export default class ReferencePlugin extends Plugin {
 
 			let promises: Promise<WorkspaceLeaf>[] = leaves.map(
 				(leaf: WorkspaceLeaf) => {
+					async function updateFunction() {
+						if (leaf != null) {
+							await addReferencesToLeaf(leaf);
+							console.log("scroll event triggered");
+						}
+					}
+
+					function debounce(func: Function, delay: number) {
+						let timeoutId: NodeJS.Timeout;
+
+						return function (...args: any[]) {
+							clearTimeout(timeoutId);
+							timeoutId = setTimeout(() => {
+								func.apply(this, args);
+							}, delay);
+						};
+					}
+
+					// Usage example:
+					const debouncedFunction = debounce(updateFunction, 50);
+
+					const scroller =
+						getContainerElement(leaf).querySelector(".cm-scroller");
+
+					if (scroller) {
+						scroller.removeEventListener("scroll", debouncedFunction);
+						scroller.addEventListener("scroll", debouncedFunction);
+					}
+
 					return addReferencesToLeaf(leaf);
 				}
 			);
@@ -173,6 +203,17 @@ export default class ReferencePlugin extends Plugin {
 							this.app.workspace.getActiveViewOfType(MarkdownView);
 						if (activeView?.leaf != null) {
 							await addReferencesToLeaf(activeView.leaf);
+
+							console.log(activeView.leaf.view);
+							console.log(activeView.leaf.view);
+
+							// activeView.leaf.view.contentEl.addEventListener(
+							// 	"scroll",
+							// 	(event) => {
+							// 		console.log("Scroll event triggered");
+							// 		// Add your scroll event handling code here
+							// 	}
+							// );
 						}
 					} catch (e) {
 						console.log(e);
@@ -382,45 +423,6 @@ export default class ReferencePlugin extends Plugin {
 						hasOneHidden ? "t" : "f"
 					);
 				}
-
-				// if (hasOneHidden) {
-				// 	new Notice("Toggle annotations on");
-
-				// 	for (const span of spans) {
-				// 		// Want to serialize references at some point
-				// 		let referenceSpan = span.parentElement?.querySelector(
-				// 			".reference-data-span"
-				// 		);
-				// 		let content = referenceSpan?.getAttribute("data");
-				// 		const activeView = this.app.workspace.getLeaf();
-				// 		const editor = getMarkdownView(activeView).editor;
-				// 		const editorView = getCodeMirrorEditorView(editor);
-
-				// 		if (span.classList.contains("reference-span-hidden")) {
-				// 			span.classList.remove("reference-span-hidden");
-				// 		}
-				// 		await serializeReference(content, span, editorView, "t");
-				// 	}
-				// } else {
-				// 	new Notice("Toggle annotations off");
-
-				// 	for (const span of spans) {
-				// 		let referenceSpan = span.parentElement?.querySelector(
-				// 			".reference-data-span"
-				// 		);
-
-				// 		let content = referenceSpan?.getAttribute("data");
-				// 		const activeView = this.app.workspace.getLeaf();
-				// 		const editor = getMarkdownView(activeView).editor;
-				// 		const editorView = getCodeMirrorEditorView(editor);
-
-				// 		// Add the class if it doesn't exist
-				// 		if (!span.classList.contains("reference-span-hidden")) {
-				// 			span.classList.add("reference-span-hidden");
-				// 		}
-				// 		await serializeReference(content, span, editorView, "f");
-				// 	}
-				// }
 			}
 		});
 	}
