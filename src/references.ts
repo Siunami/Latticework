@@ -122,19 +122,12 @@ function getReferenceMarks(editor: Editor): HTMLElement[] {
 	return elements;
 }
 
-export function getLeafBBoxElements(leaf: WorkspaceLeaf) {
-	const title = getContainerElement(leaf).querySelector(".inline-title");
-	if (!title) {
-		throw new Error("Missing title");
-	}
-	const titleBbox = title.getBoundingClientRect();
+export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 	const line = getContainerElement(leaf).querySelector(".cm-line");
 	if (!line) {
 		throw new Error("Document has no lines");
 	}
-	const lineBbox = line.getBoundingClientRect();
-
-	return { titleBbox, lineBbox };
+	return line.getBoundingClientRect();
 }
 
 export function layoutBacklinks(
@@ -161,13 +154,14 @@ export function layoutBacklinks(
 			}
 		});
 
-	const { titleBbox, lineBbox } = getLeafBBoxElements(leaf);
+	const lineBbox = getLeafLineBBox(leaf);
 
 	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
 		const { from } = backlink.referencedLocation;
 
-		const bbox = getCodeMirrorEditorView(editor).coordsAtPos(from);
+		const editorView = getCodeMirrorEditorView(editor);
+		const bbox = editorView.coordsAtPos(from);
 		if (!bbox) return;
 
 		let referenceMarker = backlinkContainer.querySelector(
@@ -182,8 +176,10 @@ export function layoutBacklinks(
 		if (bbox) {
 			referenceMarker.style.position = "absolute";
 
-			referenceMarker.setAttribute("top", bbox.top.toString());
-			referenceMarker.style.top = bbox.top - titleBbox.top + 32 + "px";
+			const scrollerBbox = editorView.scrollDOM.getBoundingClientRect();
+			const absoluteY = bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
+			referenceMarker.setAttribute("top", absoluteY.toString());
+			referenceMarker.style.top = absoluteY + "px";
 			referenceMarker.style.left = lineBbox.width + 40 + "px";
 		}
 
@@ -223,7 +219,7 @@ export function layoutBacklinks(
 			// lastYBottom = top + marker.getBoundingClientRect().height + margin;
 			lastYBottom = top + marker.getBoundingClientRect().height;
 			marker.setAttribute("top", top.toString());
-			marker.style.top = top - titleBbox.top + 32 + "px";
+			marker.style.top = top + "px";
 			marker.style.left = lineBbox.width + 40 + "px";
 		});
 }
