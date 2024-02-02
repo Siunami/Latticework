@@ -156,6 +156,8 @@ export function layoutBacklinks(
 
 	const lineBbox = getLeafLineBBox(leaf);
 
+	const BACKLINK_LEFT_MARGIN = 64;
+
 	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
 		const { from } = backlink.referencedLocation;
@@ -180,7 +182,7 @@ export function layoutBacklinks(
 			const absoluteY = bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
 			referenceMarker.setAttribute("top", absoluteY.toString());
 			referenceMarker.style.top = absoluteY + "px";
-			referenceMarker.style.left = lineBbox.width + 40 + "px";
+			referenceMarker.style.left = lineBbox.width + BACKLINK_LEFT_MARGIN + "px";
 		}
 
 		return referenceMarker;
@@ -220,7 +222,7 @@ export function layoutBacklinks(
 			lastYBottom = top + marker.getBoundingClientRect().height;
 			marker.setAttribute("top", top.toString());
 			marker.style.top = top + "px";
-			marker.style.left = lineBbox.width + 40 + "px";
+			marker.style.left = lineBbox.width + BACKLINK_LEFT_MARGIN + "px";
 		});
 }
 
@@ -414,39 +416,29 @@ export function createBacklinkData(
 				}
 			}
 
-			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
-			let portalTextSlice = portalText.slice(0, PORTAL_TEXT_SLICE_SIZE);
+			const portalReferenceRepresentation = "↗";
+			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), portalReferenceRepresentation);
 
 			let portalTextIndex = line.indexOf(match[0]) - matchIndex;
 
-			// getting the portal text selection around the reference
-			portalTextSlice = "↗";
+			const PORTAL_CONTEXT_LIMIT = 120;
 
+			// getting the portal text selection around the reference
 			let startPortalText = portalText.substring(
-				Math.max(portalTextIndex - 25, 0),
+				Math.max(portalTextIndex - PORTAL_CONTEXT_LIMIT, 0),
 				portalTextIndex
 			);
 
-			if (
-				portalText.substring(Math.max(portalTextIndex - 25, 0), portalTextIndex)
-					.length > 0 &&
-				portalTextIndex - 25 > 0
-			)
-				startPortalText = "..." + startPortalText;
+			if (startPortalText.length > 0 && portalTextIndex - PORTAL_CONTEXT_LIMIT >= 0)
+				startPortalText = "…" + startPortalText;
 
 			let endPortalText = portalText.substring(
 				portalTextIndex + 1,
-				Math.max(portalTextIndex + 25, portalText.length)
+				Math.min(portalTextIndex + PORTAL_CONTEXT_LIMIT, portalText.length)
 			);
 
-			if (
-				portalText.substring(
-					portalTextIndex + 1,
-					Math.max(portalTextIndex + 25, portalText.length)
-				).length > 0 &&
-				portalTextIndex + 25 < portalText.length
-			)
-				endPortalText = endPortalText + "...";
+			if (endPortalText.length > 0 && portalTextIndex + PORTAL_CONTEXT_LIMIT < portalText.length)
+				endPortalText = endPortalText + "…";
 
 			backlinks.push({
 				referencedLocation,
@@ -455,7 +447,7 @@ export function createBacklinkData(
 				portalText:
 					encodeURIComponentString(startPortalText) +
 					":" +
-					portalTextSlice +
+					portalReferenceRepresentation +
 					":" +
 					encodeURIComponentString(endPortalText),
 			});
