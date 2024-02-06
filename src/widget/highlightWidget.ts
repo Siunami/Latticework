@@ -22,7 +22,7 @@ class HighlighterWidget extends WidgetType {
 	toDOM() {
 		const span = document.createElement("fragment");
 		span.textContent = this.name;
-		span.style.backgroundColor = SVG_HOVER_COLOR;
+		// span.style.backgroundColor = SVG_HOVER_COLOR;
 		span.style.color = "black";
 
 		return span;

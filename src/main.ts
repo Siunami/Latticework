@@ -21,7 +21,7 @@ import {
 	addReferencesToLeaf,
 	getMarkdownView,
 	getCodeMirrorEditorView,
-	updateReferenceColor,
+	// updateReferenceColor,
 	createBacklinkData,
 	getContainerElement,
 } from "./references";
@@ -40,6 +40,7 @@ import {
 	serializeReference,
 } from "./widget/referenceWidget";
 import { collectLeavesByTabHelper } from "./workspace";
+import { debounce } from "lodash";
 
 let lastMouse: MouseEvent | null = null;
 export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
@@ -94,7 +95,7 @@ export async function handleMovementEffects(evt: MouseEvent | KeyboardEvent) {
 				span = span.querySelector(".reference-data-span") as HTMLSpanElement;
 				if (!span) throw new Error("Span element not found");
 			}
-			updateReferenceColor(span, ACTION_TYPE.MOUSE);
+			// updateReferenceColor(span, ACTION_TYPE.MOUSE);
 			await startReferenceEffect(span, ACTION_TYPE.MOUSE);
 		} else if (
 			span &&
@@ -166,19 +167,8 @@ export default class ReferencePlugin extends Plugin {
 						}
 					}
 
-					function debounce(func: Function, delay: number) {
-						let timeoutId: NodeJS.Timeout;
-
-						return function (...args: any[]) {
-							clearTimeout(timeoutId);
-							timeoutId = setTimeout(() => {
-								func.apply(this, args);
-							}, delay);
-						};
-					}
-
 					// Usage example:
-					const debouncedFunction = debounce(updateFunction, 50);
+					const debouncedFunction = debounce(updateFunction, 400);
 
 					const scroller =
 						getContainerElement(leaf).querySelector(".cm-scroller");
@@ -310,22 +300,11 @@ export default class ReferencePlugin extends Plugin {
 			await handleMovementEffects(evt);
 		});
 
-		// // on selection changes, event over click and keydown
-		// this.registerDomEvent(document, "click", async (evt) => {
-		// 	console.log("click");
-		// 	handleMovementEffects(evt);
-		// 	// await checkFocusCursor(evt);
-		// 	updateBacklinkMarkPositions();
-		// });
+		// Debounced keyup event handler
+		const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
+			// // await updateBacklinkMarkPositions();
 
-		this.registerDomEvent(document, "keyup", async (evt) => {
-			// backspace is to prevent the backlink from being created when it's deleted
-			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
-			console.log("keyup");
-			await handleMovementEffects(evt);
-			// await updateBacklinkMarkPositions();
-
-			await delay(500);
+			// await delay(500);
 			let markdownFile: TFile | null = getThat().workspace.getActiveFile();
 			if (markdownFile instanceof TFile) {
 				let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
@@ -337,6 +316,15 @@ export default class ReferencePlugin extends Plugin {
 					addReferencesToLeaf(leaf);
 				}
 			}
+		}, 500); // 500ms debounce time
+
+		this.registerDomEvent(document, "keyup", async (evt) => {
+			// backspace is to prevent the backlink from being created when it's deleted
+			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
+			await handleMovementEffects(evt);
+
+			console.log("keyup");
+			await debouncedBacklinkCacheUpdate(evt);
 		});
 
 		this.registerDomEvent(document, "keydown", async (evt) => {

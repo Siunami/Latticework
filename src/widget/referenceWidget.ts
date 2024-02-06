@@ -28,101 +28,69 @@ import {
 	updateBacklinks,
 } from "src/state";
 import { TFile } from "obsidian";
-import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
+import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
 export async function getReferencePosition(
 	view: EditorView,
-	currLine: HTMLSpanElement,
+	activeLine: HTMLSpanElement,
+	oldReference: string,
 	reference: string,
 	content: string
 ) {
-	let lines = view.contentDOM.querySelectorAll(".cm-line");
-
-	// get the index of the activeLine
-	let activeLineIndex;
-	let seenActive = false;
-
-	lines.forEach((line, i) => {
-		if (seenActive) return;
-		if (line == currLine) {
-			seenActive = true;
-			activeLineIndex = i;
-		}
-	});
-
-	if (activeLineIndex === undefined) return;
-
 	// get and process raw text
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	if (!(markdownFile instanceof TFile)) return;
+	if (!(markdownFile instanceof TFile))
+		return { from: undefined, to: undefined };
 	let fileData = await getThat().vault.read(markdownFile);
 
-	const newLines = fileData.split("\n").map((line) => {
-		return line.replace(new RegExp(REFERENCE_REGEX, "g"), "↗");
+	const newLines = fileData.split("\n");
+
+	// the bug has something to do with the fact that the activeLineIndex is not being calculated correctly
+	let activeLineClone = activeLine.cloneNode(true) as HTMLElement;
+	activeLineClone
+		.querySelectorAll(".reference-span")
+		.forEach((el) => (el.innerHTML = "↗"));
+	let activeLineText = activeLineClone.innerText;
+	let activeLineData = Array.from(
+		activeLineClone.querySelectorAll(".reference-data-span")
+	).map((el) => {
+		return "[↗](urn:" + el.getAttribute("data") + ")";
 	});
 
-	// get all the prior lines to active line and the length of the text
-	let prevLineCharCount = Array.from(lines)
-		.slice(0, activeLineIndex)
-		.reduce((acc, line, index) => {
-			let collapseIndicator = line.querySelector(".cm-foldPlaceholder");
-			let parts = newLines[index].split("↗");
-
-			let lineReferences = line?.querySelectorAll(".reference-data-span");
-			let lineReferencesData = Array.from(lineReferences || []).map(
-				(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-			);
-			let allSerializedText = [...parts, ...lineReferencesData].join("") + "\n";
-
-			// account for zero-width spaces
-			for (let i = 0; i < allSerializedText.length; i++) {
-				if (allSerializedText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-					acc--;
-				}
-			}
-
-			// if (collapseIndicator) {
-			// 	console.log("COLLAPSE INDICATOR PREV LINE");
-
-			// 	acc += 4;
-			// }
-
-			return allSerializedText.length + acc;
-		}, 0);
-
-	let activeLine = lines[activeLineIndex];
-	let collapseIndicator = activeLine.querySelector(".cm-foldPlaceholder");
-
-	// get all references on active line
-	let lineReferences = activeLine?.querySelectorAll(".reference-data-span");
-
-	// get the full serialized version for these references
-	let lineReferencesData = Array.from(lineReferences || []).map(
-		(span) => "[↗](urn:" + span.getAttribute("data") + ")"
-	);
-
-	if (!content) throw new Error("Reference not found");
-
-	// identify which reference on that line is being serialized
-	let index: number | null = null;
-	lineReferencesData.forEach((reference, i) => {
-		if (!index) {
-			if (reference.includes(content)) {
-				index = i;
-			}
+	let tempText = "";
+	activeLineText.split("↗").forEach((part, index) => {
+		tempText += part;
+		if (index < activeLineData.length) {
+			tempText += activeLineData[index];
 		}
 	});
+	activeLineText = tempText;
+	for (let i = 0; i < activeLineText.length; i++) {
+		if (activeLineText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+			activeLineText = activeLineText.slice(0, i) + activeLineText.slice(i + 1);
+		}
+	}
 
-	if (!index && index != 0) throw new Error("Reference not found");
+	// want to identify the activeLineIndex of the activeLine in newLines, fileData is the full data, can't reference contentDOM
+	// must get the activeLineIndex based on newLines, not contentDOM
+	// it should match the activeLine div in contentDOM
+	let activeLineIndex = newLines.indexOf(activeLineText);
 
-	// non-reference parts of the text on current active line
-	let parts = newLines[activeLineIndex].split("↗");
+	if (activeLineIndex == -1) return { from: undefined, to: undefined };
 
-	// get the text before the reference
-	let startText = [
-		...parts.slice(0, index + 1),
-		...lineReferencesData.slice(0, index),
-	].join("");
+	let prevLineCharCount = newLines
+		.slice(0, activeLineIndex)
+		.reduce((acc, line) => {
+			// account for zero-width spaces
+			// for (let i = 0; i < line.length; i++) {
+			// 	if (line.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+			// 		acc--;
+			// 	}
+			// }
+			return line.length + acc + 1;
+		}, 0);
+
+	let startText = newLines[activeLineIndex].split(oldReference)[0];
 
 	// account for zero-width spaces
 	let lineAcc = 0;
@@ -157,21 +125,60 @@ export async function serializeReference(
 	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
 	// referenceSpan.classList.toggle("reference-span-hidden");
 
-	let newToggle = hideReference ? hideReference : toggle === "f" ? "t" : "f";
-	let reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle})`;
+	let oldReference = `[↗](urn:${content})`;
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
+	if (!currLine) return;
+
+	console.log(referenceSpan);
+
+	let reference = `[↗](urn:${content})`;
+	console.log(reference);
+
+	if (referenceSpan.classList.contains("reference-span-hidden")) {
+		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:t)`;
+	} else {
+		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:f)`;
+	}
+	console.log(reference);
+
+	if (hideReference) {
+		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${hideReference})`;
+	}
+
+	console.log(reference);
+
+	// let element = currLine.querySelector(`[data='${content}']`);
+	// if (!element) {
+	// 	element = currLine.querySelector(
+	// 		`[data='${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle}']`
+	// 	);
+	// 	if (!element) {
+	// 		console.log("element not found");
+	// 		return;
+	// 	}
+	// }
+	// console.log(element);
+	// console.log(element?.parentElement);
+	// let referenceSpan = element?.parentElement?.querySelector(".reference-span");
 
 	const results = await getReferencePosition(
 		view,
 		currLine as HTMLElement,
+		oldReference,
 		reference,
 		text
 	);
+
+	if (!results.from && !results.to) {
+		console.log("reference location not found, not serializing this change");
+		return;
+	}
 	if (results) {
 		const transaction = view.state.update({
 			changes: { from: results.from, to: results.to, insert: reference },
 		});
+		console.log(transaction);
 		view.dispatch(transaction);
 		console.log("updatebacklinkpositions");
 		// updateBacklinks()
@@ -285,6 +292,8 @@ class ReferenceWidget extends WidgetType {
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			content[1].split(":");
 
+		console.log(content);
+
 		const span = createReferenceIcon(
 			portal == "portal" ? "inline reference widget |*|" : null
 		);
@@ -309,6 +318,7 @@ class ReferenceWidget extends WidgetType {
 		}, 20);
 
 		containerSpan.addEventListener("click", async (ev) => {
+			console.log(this.name);
 			if (ev.metaKey || ev.ctrlKey) {
 				openReference(ev);
 			} else {
@@ -320,6 +330,7 @@ class ReferenceWidget extends WidgetType {
 				// } catch (e) {
 				// 	console.log(e);
 				// }
+
 				referenceSpan.classList.toggle("reference-span-hidden");
 				if (content) this.name = content[0];
 				if (referenceSpan) {

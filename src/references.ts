@@ -156,7 +156,7 @@ export function layoutBacklinks(
 
 	const lineBbox = getLeafLineBBox(leaf);
 
-	const BACKLINK_LEFT_MARGIN = 64;
+	const BACKLINK_LEFT_MARGIN = 42;
 
 	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
@@ -179,7 +179,8 @@ export function layoutBacklinks(
 			referenceMarker.style.position = "absolute";
 
 			const scrollerBbox = editorView.scrollDOM.getBoundingClientRect();
-			const absoluteY = bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
+			const absoluteY =
+				bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
 			referenceMarker.setAttribute("top", absoluteY.toString());
 			referenceMarker.style.top = absoluteY + "px";
 			referenceMarker.style.left = lineBbox.width + BACKLINK_LEFT_MARGIN + "px";
@@ -417,7 +418,10 @@ export function createBacklinkData(
 			}
 
 			const portalReferenceRepresentation = "↗";
-			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), portalReferenceRepresentation);
+			let portalText = line.replace(
+				new RegExp(REFERENCE_REGEX, "g"),
+				portalReferenceRepresentation
+			);
 
 			let portalTextIndex = line.indexOf(match[0]) - matchIndex;
 
@@ -429,7 +433,10 @@ export function createBacklinkData(
 				portalTextIndex
 			);
 
-			if (startPortalText.length > 0 && portalTextIndex - PORTAL_CONTEXT_LIMIT >= 0)
+			if (
+				startPortalText.length > 0 &&
+				portalTextIndex - PORTAL_CONTEXT_LIMIT >= 0
+			)
 				startPortalText = "…" + startPortalText;
 
 			let endPortalText = portalText.substring(
@@ -437,7 +444,10 @@ export function createBacklinkData(
 				Math.min(portalTextIndex + PORTAL_CONTEXT_LIMIT, portalText.length)
 			);
 
-			if (endPortalText.length > 0 && portalTextIndex + PORTAL_CONTEXT_LIMIT < portalText.length)
+			if (
+				endPortalText.length > 0 &&
+				portalTextIndex + PORTAL_CONTEXT_LIMIT < portalText.length
+			)
 				endPortalText = endPortalText + "…";
 
 			backlinks.push({
@@ -485,14 +495,14 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 	return backlinks;
 }
 
-export function updateReferenceColor(span: HTMLSpanElement, user: string) {
-	// remove existing cursors
-	const portal: HTMLElement | null = span.querySelector(".portal");
+// export function updateReferenceColor(span: HTMLSpanElement, user: string) {
+// 	// remove existing cursors
+// 	const portal: HTMLElement | null = span.querySelector(".portal");
 
-	if (span && !portal) {
-		span.style.backgroundColor = SVG_HOVER_COLOR;
-	}
-}
+// 	if (span && !portal) {
+// 		span.style.backgroundColor = SVG_HOVER_COLOR;
+// 	}
+// }
 
 export async function openBacklinkReference(ev: MouseEvent) {
 	let hover = getBacklinkHover();
