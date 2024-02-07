@@ -287,6 +287,13 @@ class ReferenceWidget extends WidgetType {
 
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 
+		containerSpan.addEventListener("mouseenter", (ev) => {
+			console.log(this.view);
+			let titleElement = this.view.dom.querySelector(".inline-title");
+			if (!titleElement) return;
+			containerSpan.title = titleElement.innerHTML;
+		});
+
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
 				openReference(ev);
