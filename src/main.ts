@@ -327,90 +327,130 @@ export default class ReferencePlugin extends Plugin {
 			await debouncedBacklinkCacheUpdate(evt);
 		});
 
-		this.registerDomEvent(document, "keydown", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey) {
-				// Change the cursor style of the body
-				await handleMovementEffects(evt);
-			}
-			// Copy with toggle off
-			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
-				console.log("hello");
-				let currentLeaf = getThat().workspace.getLeaf();
-				await addReferencesToLeaf(currentLeaf);
-			} else if (
-				evt.key == "Ç" &&
-				(evt.metaKey || evt.ctrlKey) &&
-				evt.shiftKey &&
-				evt.altKey
-			) {
-				updateClipboard(false);
-				new Notice("Copied reference to clipboard");
-			} else if (
-				(evt.key == "c" || evt.key == "C") &&
-				(evt.metaKey || evt.ctrlKey) &&
-				evt.shiftKey
-			) {
-				// Copy with toggle on
-				updateClipboard(true);
-				new Notice("Copied reference to clipboard");
-			} else if (
-				(evt.key == "s" || evt.key == "S") &&
-				(evt.metaKey || evt.ctrlKey) &&
-				evt.shiftKey
-			) {
-				// Toggle all references on line on and off with CMD+SHIFT+S
+		const toggleSelectedReferences = async (evt: KeyboardEvent) => {
+			// Toggle all references on line on and off with CMD+SHIFT+S
 
+			const activeView = this.app.workspace.getLeaf();
+			const editor = getMarkdownView(activeView).editor;
+			const editorView = getCodeMirrorEditorView(editor);
+			console.log(editorView);
+
+			console.log(editor.getCursor());
+			console.log(editor.getSelection());
+			const selection = editor.getSelection();
+
+			let spans;
+			if (selection != "") {
+				spans = [...selection.matchAll(REFERENCE_REGEX)]
+					.map((match) => {
+						console.log(match[1]);
+						console.log(
+							editorView.contentDOM.querySelector(`[data="${match[1]}"]`)
+						);
+						// editor.querySelector("[reference=" + match[1] + "]");
+						let referenceData = editorView.contentDOM.querySelector(
+							`[data="${match[1]}"]`
+						);
+						let referenceSpan =
+							referenceData?.parentElement?.querySelector(".reference-span");
+
+						return referenceSpan;
+					})
+					.filter((span) => span != null) as HTMLSpanElement[];
+			} else {
 				// grab all references on active line
 				let target = evt.target as HTMLElement;
+				console.log(target);
 				let children = Array.from(target.children);
 				let currentLine = children.filter((child) =>
 					child.classList.contains("cm-active")
 				)[0];
 
-				const spans = Array.from<HTMLSpanElement>(
+				spans = Array.from<HTMLSpanElement>(
 					currentLine.querySelectorAll(".reference-span")
 				);
+			}
 
-				// check if any are hidden
-				let hasOneHidden = false;
-				spans.forEach((span) => {
-					if (span.classList.contains("reference-span-hidden")) {
-						hasOneHidden = true;
-					}
-				});
+			if (!spans) return;
 
-				new Notice(
-					hasOneHidden ? "Toggle annotations on" : "Toggle annotations off"
-				);
-
-				for (const span of spans) {
-					// Want to serialize references at some point
-					let referenceSpan = span.parentElement?.querySelector(
-						".reference-data-span"
-					);
-					let content = referenceSpan?.getAttribute("data");
-					const activeView = this.app.workspace.getLeaf();
-					const editor = getMarkdownView(activeView).editor;
-					const editorView = getCodeMirrorEditorView(editor);
-
-					if (
-						span.classList.contains("reference-span-hidden") &&
-						hasOneHidden
-					) {
-						span.classList.remove("reference-span-hidden");
-					} else if (
-						!span.classList.contains("reference-span-hidden") &&
-						!hasOneHidden
-					) {
-						span.classList.add("reference-span-hidden");
-					}
-					await serializeReference(
-						content,
-						span,
-						editorView,
-						hasOneHidden ? "t" : "f"
-					);
+			// check if any are hidden
+			let hasOneHidden = false;
+			spans.forEach((span) => {
+				if (span.classList.contains("reference-span-hidden")) {
+					hasOneHidden = true;
 				}
+			});
+
+			new Notice(
+				hasOneHidden ? "Toggle annotations on" : "Toggle annotations off"
+			);
+
+			for (const span of spans) {
+				// Want to serialize references at some point
+				let referenceSpan = span.parentElement?.querySelector(
+					".reference-data-span"
+				);
+				let content = referenceSpan?.getAttribute("data");
+
+				if (span.classList.contains("reference-span-hidden") && hasOneHidden) {
+					span.classList.remove("reference-span-hidden");
+				} else if (
+					!span.classList.contains("reference-span-hidden") &&
+					!hasOneHidden
+				) {
+					span.classList.add("reference-span-hidden");
+				}
+				await serializeReference(
+					content,
+					span,
+					editorView,
+					hasOneHidden ? "t" : "f"
+				);
+			}
+		};
+
+		this.addCommand({
+			id: "copy reference",
+			name: "copy reference",
+			hotkeys: [
+				{ modifiers: ["Meta", "Shift"], key: "c" },
+				{ modifiers: ["Ctrl", "Shift"], key: "c" },
+			],
+			callback: () => {
+				updateClipboard(true);
+				new Notice("Copied reference to clipboard");
+			},
+		});
+
+		this.addCommand({
+			id: "copy reference with toggle",
+			name: "copy reference with toggle",
+			hotkeys: [
+				{ modifiers: ["Ctrl", "Alt", "Shift"], key: "Ç" },
+				{ modifiers: ["Meta", "Alt", "Shift"], key: "Ç" },
+			],
+			callback: () => {
+				updateClipboard(false);
+				new Notice("Copied reference to clipboard");
+			},
+		});
+
+		this.registerDomEvent(document, "keydown", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) {
+				// Change the cursor style of the body
+				await handleMovementEffects(evt);
+			}
+			// // Copy with toggle off
+			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
+				console.log("hello");
+				let currentLeaf = getThat().workspace.getLeaf();
+				await addReferencesToLeaf(currentLeaf);
+			} else if (
+				(evt.key == "s" || evt.key == "S") &&
+				(evt.metaKey || evt.ctrlKey) &&
+				evt.shiftKey
+			) {
+				toggleSelectedReferences(evt);
 			}
 		});
 	}

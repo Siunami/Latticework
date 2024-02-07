@@ -7,7 +7,6 @@ import {
 	ViewUpdate,
 	MatchDecorator,
 } from "@codemirror/view";
-
 import {
 	openReference,
 	createReferenceIcon,
@@ -17,25 +16,31 @@ import {
 	generateBacklinks,
 } from "../references";
 import { decodeURIComponentString } from "src/utils";
-import { highlightSelection, removeHighlight } from "src/mark";
+import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
-import {
-	getBacklinks,
-	getThat,
-	removeBacklinks,
-	updateBacklinks,
-} from "src/state";
+import { getThat, removeBacklinks } from "src/state";
 import { TFile } from "obsidian";
 import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
+// // account for zero-width spaces
+// let lineAcc = 0;
+// for (let i = 0; i < startText.length; i++) {
+// 	if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
+// 		lineAcc++;
+// 	}
+// }
+
+// if (collapseIndicator) {
+// 	console.log("COLLAPSE INDICATOR CURRENT LINE");
+// 	lineAcc -= 4;
+// }
+
 export async function getReferencePosition(
-	view: EditorView,
 	activeLine: HTMLSpanElement,
 	oldReference: string,
-	reference: string,
-	content: string
+	reference: string
 ) {
 	// get and process raw text
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
@@ -43,9 +48,9 @@ export async function getReferencePosition(
 		return { from: undefined, to: undefined };
 	let fileData = await getThat().vault.read(markdownFile);
 
-	const newLines = fileData.split("\n");
+	const newLines = fileData.split("\n"); // Source of truth
 
-	// the bug has something to do with the fact that the activeLineIndex is not being calculated correctly
+	// get the text on active line
 	let activeLineClone = activeLine.cloneNode(true) as HTMLElement;
 	activeLineClone
 		.querySelectorAll(".reference-span")
@@ -65,48 +70,30 @@ export async function getReferencePosition(
 		}
 	});
 	activeLineText = tempText;
+
 	for (let i = 0; i < activeLineText.length; i++) {
 		if (activeLineText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
 			activeLineText = activeLineText.slice(0, i) + activeLineText.slice(i + 1);
 		}
 	}
 
-	// want to identify the activeLineIndex of the activeLine in newLines, fileData is the full data, can't reference contentDOM
-	// must get the activeLineIndex based on newLines, not contentDOM
-	// it should match the activeLine div in contentDOM
+	// activeLineIndex used to calculate the position of the reference and perform character count for document offset
 	let activeLineIndex = newLines.indexOf(activeLineText);
 
+	// this is undefined if the file hasn't finished saving changes
 	if (activeLineIndex == -1) return { from: undefined, to: undefined };
 
 	let prevLineCharCount = newLines
 		.slice(0, activeLineIndex)
 		.reduce((acc, line) => {
-			// account for zero-width spaces
-			// for (let i = 0; i < line.length; i++) {
-			// 	if (line.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-			// 		acc--;
-			// 	}
-			// }
 			return line.length + acc + 1;
 		}, 0);
 
 	let startText = newLines[activeLineIndex].split(oldReference)[0];
 
-	// account for zero-width spaces
-	let lineAcc = 0;
-	for (let i = 0; i < startText.length; i++) {
-		if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-			lineAcc++;
-		}
-	}
-
-	// if (collapseIndicator) {
-	// 	console.log("COLLAPSE INDICATOR CURRENT LINE");
-	// 	lineAcc -= 4;
-	// }
-
 	// set range to replace with new reference serialization
-	let from = prevLineCharCount + startText.length - lineAcc;
+	let from = prevLineCharCount + startText.length;
+	// let from = prevLineCharCount + startText.length - lineAcc;
 	let to = from + reference.length;
 	return { from, to };
 }
@@ -121,89 +108,76 @@ export async function serializeReference(
 
 	const [prefix, text, suffix, file, from, to, portal, toggle] =
 		content.split(":");
-	// Serialize the toggle state for reference into file
-	// KNOWN ERROR. contentDOM only returns partial file for efficiency on large documents. So will lose serialization in this case.
-	// referenceSpan.classList.toggle("reference-span-hidden");
 
 	let oldReference = `[↗](urn:${content})`;
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
-	if (!currLine) return;
-
-	console.log(referenceSpan);
-
-	let reference = `[↗](urn:${content})`;
-	console.log(reference);
-
-	if (referenceSpan.classList.contains("reference-span-hidden")) {
-		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:t)`;
-	} else {
-		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:f)`;
+	if (!currLine) {
+		console.log(referenceSpan);
+		console.log("currLine not found");
+		return false;
 	}
-	console.log(reference);
+
+	let reference = oldReference;
+	let startReference = `${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}`;
+
+	console.log(referenceSpan.classList.contains("reference-span-hidden"));
+
+	// Im using the CSS property as the source of truth
+	if (referenceSpan.classList.contains("reference-span-hidden")) {
+		reference = `[↗](urn:${startReference}:t)`;
+	} else {
+		reference = `[↗](urn:${startReference}:f)`;
+	}
 
 	if (hideReference) {
-		reference = `[↗](urn:${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${hideReference})`;
+		reference = `[↗](urn:${startReference}:${hideReference})`;
 	}
 
-	console.log(reference);
-
-	// let element = currLine.querySelector(`[data='${content}']`);
-	// if (!element) {
-	// 	element = currLine.querySelector(
-	// 		`[data='${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}:${newToggle}']`
-	// 	);
-	// 	if (!element) {
-	// 		console.log("element not found");
-	// 		return;
-	// 	}
-	// }
-	// console.log(element);
-	// console.log(element?.parentElement);
-	// let referenceSpan = element?.parentElement?.querySelector(".reference-span");
+	console.log("reference: " + reference);
 
 	const results = await getReferencePosition(
-		view,
 		currLine as HTMLElement,
 		oldReference,
-		reference,
-		text
+		reference
 	);
 
 	if (!results.from && !results.to) {
 		console.log("reference location not found, not serializing this change");
-		return;
+		return false;
 	}
+	console.log(results);
 	if (results) {
 		const transaction = view.state.update({
 			changes: { from: results.from, to: results.to, insert: reference },
 		});
-		console.log(transaction);
+
 		view.dispatch(transaction);
 		console.log("updatebacklinkpositions");
-		// updateBacklinks()
-		// console.log(getBacklinks());
-		let backlink = getBacklinks().filter(
-			(backlink) => backlink.dataString == content
-		)[0];
-		// console.log(backlink);
-		// if (backlink) {
-		// 	console.log(referenceSpan);
-		// 	// removeBacklinks([backlink]);
-		// 	console.log(getBacklinks());
-		// 	backlink.dataString = reference;
-		// 	updateBacklinks([backlink]);
-		// 	console.log(getBacklinks());
-		// 	await generateBacklinks();
+		// // updateBacklinks()
+		// // console.log(getBacklinks());
+		// let backlink = getBacklinks().filter(
+		// 	(backlink) => backlink.dataString == content
+		// )[0];
+		// // console.log(backlink);
+		// // if (backlink) {
+		// // 	console.log(referenceSpan);
+		// // 	// removeBacklinks([backlink]);
+		// // 	console.log(getBacklinks());
+		// // 	backlink.dataString = reference;
+		// // 	updateBacklinks([backlink]);
+		// // 	console.log(getBacklinks());
+		// // 	await generateBacklinks();
 
-		// } else {
-		// 	await generateBacklinks();
-		// }
+		// // } else {
+		// // 	await generateBacklinks();
+		// // }
+		// generate all backlinks again? Or just update the one that changed?
 		await generateBacklinks();
 		await updateBacklinkMarkPositions();
 	}
 
-	return;
+	return true;
 }
 
 export function destroyReferenceWidget(name: string) {
@@ -247,10 +221,33 @@ export function destroyReferenceWidget(name: string) {
 		const referenceData = backlinkReference.getAttribute("reference");
 		if (!referenceData) return;
 
-		console.log(referenceData);
 		removeBacklinks([JSON.parse(referenceData)]);
 		backlinkReference.remove();
 	}, 10);
+}
+
+function createReferenceSpan(content: string) {
+	const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+		content.split(":");
+
+	const span = createReferenceIcon(
+		portal == "portal" ? "inline reference widget |*|" : null
+	);
+
+	span.setAttribute("data", content);
+
+	const containerSpan = document.createElement("span");
+	containerSpan.classList.add("reference-container-span");
+	const referenceSpan = document.createElement("span");
+	// add class
+	referenceSpan.classList.add("reference-span");
+
+	referenceSpan.innerHTML = decodeURIComponentString(text);
+	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
+
+	containerSpan.appendChild(referenceSpan);
+	containerSpan.appendChild(span);
+	return { containerSpan, referenceSpan };
 }
 
 /* new placeholder */
@@ -258,10 +255,8 @@ class ReferenceWidget extends WidgetType {
 	constructor(
 		private name: string,
 		private view: EditorView,
-		private pos: number,
-		private referenceSpan: Element | null = null,
-		private parentElement: HTMLElement | null | undefined = null,
-		private serialized: boolean = false
+		private serialized: boolean = false,
+		private completedSerialization: boolean = false
 	) {
 		super();
 	}
@@ -278,6 +273,7 @@ class ReferenceWidget extends WidgetType {
 	destroy() {
 		console.log(this.serialized, "destroy");
 		if (this.serialized) {
+			// don't destroy
 			this.serialized = false;
 			return;
 		}
@@ -289,54 +285,55 @@ class ReferenceWidget extends WidgetType {
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
 
-		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-			content[1].split(":");
-
-		console.log(content);
-
-		const span = createReferenceIcon(
-			portal == "portal" ? "inline reference widget |*|" : null
-		);
-
-		if (content) span.setAttribute("data", content[1]);
-
-		const containerSpan = document.createElement("span");
-		containerSpan.classList.add("reference-container-span");
-		const referenceSpan = document.createElement("span");
-		// add class
-		referenceSpan.classList.add("reference-span");
-
-		referenceSpan.innerHTML = decodeURIComponentString(text);
-		referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
-
-		containerSpan.appendChild(referenceSpan);
-		containerSpan.appendChild(span);
-
-		this.referenceSpan = referenceSpan;
-		setTimeout(() => {
-			this.parentElement = containerSpan.parentElement;
-		}, 20);
+		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 
 		containerSpan.addEventListener("click", async (ev) => {
-			console.log(this.name);
 			if (ev.metaKey || ev.ctrlKey) {
 				openReference(ev);
 			} else {
 				this.serialized = true;
-				await serializeReference(content, referenceSpan, this.view);
-				// console.log(parseInt(from), parseInt(to));
-				// try {
-				// 	highlightSelection(this.view, parseInt(from), parseInt(to));
-				// } catch (e) {
-				// 	console.log(e);
-				// }
-
+				const completed = await serializeReference(
+					content,
+					referenceSpan,
+					this.view
+				);
 				referenceSpan.classList.toggle("reference-span-hidden");
-				if (content) this.name = content[0];
-				if (referenceSpan) {
-					this.referenceSpan = referenceSpan;
-					this.parentElement = referenceSpan?.parentElement?.parentElement;
-				}
+				// if (!completed && !this.completedSerialization) {
+				// 	this.completedSerialization = true;
+				// 	setTimeout(async () => {
+				// 		console.log("second serialization attempt");
+
+				// 		if (content) {
+				// 			console.log(content[1]);
+				// 			let referenceDataSpan = document.body.querySelector(
+				// 				"[data='" + content[1] + "']"
+				// 			);
+				// 			if (!referenceDataSpan) {
+				// 				referenceDataSpan = document.body.querySelector(
+				// 					"[data='" +
+				// 						content[1].slice(0, -1) +
+				// 						(content[1].slice(-1) === "t" ? "f" : "t") +
+				// 						"']"
+				// 				);
+				// 			}
+
+				// 			console.log(referenceDataSpan);
+				// 			if (referenceDataSpan && referenceDataSpan.parentElement) {
+				// 				console.log("referenceDataSpan");
+				// 				let referenceSpan =
+				// 					referenceDataSpan.parentElement?.querySelector(
+				// 						".reference-span"
+				// 					);
+				// 				console.log(referenceSpan);
+				// 				await serializeReference(
+				// 					content[1],
+				// 					referenceSpan as HTMLElement,
+				// 					this.view
+				// 				);
+				// 			}
+				// 		}
+				// 	}, 2000);
+				// }
 			}
 		});
 
@@ -344,13 +341,9 @@ class ReferenceWidget extends WidgetType {
 	}
 }
 
-const referenceDecoration = (
-	match: RegExpExecArray,
-	view: EditorView,
-	pos: number
-) => {
+const referenceDecoration = (match: RegExpExecArray, view: EditorView) => {
 	let decoration = Decoration.replace({
-		widget: new ReferenceWidget(match[0], view, pos),
+		widget: new ReferenceWidget(match[0], view),
 	});
 	return decoration;
 };
@@ -361,7 +354,7 @@ const referenceMatcher = new MatchDecorator({
 	// regexp: /\[\u2197\]\(urn:([^:]*:){6}[^:)]*\)/g,
 	regexp: /\[\u2197\]\(urn:([^:]*:){7}[^:)]*\)/g,
 	decoration: (match, view, pos) => {
-		return referenceDecoration(match, view, pos);
+		return referenceDecoration(match, view);
 	},
 });
 

@@ -41,6 +41,7 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			? JSON.parse(backlink.getAttribute("reference")!)
 			: null;
 		if (reference) {
+			// this is where I'd want to do a better hypothesis highlight
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 
