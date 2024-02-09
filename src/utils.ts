@@ -195,13 +195,10 @@ export function checkCursorPositionAtDatastring(evt: Event): {
 							) as HTMLSpanElement;
 
 						if (span && span instanceof HTMLSpanElement) {
-							// console.log("Found span element:", span);
 							// Do something with the span element
 							matched = true;
 
 							matchSpan = span;
-						} else {
-							// console.log("Span element not found");
 						}
 					}
 				}

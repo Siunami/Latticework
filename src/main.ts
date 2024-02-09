@@ -14,7 +14,6 @@ import {
 	addReferencesToLeaf,
 	getMarkdownView,
 	getCodeMirrorEditorView,
-	// updateReferenceColor,
 	createBacklinkData,
 	getContainerElement,
 } from "./references";
@@ -108,7 +107,6 @@ export default class ReferencePlugin extends Plugin {
 			}
 			// // Copy with toggle off
 			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
-				console.log("hello");
 				let currentLeaf = getThat().workspace.getLeaf();
 				await addReferencesToLeaf(currentLeaf);
 			} else if (
@@ -133,7 +131,6 @@ async function setupPlugin() {
 		async function updateFunction() {
 			if (leaf != null) {
 				await addReferencesToLeaf(leaf);
-				console.log("scroll event triggered");
 			}
 		}
 

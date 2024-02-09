@@ -22,11 +22,7 @@ import {
 	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
-import {
-	getBacklinkContainer,
-	getContainerElement,
-	getMarkdownView,
-} from "./references";
+import { getContainerElement, getMarkdownView } from "./references";
 import { Backlink } from "./types";
 
 export type TextFragment = {
@@ -238,7 +234,6 @@ export async function startReferenceEffect(
 	type: string
 ) {
 	let source = getHover();
-	let updateState = updateHover;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) {
@@ -246,7 +241,7 @@ export async function startReferenceEffect(
 		else await endReferenceHoverEffect();
 	}
 
-	updateState({
+	updateHover({
 		type: `${type}-start`,
 	});
 
@@ -260,7 +255,7 @@ export async function startReferenceEffect(
 
 	span.classList.add("reference-data-span-selected");
 
-	updateState({
+	updateHover({
 		uuid,
 	});
 
@@ -282,7 +277,7 @@ export async function startReferenceEffect(
 	// @ts-ignore
 	let id = newLeaf.id;
 	if (!id) throw new Error("Leaf id not found");
-	updateState({
+	updateHover({
 		leafId: id,
 		temp,
 		peek: true,
@@ -314,7 +309,7 @@ export async function startReferenceEffect(
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
-		updateState({
+		updateHover({
 			dataString,
 			originalTop: editorView.documentTop,
 			cursorViewport,
@@ -322,7 +317,7 @@ export async function startReferenceEffect(
 	}
 
 	if (originalLeafId) {
-		updateState({
+		updateHover({
 			originalLeafId,
 		});
 	}
@@ -384,6 +379,7 @@ export async function endReferenceHoverEffect() {
 
 	// End mutex lock
 	resetHover();
+	return;
 }
 
 export async function endBacklinkHoverEffect() {

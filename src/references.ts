@@ -239,7 +239,6 @@ let debounceTimer: NodeJS.Timeout;
 export async function updateBacklinkMarkPositions() {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(async () => {
-		console.log("updatebacklinkmarkpositions");
 		const leaves = getThat().workspace.getLeavesOfType(
 			"markdown"
 		) as WorkspaceLeaf[];
@@ -298,7 +297,6 @@ let existingObserver: ResizeObserver | null = null;
 let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	console.log("add references to leaf");
 	await updateBacklinkMarkPositions();
 
 	// Remove the existing observer before creating a new one
