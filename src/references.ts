@@ -17,15 +17,15 @@ import {
 	encodeURIComponentString,
 	decodeURIComponentString,
 } from "./utils";
-import {
-	PORTAL_TEXT_SLICE_SIZE,
-	REFERENCE_REGEX,
-	SVG_HOVER_COLOR,
-} from "./constants";
+import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { defaultHighlightSelection } from "./mark";
 
+/**
+ * Generate the default highlights for the backlinks that are rendered on the page
+ * @param leaf
+ */
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
@@ -131,6 +131,12 @@ export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 	return line.getBoundingClientRect();
 }
 
+/**
+ * Layout the backlinks on the page without overlapping
+ * @param leaf
+ * @param backlinksToLeaf all backlinks that are referencing the leaf
+ * @param showPortals whether the portals should be shown or not
+ */
 export function layoutBacklinks(
 	leaf: WorkspaceLeaf,
 	backlinksToLeaf: Backlink[],
@@ -473,8 +479,11 @@ export function createBacklinkData(
 	return backlinks;
 }
 
+/**
+ *
+ * @returns a list of all backlinks in the vault
+ */
 export async function generateBacklinks(): Promise<Backlink[]> {
-	console.log("generating references");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = await this.app.vault.getMarkdownFiles();
 
@@ -495,15 +504,6 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 	});
 	return backlinks;
 }
-
-// export function updateReferenceColor(span: HTMLSpanElement, user: string) {
-// 	// remove existing cursors
-// 	const portal: HTMLElement | null = span.querySelector(".portal");
-
-// 	if (span && !portal) {
-// 		span.style.backgroundColor = SVG_HOVER_COLOR;
-// 	}
-// }
 
 export async function openBacklinkReference(ev: MouseEvent) {
 	let hover = getBacklinkHover();

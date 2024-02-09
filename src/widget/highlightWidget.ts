@@ -7,7 +7,6 @@ import {
 	ViewUpdate,
 	MatchDecorator,
 } from "@codemirror/view";
-import { SVG_HOVER_COLOR } from "../constants";
 
 /* highlight */
 class HighlighterWidget extends WidgetType {

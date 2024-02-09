@@ -20,48 +20,34 @@ import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
 import { Backlink } from "src/types";
-import { getThat, removeBacklinks } from "src/state";
+import {
+	getBacklinks,
+	getThat,
+	removeBacklinks,
+	updateBacklinks,
+} from "src/state";
 import { TFile } from "obsidian";
 import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
-// // account for zero-width spaces
-// let lineAcc = 0;
-// for (let i = 0; i < startText.length; i++) {
-// 	if (startText.charCodeAt(i) === ZERO_WIDTH_SPACE_CODE) {
-// 		lineAcc++;
-// 	}
-// }
-
-// if (collapseIndicator) {
-// 	console.log("COLLAPSE INDICATOR CURRENT LINE");
-// 	lineAcc -= 4;
-// }
-
-export async function getReferencePosition(
-	activeLine: HTMLSpanElement,
-	oldReference: string,
-	reference: string
-) {
-	// get and process raw text
-	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	if (!(markdownFile instanceof TFile))
-		return { from: undefined, to: undefined };
-	let fileData = await getThat().vault.read(markdownFile);
-
-	const newLines = fileData.split("\n"); // Source of truth
-
-	// get the text on active line
+/**
+ * Get the text on the active line
+ * @param activeLine - the line that the reference is on
+ */
+function getActiveLineText(activeLine: HTMLElement): string {
+	// prepare the active line for serialization
 	let activeLineClone = activeLine.cloneNode(true) as HTMLElement;
 	activeLineClone
 		.querySelectorAll(".reference-span")
 		.forEach((el) => (el.innerHTML = "↗"));
-	let activeLineText = activeLineClone.innerText;
-	let activeLineData = Array.from(
+
+	// get all references on the line
+	let activeLineData: string[] = Array.from(
 		activeLineClone.querySelectorAll(".reference-data-span")
 	).map((el) => {
 		return "[↗](urn:" + el.getAttribute("data") + ")";
 	});
 
+	let activeLineText = activeLineClone.innerText;
 	let tempText = "";
 	activeLineText.split("↗").forEach((part, index) => {
 		tempText += part;
@@ -76,8 +62,29 @@ export async function getReferencePosition(
 			activeLineText = activeLineText.slice(0, i) + activeLineText.slice(i + 1);
 		}
 	}
+	return activeLineText;
+}
 
-	// activeLineIndex used to calculate the position of the reference and perform character count for document offset
+/**
+ * Get the index position of the reference in the document
+ * @param activeLine - the line that the reference is on
+ * @param reference - the reference to be serialized
+ */
+export async function getReferencePosition(
+	activeLine: HTMLSpanElement,
+	reference: string
+): Promise<{ from: number | undefined; to: number | undefined }> {
+	// get and process raw text
+	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	if (!(markdownFile instanceof TFile))
+		return { from: undefined, to: undefined };
+	let fileData = await getThat().vault.read(markdownFile);
+
+	const newLines = fileData.split("\n"); // Source of truth
+
+	const activeLineText = getActiveLineText(activeLine);
+
+	// get the line number of the active line
 	let activeLineIndex = newLines.indexOf(activeLineText);
 
 	// this is undefined if the file hasn't finished saving changes
@@ -89,7 +96,7 @@ export async function getReferencePosition(
 			return line.length + acc + 1;
 		}, 0);
 
-	let startText = newLines[activeLineIndex].split(oldReference)[0];
+	let startText = newLines[activeLineIndex].split(reference)[0];
 
 	// set range to replace with new reference serialization
 	let from = prevLineCharCount + startText.length;
@@ -98,12 +105,20 @@ export async function getReferencePosition(
 	return { from, to };
 }
 
+/**
+ *
+ * @param content
+ * @param referenceSpan
+ * @param view
+ * @param hideReference
+ * @returns
+ */
 export async function serializeReference(
 	content: any,
 	referenceSpan: HTMLElement,
 	view: EditorView,
 	hideReference: string | null = null
-) {
+): Promise<boolean> {
 	content = typeof content == "string" ? content : content[1];
 
 	const [prefix, text, suffix, file, from, to, portal, toggle] =
@@ -120,59 +135,66 @@ export async function serializeReference(
 
 	let reference = oldReference;
 	let startReference = `${prefix}:${text}:${suffix}:${file}:${from}:${to}:${portal}`;
-
-	console.log(referenceSpan.classList.contains("reference-span-hidden"));
+	let referenceText;
 
 	// Im using the CSS property as the source of truth
 	if (referenceSpan.classList.contains("reference-span-hidden")) {
 		reference = `[↗](urn:${startReference}:t)`;
+		referenceText = startReference + ":t";
 	} else {
 		reference = `[↗](urn:${startReference}:f)`;
+		referenceText = startReference + ":f";
 	}
 
 	if (hideReference) {
 		reference = `[↗](urn:${startReference}:${hideReference})`;
+		referenceText = startReference + ":" + hideReference;
 	}
-
-	console.log("reference: " + reference);
 
 	const results = await getReferencePosition(
 		currLine as HTMLElement,
-		oldReference,
-		reference
+		oldReference
 	);
 
 	if (!results.from && !results.to) {
 		console.log("reference location not found, not serializing this change");
 		return false;
 	}
-	console.log(results);
-	if (results) {
+	if (results.from && results.to) {
 		const transaction = view.state.update({
 			changes: { from: results.from, to: results.to, insert: reference },
 		});
 
 		view.dispatch(transaction);
-		console.log("updatebacklinkpositions");
-		// // updateBacklinks()
-		// // console.log(getBacklinks());
+
+		// console.log(getBacklinks());
 		// let backlink = getBacklinks().filter(
 		// 	(backlink) => backlink.dataString == content
 		// )[0];
 		// // console.log(backlink);
-		// // if (backlink) {
-		// // 	console.log(referenceSpan);
-		// // 	// removeBacklinks([backlink]);
-		// // 	console.log(getBacklinks());
-		// // 	backlink.dataString = reference;
-		// // 	updateBacklinks([backlink]);
-		// // 	console.log(getBacklinks());
-		// // 	await generateBacklinks();
+		// backlink.dataString = referenceText;
+		// backlink.referencingLocation.toggle = referenceText.slice(-1);
+		// updateBacklinks([backlink]);
+		// // console.log("updatebacklinkpositions");
+		// // // updateBacklinks()
+		// // // console.log(getBacklinks());
+		// // let backlink = getBacklinks().filter(
+		// // 	(backlink) => backlink.dataString == content
+		// // )[0];
+		// // // console.log(backlink);
+		// // // if (backlink) {
+		// // // 	console.log(referenceSpan);
+		// // // 	// removeBacklinks([backlink]);
+		// // // 	console.log(getBacklinks());
+		// // // 	backlink.dataString = reference;
+		// // // 	updateBacklinks([backlink]);
+		// // // 	console.log(getBacklinks());
+		// // // 	await generateBacklinks();
 
-		// // } else {
-		// // 	await generateBacklinks();
-		// // }
-		// generate all backlinks again? Or just update the one that changed?
+		// // // } else {
+		// // // 	await generateBacklinks();
+		// // // }
+		// // generate all backlinks again? Or just update the one that changed?
 		await generateBacklinks();
 		await updateBacklinkMarkPositions();
 	}
@@ -196,8 +218,10 @@ export function destroyReferenceWidget(name: string) {
 			return leaf.getViewState().state.file == decodedFile;
 		})[0];
 
-		let view = getEditorView(leaf);
-		removeHighlight(view, parseInt(from), parseInt(to));
+		let view: EditorView | null = getEditorView(leaf);
+		if (view) {
+			removeHighlight(view, parseInt(from), parseInt(to));
+		}
 		const editor = getMarkdownView(leaf).editor;
 		const backlinkContainer = getBacklinkContainer(editor);
 		const backlinks = Array.from(
@@ -286,13 +310,10 @@ class ReferenceWidget extends WidgetType {
 		if (!content) throw new Error("Invalid reference");
 
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
+		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+			content[1].split(":");
 
-		containerSpan.addEventListener("mouseenter", (ev) => {
-			console.log(this.view);
-			let titleElement = this.view.dom.querySelector(".inline-title");
-			if (!titleElement) return;
-			containerSpan.title = titleElement.innerHTML;
-		});
+		containerSpan.title = decodeURIComponentString(file);
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
@@ -304,6 +325,7 @@ class ReferenceWidget extends WidgetType {
 					referenceSpan,
 					this.view
 				);
+				console.log(content);
 				referenceSpan.classList.toggle("reference-span-hidden");
 				// if (!completed && !this.completedSerialization) {
 				// 	this.completedSerialization = true;

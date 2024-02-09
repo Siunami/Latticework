@@ -1,6 +1,8 @@
-import { MarkdownView } from "obsidian";
+import { EditorPosition, MarkdownView } from "obsidian";
 import { REFERENCE_REGEX } from "./constants";
 import { match } from "assert";
+import { Backlink } from "./types";
+import { TextFragment } from "./effects";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -64,20 +66,39 @@ export function getPrefixAndSuffix(document: string, from: number, to: number) {
 	return { prefix, suffix };
 }
 
+type LineData = {
+	line: string;
+	index: number;
+	length: number;
+	i: number;
+};
+
 export function findTextPositions(
 	text: string,
-	searchTerm: string,
-	prefix: string = "",
-	suffix: string = ""
-) {
+	textFragment: TextFragment
+): {
+	rangeStart: EditorPosition;
+	rangeEnd: EditorPosition;
+	lines: LineData[];
+} | null {
 	let rollingIndex = 0;
+	``;
 
-	const lines = text.split("\n").map((line: string, i: number) => {
-		let data = { line, index: rollingIndex, length: line.length + 1, i };
+	const lines: LineData[] = text.split("\n").map((line: string, i: number) => {
+		let data: LineData = {
+			line,
+			index: rollingIndex,
+			length: line.length + 1,
+			i,
+		};
 		rollingIndex += data.length;
 		return data;
 	});
 	let matchIndex: number | null = null;
+
+	const searchTerm = textFragment.text;
+	const prefix = textFragment.prefix;
+	const suffix = textFragment.suffix;
 
 	// I'm matching true or false suffix since cache may have stored either
 	// making this part of the code match indifferent
@@ -91,9 +112,9 @@ export function findTextPositions(
 
 	if (matchIndex != null) {
 		let index: number = matchIndex as number; // casting as typescript is missing that null has been checked
-		let startIndex =
+		let startIndex: number =
 			lines.findIndex((line: any) => line.index > index + prefix.length) - 1;
-		let endIndex =
+		let endIndex: number =
 			lines.findIndex(
 				(line: any) => line.index > index + prefix.length + searchTerm.length
 			) - 1;
