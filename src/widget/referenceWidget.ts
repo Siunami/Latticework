@@ -25,6 +25,7 @@ import {
 	getThat,
 	removeBacklinks,
 	updateBacklinks,
+	updateOneBacklink,
 } from "src/state";
 import { TFile } from "obsidian";
 import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
@@ -168,13 +169,20 @@ export async function serializeReference(
 		view.dispatch(transaction);
 
 		// console.log(getBacklinks());
+		// console.log(content);
+		// console.log(content.slice(0, -1) + (content.slice(-1) === "t" ? "f" : "t"));
+		// console.log(referenceText);
 		// let backlink = getBacklinks().filter(
-		// 	(backlink) => backlink.dataString == content
+		// 	(backlink) =>
+		// 		backlink.dataString == content ||
+		// 		backlink.dataString ==
+		// 			content.slice(0, -1) + (content.slice(-1) === "t" ? "f" : "t")
 		// )[0];
-		// // console.log(backlink);
-		// backlink.dataString = referenceText;
-		// backlink.referencingLocation.toggle = referenceText.slice(-1);
-		// updateBacklinks([backlink]);
+		// console.log(backlink);
+		// // backlink.dataString = referenceText;
+		// // backlink.referencingLocation.toggle = referenceText.slice(-1);
+		// updateOneBacklink(backlink, referenceText);
+
 		// // console.log("updatebacklinkpositions");
 		// // // updateBacklinks()
 		// // // console.log(getBacklinks());

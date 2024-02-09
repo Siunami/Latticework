@@ -82,9 +82,11 @@ export let backlinks = StateField.define<Backlink[]>({
 	update(value, tr) {
 		if (tr.effects.length > 0) {
 			try {
-				let data: { type: string; backlinks: Backlink[] } = JSON.parse(
-					tr.effects[0].value
-				);
+				let data: {
+					type: string;
+					backlinks: Backlink[];
+					newDatastring?: string;
+				} = JSON.parse(tr.effects[0].value);
 				if (data.type == "backlink") {
 					if (data.backlinks.length == 0) return value;
 					let referencingLocations = data.backlinks.map(
@@ -96,6 +98,26 @@ export let backlinks = StateField.define<Backlink[]>({
 						return backlink.referencingLocation.filename != location;
 					}); // remove all backlinks from the same file
 					return [...filteredBacklinks, ...data.backlinks];
+				} else if (data.type == "modify-backlink") {
+					const updatedBacklink = data.backlinks[0];
+					console.log(updatedBacklink);
+					let filteredBacklinks = value.filter((backlink) => {
+						const foundBacklink =
+							backlink.referencingLocation.filename ==
+								updatedBacklink.referencingLocation.filename &&
+							backlink.dataString == updatedBacklink.dataString;
+						if (foundBacklink) {
+							console.log(backlink);
+						}
+
+						return !foundBacklink;
+					});
+
+					updatedBacklink.dataString = data.newDatastring || "";
+					console.log(
+						[...filteredBacklinks, updatedBacklink].length == value.length
+					);
+					return [...filteredBacklinks, updatedBacklink];
 				} else if (data.type == "remove-backlink") {
 					const removeBacklink = data.backlinks[0];
 					let filteredBacklinks = value.filter((backlink) => {
@@ -189,6 +211,19 @@ export function resetBacklinkHover() {
 
 export function getBacklinks(): Backlink[] {
 	return state.field(backlinks);
+}
+
+export function updateOneBacklink(value: Backlink, newDatastring: string) {
+	state = state.update({
+		effects: backlinkEffect.of(
+			JSON.stringify(
+				Object.assign(
+					{ backlinks: [value], newDatastring },
+					{ type: "modify-backlink" }
+				)
+			)
+		),
+	}).state;
 }
 
 export function updateBacklinks(value: Backlink[]) {
