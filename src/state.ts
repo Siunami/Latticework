@@ -100,23 +100,20 @@ export let backlinks = StateField.define<Backlink[]>({
 					return [...filteredBacklinks, ...data.backlinks];
 				} else if (data.type == "modify-backlink") {
 					const updatedBacklink = data.backlinks[0];
-					console.log(updatedBacklink);
 					let filteredBacklinks = value.filter((backlink) => {
 						const foundBacklink =
 							backlink.referencingLocation.filename ==
 								updatedBacklink.referencingLocation.filename &&
 							backlink.dataString == updatedBacklink.dataString;
-						if (foundBacklink) {
-							console.log(backlink);
-						}
+						// if (foundBacklink) {
+						// 	console.log(backlink);
+						// }
 
 						return !foundBacklink;
 					});
 
 					updatedBacklink.dataString = data.newDatastring || "";
-					console.log(
-						[...filteredBacklinks, updatedBacklink].length == value.length
-					);
+
 					return [...filteredBacklinks, updatedBacklink];
 				} else if (data.type == "remove-backlink") {
 					const removeBacklink = data.backlinks[0];
