@@ -305,7 +305,6 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	const newObserver = new ResizeObserver(async () => {
-		console.log("resize reload");
 		await updateBacklinkMarkPositions();
 	});
 
