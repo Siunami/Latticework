@@ -25,13 +25,9 @@ function collectLeavesByTab(
 
 		if (children) {
 			for (const child of children) {
-				let emptyList: WorkspaceLeaf[] = [];
-
 				collectLeavesByTab(child, result);
 			}
 		}
-		// result.push([]);
-		// collectLeavesByTab(children, result);
 	} else if (type == "leaf") {
 		// @ts-ignore
 		const parentSplitId = split.parent.id;
@@ -51,11 +47,6 @@ function collectLeavesByTab(
 		}
 	}
 
-	// if (children) {
-	// 	for (const child of children) {
-	// 		collectLeavesByTab(child, result);
-	// 	}
-	// }
 	return result;
 }
 
@@ -76,14 +67,25 @@ export function getCurrentTabIndex(leavesByTab: any[], span: HTMLSpanElement) {
 	return currTabIdx;
 }
 
+/**
+ * Get the adjacent tabs to the current tab
+ * @param leavesByTab
+ * @param currTabIdx
+ * @param file
+ * @returns
+ */
 export function getAdjacentTabs(
-	leavesByTab: any[],
+	leavesByTab: [WorkspaceLeaf[]] | [],
 	currTabIdx: number,
 	file: string
-) {
-	let rightAdjacentTab: any[] = [];
-	let leftAdjacentTab: any[] = [];
-	let adjacentTabs: any[] = [];
+): {
+	rightAdjacentTab: WorkspaceLeaf[];
+	leftAdjacentTab: WorkspaceLeaf[];
+	index: number;
+} {
+	let rightAdjacentTab: WorkspaceLeaf[] = [];
+	let leftAdjacentTab: WorkspaceLeaf[] = [];
+	let adjacentTabs: WorkspaceLeaf[] = [];
 
 	if (leavesByTab[currTabIdx + 1]) {
 		rightAdjacentTab = leavesByTab[currTabIdx + 1];
@@ -97,16 +99,26 @@ export function getAdjacentTabs(
 	let index = adjacentTabs.findIndex(
 		(x: WorkspaceLeaf) => x.getViewState().state.file == file
 	);
-	return { adjacentTabs, rightAdjacentTab, leftAdjacentTab, index };
+	return { rightAdjacentTab, leftAdjacentTab, index };
 }
 
+/**
+ * Open a file in an adjacent tab if it exists, otherwise create a new tab with that file
+ * @param leavesByTab the leaves in the workspace organized by tab
+ * @param currTabIdx the index of the current tab
+ * @param file the file to open
+ * @returns
+ */
 export async function openFileInAdjacentTab(
-	leavesByTab: any[],
+	leavesByTab: [WorkspaceLeaf[]] | [],
 	currTabIdx: number,
-	file: string,
-	type?: string
-) {
-	let { adjacentTabs, rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
+	file: string
+): Promise<{
+	newLeaf: WorkspaceLeaf;
+	temp: boolean;
+	originalLeaf: WorkspaceLeaf;
+}> {
+	let { rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
 		leavesByTab,
 		currTabIdx,
 		file
@@ -152,36 +164,33 @@ export async function openFileInAdjacentTab(
 		let leaf = currentTab[currentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		console.log("open file new tab");
-
+		// console.log("open file new tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
 		const originalLeaf = rightAdjacentTab.filter(
-			(t) => t.containerEl.style.display != "none"
+			(t) => getContainerElement(t).style.display != "none"
 		)[0];
 		let leaf = rightAdjacentTab[rightAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		console.log("open existing file right tab");
-
+		// console.log("open existing file right tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (leftAdjacentTabNames.includes(file)) {
 		// file exists in left tab
 		const originalLeaf = leftAdjacentTab.filter(
-			(t) => t.containerEl.style.display != "none"
+			(t) => getContainerElement(t).style.display != "none"
 		)[0];
 
 		let leaf = leftAdjacentTab[leftAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		console.log("open existing file left tab");
-
+		// console.log("open existing file left tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTab.length > 0) {
 		// there exists a right tab
 		const originalLeaf = rightAdjacentTab.filter(
-			(t) => t.containerEl.style.display != "none"
+			(t) => getContainerElement(t).style.display != "none"
 		)[0];
 
 		let currLeaf = workspace.getLeaf();
@@ -191,13 +200,12 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(newLeaf);
 		workspace.setActiveLeaf(currLeaf);
 
-		console.log("open new file right tab");
-
+		// console.log("open new file right tab");
 		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
 		// there exists a left tab
 		const originalLeaf = leftAdjacentTab.filter(
-			(t) => t.containerEl.style.display != "none"
+			(t) => getContainerElement(t).style.display != "none"
 		)[0];
 
 		let currLeaf = workspace.getLeaf(); // get current active leaf
@@ -207,8 +215,7 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(newLeaf); // reveal new leaf
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
 
-		console.log("open new file left tab");
-
+		// console.log("open new file left tab");
 		return { newLeaf, temp: true, originalLeaf };
 	} else {
 		// no adjacent tabs
@@ -216,8 +223,7 @@ export async function openFileInAdjacentTab(
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
 
-		console.log("open new file left tab");
-
+		// console.log("open new file left tab");
 		return { newLeaf, temp: true, originalLeaf: currLeaf };
 	}
 }

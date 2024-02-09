@@ -17,15 +17,15 @@ import {
 	encodeURIComponentString,
 	decodeURIComponentString,
 } from "./utils";
-import {
-	PORTAL_TEXT_SLICE_SIZE,
-	REFERENCE_REGEX,
-	SVG_HOVER_COLOR,
-} from "./constants";
+import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
 import { defaultHighlightSelection } from "./mark";
 
+/**
+ * Generate the default highlights for the backlinks that are rendered on the page
+ * @param leaf
+ */
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
@@ -41,6 +41,7 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			? JSON.parse(backlink.getAttribute("reference")!)
 			: null;
 		if (reference) {
+			// this is where I'd want to do a better hypothesis highlight
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 
@@ -130,6 +131,12 @@ export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 	return line.getBoundingClientRect();
 }
 
+/**
+ * Layout the backlinks on the page without overlapping
+ * @param leaf
+ * @param backlinksToLeaf all backlinks that are referencing the leaf
+ * @param showPortals whether the portals should be shown or not
+ */
 export function layoutBacklinks(
 	leaf: WorkspaceLeaf,
 	backlinksToLeaf: Backlink[],
@@ -156,7 +163,7 @@ export function layoutBacklinks(
 
 	const lineBbox = getLeafLineBBox(leaf);
 
-	const BACKLINK_LEFT_MARGIN = 64;
+	const BACKLINK_LEFT_MARGIN = 42;
 
 	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
@@ -179,7 +186,8 @@ export function layoutBacklinks(
 			referenceMarker.style.position = "absolute";
 
 			const scrollerBbox = editorView.scrollDOM.getBoundingClientRect();
-			const absoluteY = bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
+			const absoluteY =
+				bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
 			referenceMarker.setAttribute("top", absoluteY.toString());
 			referenceMarker.style.top = absoluteY + "px";
 			referenceMarker.style.left = lineBbox.width + BACKLINK_LEFT_MARGIN + "px";
@@ -231,7 +239,6 @@ let debounceTimer: NodeJS.Timeout;
 export async function updateBacklinkMarkPositions() {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(async () => {
-		console.log("updatebacklinkmarkpositions");
 		const leaves = getThat().workspace.getLeavesOfType(
 			"markdown"
 		) as WorkspaceLeaf[];
@@ -290,7 +297,6 @@ let existingObserver: ResizeObserver | null = null;
 let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	console.log("add references to leaf");
 	await updateBacklinkMarkPositions();
 
 	// Remove the existing observer before creating a new one
@@ -417,7 +423,10 @@ export function createBacklinkData(
 			}
 
 			const portalReferenceRepresentation = "↗";
-			let portalText = line.replace(new RegExp(REFERENCE_REGEX, "g"), portalReferenceRepresentation);
+			let portalText = line.replace(
+				new RegExp(REFERENCE_REGEX, "g"),
+				portalReferenceRepresentation
+			);
 
 			let portalTextIndex = line.indexOf(match[0]) - matchIndex;
 
@@ -429,7 +438,10 @@ export function createBacklinkData(
 				portalTextIndex
 			);
 
-			if (startPortalText.length > 0 && portalTextIndex - PORTAL_CONTEXT_LIMIT >= 0)
+			if (
+				startPortalText.length > 0 &&
+				portalTextIndex - PORTAL_CONTEXT_LIMIT >= 0
+			)
 				startPortalText = "…" + startPortalText;
 
 			let endPortalText = portalText.substring(
@@ -437,7 +449,10 @@ export function createBacklinkData(
 				Math.min(portalTextIndex + PORTAL_CONTEXT_LIMIT, portalText.length)
 			);
 
-			if (endPortalText.length > 0 && portalTextIndex + PORTAL_CONTEXT_LIMIT < portalText.length)
+			if (
+				endPortalText.length > 0 &&
+				portalTextIndex + PORTAL_CONTEXT_LIMIT < portalText.length
+			)
 				endPortalText = endPortalText + "…";
 
 			backlinks.push({
@@ -462,8 +477,11 @@ export function createBacklinkData(
 	return backlinks;
 }
 
+/**
+ *
+ * @returns a list of all backlinks in the vault
+ */
 export async function generateBacklinks(): Promise<Backlink[]> {
-	console.log("generating references");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = await this.app.vault.getMarkdownFiles();
 
@@ -483,15 +501,6 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 		});
 	});
 	return backlinks;
-}
-
-export function updateReferenceColor(span: HTMLSpanElement, user: string) {
-	// remove existing cursors
-	const portal: HTMLElement | null = span.querySelector(".portal");
-
-	if (span && !portal) {
-		span.style.backgroundColor = SVG_HOVER_COLOR;
-	}
 }
 
 export async function openBacklinkReference(ev: MouseEvent) {

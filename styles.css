@@ -118,7 +118,6 @@ If your plugin does not need CSS, delete this file.
 	color: black;
 }
 
-
 /* Shadows */
 .no-shadow {
 	box-shadow: none !important;
@@ -135,5 +134,3 @@ If your plugin does not need CSS, delete this file.
 .bottom-shadow {
 	box-shadow: inset 0px -30px 20px 0px hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
 }
-
-

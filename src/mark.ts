@@ -1,6 +1,5 @@
 import { EditorView, Decoration, DecorationSet } from "@codemirror/view";
 import { StateField, StateEffect } from "@codemirror/state";
-import { SVG_HOVER_COLOR } from "./constants";
 
 const addHighlight = StateEffect.define<{ from: number; to: number }>({
 	map: ({ from, to }, change) => ({

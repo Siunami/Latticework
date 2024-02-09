@@ -22,13 +22,16 @@ import {
 	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
-import {
-	getBacklinkContainer,
-	getContainerElement,
-	getMarkdownView,
-} from "./references";
+import { getContainerElement, getMarkdownView } from "./references";
+import { Backlink } from "./types";
 
-export function getEditorView(leaf: WorkspaceLeaf) {
+export type TextFragment = {
+	text: string;
+	prefix: string;
+	suffix: string;
+};
+
+export function getEditorView(leaf: WorkspaceLeaf): EditorView | null {
 	if (!leaf) return null;
 	const view = leaf.view;
 
@@ -61,176 +64,16 @@ function checkSpanElementExists(
 	return false;
 }
 
-function parseCSSString(css: string) {
-	// Use a regular expression to match key-value pairs in the CSS string
-	const cssPropertiesRegex = /([\w-]+)\s*:\s*([^;]+)\s*;?/g;
-
-	// Initialize an empty object to store the CSS properties
-	let cssPropertiesObject: any = {};
-
-	// Iterate over all key-value pairs found by the regex
-	let match;
-	while ((match = cssPropertiesRegex.exec(css)) !== null) {
-		// match[1] is the key
-		// match[2] is the value
-		cssPropertiesObject[match[1]] = match[2];
-	}
-
-	return cssPropertiesObject;
-}
-
-export function delay(milliseconds: any) {
+export function delay(milliseconds: any): Promise<void> {
 	return new Promise((resolve) => {
 		setTimeout(resolve, milliseconds);
 	});
 }
 
-// would be worth it to replace this with the hyp.is matcher at some point
-function tempDirectionIndicator(
-	leaf: any,
-	text: string,
-	prefix: string,
-	suffix: string,
-	dataString: string,
-	isSame: boolean,
-	user?: string
-) {
-	const editor = getMarkdownView(leaf).editor;
-
-	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
-	const windowHeight = scroller.getBoundingClientRect().height;
-	const scrollTop =
-		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-	const scrollBottom = scrollTop + windowHeight;
-
-	let references;
-
-	if (user === ACTION_TYPE.BACKLINK) {
-		// Get the elements that are between the top and bottom of the screen
-		// @ts-ignore
-		let container = editor.containerEl;
-		let content = container.querySelector(".cm-content");
-		references = content.querySelectorAll(".reference-data-span");
-	} else {
-		references = leaf.containerEl.querySelectorAll(".reference-data-span");
-	}
-
-	let visibleElements: HTMLElement[] = [];
-	for (let i = 0; i < references.length; i++) {
-		let bbox = references[i].getBoundingClientRect();
-
-		if (
-			bbox.top + scroller.scrollTop >= scrollTop &&
-			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
-		) {
-			visibleElements.push(references[i]);
-		}
-	}
-
-	let dataStrings = visibleElements.map((el: HTMLElement) => {
-		if (user === ACTION_TYPE.BACKLINK) {
-			return el.getAttribute("data");
-		} else {
-			let reference = el.getAttribute("reference");
-			if (reference) {
-				return JSON.parse(reference).dataString;
-			}
-		}
-	});
-
-	let startTop = leaf.view.editor.getScrollInfo().top;
-
-	if (!dataStrings.includes(dataString)) {
-		let positions = findTextPositions(
-			leaf.view.data,
-			text,
-			prefix.slice(0, prefix.length - 1),
-			suffix.slice(1, suffix.length)
-		);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
-
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
-	}
-
-	setTimeout(() => {
-		// if (temp) return;
-		let endTop = leaf.view.editor.getScrollInfo().top;
-
-		let container = leaf.containerEl.querySelector(".view-content");
-		container.classList.remove("no-shadow");
-		container.classList.remove("new-shadow");
-		container.classList.remove("top-shadow");
-		container.classList.remove("bottom-shadow");
-
-		if (startTop === endTop && isSame) {
-			container.classList.add("no-shadow");
-		} else if (startTop === endTop && !isSame) {
-			container.classList.add("new-shadow");
-		} else if (startTop < endTop) {
-			// show mark above
-			container.classList.add("top-shadow");
-		} else {
-			// show mark below
-			container.classList.add("bottom-shadow");
-		}
-	}, 25);
-
-	return;
-}
-
-function endEffectRemoveHighlights(
-	workspace: Workspace,
-	leafId: string,
-	uuid: string,
-	backlinkUUID?: string
-) {
-	const workspaceContainer = workspace.containerEl;
-	const span = workspaceContainer.querySelector("." + uuid);
-
-	span?.parentElement
-		?.querySelector(".reference-span")
-		?.classList.remove("reference-span-selected");
-	// firstSpanPart?.classList.remove(uuid);
-	span?.classList.remove("reference-data-span-selected");
-
-	if (backlinkUUID) {
-		const backlinkSpan = workspaceContainer.querySelector("." + backlinkUUID);
-
-		backlinkSpan?.parentElement
-			?.querySelector(".reference-span")
-			?.classList.remove("reference-span-selected");
-		backlinkSpan?.classList.remove("reference-data-span-selected");
-	}
-
-	let targetLeaf = workspace.getLeafById(leafId);
-	if (!targetLeaf) {
-		// resetCursor();
-		throw new Error("Target leaf not found");
-	}
-
-	// remove box shadows if any
-	let container =
-		getContainerElement(targetLeaf)?.querySelector(".view-content");
-
-	if (container) {
-		container.classList.remove("no-shadow");
-		container.classList.remove("new-shadow");
-		container.classList.remove("top-shadow");
-		container.classList.remove("bottom-shadow");
-	}
-}
-
-export async function startBacklinkEffect(span: HTMLSpanElement) {
+export async function startBacklinkEffect(
+	span: HTMLSpanElement
+): Promise<void> {
 	let source = getBacklinkHover();
-	let updateState = updateBacklinkHover;
 
 	if (!span) return;
 
@@ -249,24 +92,21 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 		// if hovering a new backlink, end the previous and continue
 		await endBacklinkHoverEffect();
 	}
-	updateState({
+	updateBacklinkHover({
 		type: `${ACTION_TYPE.BACKLINK}-start`,
-	});
-
-	updateState({
 		uuid,
 	});
 
 	const referenceData = span.getAttribute("reference");
 	if (!referenceData) throw new Error("Reference data not found");
 
-	const backlink = JSON.parse(referenceData);
+	const backlink: Backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
 	// get backlink leaf
-	let leavesByTab = collectLeavesByTabHelper();
+	let leavesByTab: [WorkspaceLeaf[]] | [] = collectLeavesByTabHelper();
 
 	let currTabIdx = getCurrentTabIndex(leavesByTab, span);
 
@@ -281,14 +121,14 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	if (!backlinkLeafID) throw new Error("Leaf id not found");
 
 	if (backlinkLeaf && backlinkLeaf.view instanceof MarkdownView) {
-		const editorView: EditorView = getEditorView(backlinkLeaf);
+		const editorView: EditorView | null = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
-		const viewport = backlinkLeaf.view.editor.getScrollInfo();
+		// const viewport = backlinkLeaf.view.editor.getScrollInfo();
 
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
-		updateState({
+		updateBacklinkHover({
 			dataString,
 			originalTop: editorView.documentTop,
 			backlinkLeafId: backlinkLeafID,
@@ -307,46 +147,57 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 	// @ts-ignore
 	let id = newLeaf.id;
 	if (!id) throw new Error("Leaf id not found");
-	updateState({
+	updateBacklinkHover({
 		leafId: id,
 		temp,
 		peek: true,
 	});
 
+	// Calculate controller indication information
+	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
 	const matches = [
 		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
 	];
 	if (matches.length == 0) throw new Error("Matches not found");
+	const match = matches[0];
 
-	tempDirectionIndicator(
+	const textFragment = {
+		text: backlink.referencingLocation.text,
+		prefix: backlink.referencingLocation.prefix,
+		suffix: backlink.referencingLocation.suffix,
+	};
+
+	ControllerIndication(
 		newLeaf,
-		backlink.referencingLocation.text,
-		backlink.referencingLocation.prefix + "-",
-		"-" + backlink.referencingLocation.suffix,
-		matches[0][1],
+		textFragment,
+		match[1],
 		id === originalLeafId,
 		ACTION_TYPE.BACKLINK
 	);
 
+	// this is for getting original position of viewport
+	// @ts-ignore
 	const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
-	updateState({
+	updateBacklinkHover({
 		cursorViewport,
 	});
 
-	let backlinkSpan: HTMLSpanElement = newLeaf.containerEl.querySelector(
+	// Add backlink highlight effect
+	let newLeafContainer = getContainerElement(newLeaf);
+	let backlinkSpan: HTMLSpanElement | null = newLeafContainer.querySelector(
 		`span[data="${backlink.dataString}"]`
 	);
 
 	if (!backlinkSpan) {
 		if (backlink.dataString.slice(-1) == "f") {
-			backlinkSpan = newLeaf.containerEl.querySelector(
+			backlinkSpan = newLeafContainer.querySelector(
 				`span[data="${backlink.dataString.slice(0, -1)}t"]`
 			);
 		} else if (backlink.dataString.slice(-1) == "t") {
-			backlinkSpan = newLeaf.containerEl.querySelector(
+			backlinkSpan = newLeafContainer.querySelector(
 				`span[data="${backlink.dataString.slice(0, -1)}f"]`
 			);
 		}
@@ -363,14 +214,14 @@ export async function startBacklinkEffect(span: HTMLSpanElement) {
 
 		backlinkSpan.classList.add("reference-data-span-selected");
 
-		updateState({
+		updateBacklinkHover({
 			backlinkUUID,
 		});
 	}
 
 	// @ts-ignore
 	if (originalLeafId) {
-		updateState({
+		updateBacklinkHover({
 			originalLeafId,
 		});
 	}
@@ -383,7 +234,6 @@ export async function startReferenceEffect(
 	type: string
 ) {
 	let source = getHover();
-	let updateState = updateHover;
 
 	// Mutex, prevent concurrent access to following section of code
 	if (source != null) {
@@ -391,7 +241,7 @@ export async function startReferenceEffect(
 		else await endReferenceHoverEffect();
 	}
 
-	updateState({
+	updateHover({
 		type: `${type}-start`,
 	});
 
@@ -405,7 +255,7 @@ export async function startReferenceEffect(
 
 	span.classList.add("reference-data-span-selected");
 
-	updateState({
+	updateHover({
 		uuid,
 	});
 
@@ -421,14 +271,13 @@ export async function startReferenceEffect(
 	const { newLeaf, temp, originalLeaf } = await openFileInAdjacentTab(
 		leavesByTab,
 		currTabIdx,
-		file,
-		type
+		file
 	);
 
 	// @ts-ignore
 	let id = newLeaf.id;
 	if (!id) throw new Error("Leaf id not found");
-	updateState({
+	updateHover({
 		leafId: id,
 		temp,
 		peek: true,
@@ -438,25 +287,29 @@ export async function startReferenceEffect(
 	const originalLeafId = originalLeaf.id;
 
 	if (newLeaf && newLeaf.view instanceof MarkdownView) {
-		const editorView: EditorView = getEditorView(newLeaf);
+		const editorView: EditorView | null = getEditorView(newLeaf);
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = newLeaf.view.editor.getScrollInfo();
 
 		removeHighlight(editorView, from, to);
 		highlightSelection(editorView, from, to);
 
-		tempDirectionIndicator(
-			newLeaf,
+		let textFragment: TextFragment = {
 			text,
-			prefix,
-			suffix,
+			prefix: prefix.slice(0, prefix.length - 1),
+			suffix: suffix.slice(1, suffix.length),
+		};
+
+		ControllerIndication(
+			newLeaf,
+			textFragment,
 			dataString,
 			id === originalLeafId
 		);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
-		updateState({
+		updateHover({
 			dataString,
 			originalTop: editorView.documentTop,
 			cursorViewport,
@@ -464,7 +317,7 @@ export async function startReferenceEffect(
 	}
 
 	if (originalLeafId) {
-		updateState({
+		updateHover({
 			originalLeafId,
 		});
 	}
@@ -485,21 +338,12 @@ export async function endReferenceHoverEffect() {
 	let targetLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid);
 
-	let editorView = getEditorView(targetLeaf);
+	let editorView: EditorView | null = getEditorView(targetLeaf);
 
+	if (!editorView) return;
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	removeHighlight(editorView, from, to);
 	defaultHighlightSelection(editorView, from, to);
-
-	// let container =
-	// 	getContainerElement(targetLeaf).querySelector(".view-content");
-	// if (container) {
-	// 	container.classList.remove("no-shadow");
-	// 	container.classList.remove("new-shadow");
-	// 	container.classList.remove("top-shadow");
-	// 	container.classList.remove("bottom-shadow");
-	// 	container.classList.add("no-shadow");
-	// }
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -535,6 +379,7 @@ export async function endReferenceHoverEffect() {
 
 	// End mutex lock
 	resetHover();
+	return;
 }
 
 export async function endBacklinkHoverEffect() {
@@ -581,11 +426,12 @@ export async function endBacklinkHoverEffect() {
 		resetBacklinkHover();
 		throw new Error("Original leaf not found");
 	}
-	let originalEditorView: EditorView = getEditorView(originalLeaf);
 
-	removeHighlight(originalEditorView, from, to);
-	defaultHighlightSelection(originalEditorView, from, to);
-	// removeHighlights(originalEditorView);
+	let originalEditorView: EditorView | null = getEditorView(originalLeaf);
+	if (originalEditorView) {
+		removeHighlight(originalEditorView, from, to);
+		defaultHighlightSelection(originalEditorView, from, to);
+	}
 
 	let container =
 		getContainerElement(originalLeaf).querySelector(".view-content");
@@ -613,4 +459,160 @@ export async function endBacklinkHoverEffect() {
 
 	// End mutex lock
 	resetBacklinkHover();
+}
+
+// would be worth it to replace this with the hyp.is matcher at some point
+/**
+ * This function is used to apply the visual effect to the container of the leaf
+ *
+ * @param leaf The leaf to apply the effect to
+ * @param textFragment The text fragment to search for
+ * @param dataString The data string to search for
+ * @param isSame Whether the leaf is the same as the original leaf
+ * @param user The user action that triggered the effect
+ */
+function ControllerIndication(
+	leaf: any,
+	textFragment: TextFragment,
+	dataString: string,
+	isSame: boolean,
+	user?: string
+): void {
+	const editor = getMarkdownView(leaf).editor;
+
+	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+	const windowHeight = scroller.getBoundingClientRect().height;
+	const scrollTop =
+		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+	const scrollBottom = scrollTop + windowHeight;
+
+	let references;
+
+	// get all rendered reference or backlink spans.
+	if (user === ACTION_TYPE.BACKLINK) {
+		// @ts-ignore
+		let container = editor.containerEl;
+		let content = container.querySelector(".cm-content");
+		references = content.querySelectorAll(".reference-data-span");
+	} else {
+		references = leaf.containerEl.querySelectorAll(".reference-data-span");
+	}
+
+	// filter for the visible ones
+	let visibleElements: HTMLElement[] = [];
+	for (let i = 0; i < references.length; i++) {
+		let bbox = references[i].getBoundingClientRect();
+
+		if (
+			bbox.top + scroller.scrollTop >= scrollTop &&
+			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+		) {
+			visibleElements.push(references[i]);
+		}
+	}
+
+	// get the data strings of the visible elements
+	let dataStrings = visibleElements.map((el: HTMLElement) => {
+		if (user === ACTION_TYPE.BACKLINK) {
+			return el.getAttribute("data");
+		} else {
+			let reference = el.getAttribute("reference");
+			if (reference) {
+				return JSON.parse(reference).dataString;
+			}
+		}
+	});
+
+	let startTop = leaf.view.editor.getScrollInfo().top;
+
+	// get the range for the current datastring and scroll to it
+	if (!dataStrings.includes(dataString)) {
+		let positions = findTextPositions(leaf.view.data, textFragment);
+		if (!positions) throw new Error("Positions not found");
+		let rangeStart = positions.rangeStart;
+		let rangeEnd = positions.rangeEnd;
+
+		leaf.view.editor.scrollIntoView(
+			{
+				from: Object.assign(rangeStart, { ch: 0 }),
+				to: Object.assign(rangeEnd, { ch: 0 }),
+			},
+			true
+		);
+	}
+
+	setTimeout(() => {
+		let endTop = leaf.view.editor.getScrollInfo().top;
+
+		// reset container styling
+		let container = leaf.containerEl.querySelector(".view-content");
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+
+		// set container styling based on scroll direction and document
+		if (startTop === endTop && isSame) {
+			container.classList.add("no-shadow");
+		} else if (startTop === endTop && !isSame) {
+			container.classList.add("new-shadow");
+		} else if (startTop < endTop) {
+			// show mark above
+			container.classList.add("top-shadow");
+		} else {
+			// show mark below
+			container.classList.add("bottom-shadow");
+		}
+	}, 25);
+
+	return;
+}
+
+/**
+ * Remove the highlight effects from references/backlinks
+ * Also remove the box shadow effect from the container
+ * @param workspace
+ * @param leafId
+ * @param uuid
+ * @param backlinkUUID
+ */
+function endEffectRemoveHighlights(
+	workspace: Workspace,
+	leafId: string,
+	uuid: string,
+	backlinkUUID?: string
+): void {
+	const workspaceContainer = workspace.containerEl;
+	const span = workspaceContainer.querySelector("." + uuid);
+
+	span?.parentElement
+		?.querySelector(".reference-span")
+		?.classList.remove("reference-span-selected");
+	span?.classList.remove("reference-data-span-selected");
+
+	if (backlinkUUID) {
+		const backlinkSpan = workspaceContainer.querySelector("." + backlinkUUID);
+
+		backlinkSpan?.parentElement
+			?.querySelector(".reference-span")
+			?.classList.remove("reference-span-selected");
+		backlinkSpan?.classList.remove("reference-data-span-selected");
+	}
+
+	let targetLeaf = workspace.getLeafById(leafId);
+	if (!targetLeaf) {
+		// resetCursor();
+		throw new Error("Target leaf not found");
+	}
+
+	// remove box shadows if any
+	let container =
+		getContainerElement(targetLeaf)?.querySelector(".view-content");
+
+	if (container) {
+		container.classList.remove("no-shadow");
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+	}
 }
