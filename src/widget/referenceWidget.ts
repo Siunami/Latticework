@@ -183,25 +183,6 @@ export async function serializeReference(
 		// // backlink.referencingLocation.toggle = referenceText.slice(-1);
 		// updateOneBacklink(backlink, referenceText);
 
-		// // console.log("updatebacklinkpositions");
-		// // // updateBacklinks()
-		// // // console.log(getBacklinks());
-		// // let backlink = getBacklinks().filter(
-		// // 	(backlink) => backlink.dataString == content
-		// // )[0];
-		// // // console.log(backlink);
-		// // // if (backlink) {
-		// // // 	console.log(referenceSpan);
-		// // // 	// removeBacklinks([backlink]);
-		// // // 	console.log(getBacklinks());
-		// // // 	backlink.dataString = reference;
-		// // // 	updateBacklinks([backlink]);
-		// // // 	console.log(getBacklinks());
-		// // // 	await generateBacklinks();
-
-		// // // } else {
-		// // // 	await generateBacklinks();
-		// // // }
 		// // generate all backlinks again? Or just update the one that changed?
 		await generateBacklinks();
 		await updateBacklinkMarkPositions();
@@ -303,7 +284,6 @@ class ReferenceWidget extends WidgetType {
 
 	// this runs when re-serialized as well
 	destroy() {
-		console.log(this.serialized, "destroy");
 		if (this.serialized) {
 			// don't destroy
 			this.serialized = false;
@@ -333,7 +313,6 @@ class ReferenceWidget extends WidgetType {
 					referenceSpan,
 					this.view
 				);
-				console.log(content);
 				referenceSpan.classList.toggle("reference-span-hidden");
 				// if (!completed && !this.completedSerialization) {
 				// 	this.completedSerialization = true;
