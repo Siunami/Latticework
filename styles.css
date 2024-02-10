@@ -52,9 +52,6 @@ If your plugin does not need CSS, delete this file.
 	border-bottom: 1px solid var(--text-normal);
 }
 
-.reference-data-span-selected::after {
-}
-
 .backlink-hide-after::after {
 	display:none;
 }
