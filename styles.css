@@ -48,17 +48,8 @@ If your plugin does not need CSS, delete this file.
 	color: var(--text-accent);
 }
 
-.reference-span-selected {
-	color: #1e1e1e;
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
-}
-
-.reference-span-selected:hover {
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
-}
-
-.reference-data-span-selected::after {
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
+.reference-span-selected, .reference-data-span-selected::after {
+	border-bottom: 1px solid var(--text-normal);
 }
 
 .backlink-hide-after::after {
@@ -108,14 +99,13 @@ If your plugin does not need CSS, delete this file.
 }
 
 .highlight {
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.3));
-	color: black;
+	background-color: var(--text-highlight-bg);
+	border-bottom: 1px solid var(--text-normal);
 	z-index: 100;
 }
 
 .default-highlight {
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43));
-	color: black;
+	background-color: var(--text-highlight-bg);
 }
 
 /* Shadows */
