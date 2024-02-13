@@ -211,7 +211,9 @@ export function destroyReferenceWidget(name: string) {
 		if (view) {
 			removeHighlight(view, parseInt(from), parseInt(to));
 		}
-		const editor = getMarkdownView(leaf).editor;
+		const markdownView = getMarkdownView(leaf);
+		if (!markdownView) return;
+		const editor = markdownView.editor;
 		const backlinkContainer = getBacklinkContainer(editor);
 		const backlinks = Array.from(
 			backlinkContainer.querySelectorAll(".reference-data-span")

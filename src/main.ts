@@ -231,6 +231,7 @@ async function handleChange(e: ViewUpdate) {
 // Debounced keyup event handler
 const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	// // await updateBacklinkMarkPositions();
+	console.log("debounced backlink cache update");
 
 	// await delay(500);
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
@@ -358,7 +359,6 @@ export async function handleMovementEffects(
 			console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
-		return;
 	} else {
 		if (
 			span &&
@@ -386,46 +386,47 @@ export async function handleMovementEffects(
 		} else if (getHover() != null) {
 			console.log("end hover reference effect");
 			// Define the keys you're waiting for
-			// const requiredKeys = [
-			// 	"dataString",
-			// 	"leafId",
-			// 	"originalLeafId",
-			// 	"temp",
-			// 	"cursorViewport",
-			// 	"peek",
-			// 	"uuid",
-			// ];
-			// // Function to check if all required keys are present
+			const requiredKeys = [
+				"dataString",
+				"leafId",
+				"originalLeafId",
+				"temp",
+				"cursorViewport",
+				"peek",
+				"uuid",
+			];
+			// Function to check if all required keys are present
 
-			// const allKeysPresent = () =>
-			// 	requiredKeys.every((key) => key in getHover());
-			// // Wait until all keys are present
-			// if (!allKeysPresent()) {
-			// 	await new Promise((resolve) => setTimeout(resolve, 50));
-			// }
+			const allKeysPresent = () =>
+				requiredKeys.every((key) => key in getHover());
+			// Wait until all keys are present
+			if (!allKeysPresent()) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
 			console.log("end hover backlink effect");
 			// Define the keys you're waiting for
-			// const requiredKeys = [
-			// 	"dataString",
-			// 	"leafId",
-			// 	"originalLeafId",
-			// 	"backlinkLeafId",
-			// 	"temp",
-			// 	"cursorViewport",
-			// 	"peek",
-			// 	"uuid",
-			// 	"backlinkUUID",
-			// ];
-			// // Function to check if all required keys are present
-			// const allKeysPresent = () =>
-			// 	requiredKeys.every((key) => key in getBacklinkHover());
-			// // Wait until all keys are present
-			// if (!allKeysPresent()) {
-			// 	await new Promise((resolve) => setTimeout(resolve, 50));
-			// }
+			const requiredKeys = [
+				"dataString",
+				"leafId",
+				"originalLeafId",
+				"backlinkLeafId",
+				"temp",
+				"cursorViewport",
+				"peek",
+				"uuid",
+				"backlinkUUID",
+			];
+			// Function to check if all required keys are present
+			const allKeysPresent = () =>
+				requiredKeys.every((key) => key in getBacklinkHover());
+			// Wait until all keys are present
+			if (!allKeysPresent()) {
+				await new Promise((resolve) => setTimeout(resolve, 50));
+			}
 			await endBacklinkHoverEffect();
 		}
 	}
+	return;
 }
