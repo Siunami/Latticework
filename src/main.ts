@@ -16,6 +16,7 @@ import {
 	getCodeMirrorEditorView,
 	createBacklinkData,
 	getContainerElement,
+	updateBacklinkMarkPositions,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -230,7 +231,7 @@ async function handleChange(e: ViewUpdate) {
 
 // Debounced keyup event handler
 const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
-	// // await updateBacklinkMarkPositions();
+	await updateBacklinkMarkPositions();
 	console.log("debounced backlink cache update");
 
 	// await delay(500);

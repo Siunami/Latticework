@@ -128,10 +128,15 @@ export async function startBacklinkEffect(
 	if (backlinkLeaf && backlinkLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView | null = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
-		// const viewport = backlinkLeaf.view.editor.getScrollInfo();
 
+		const index =
+			backlinkLeaf.view.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		removeHighlight(editorView, index, index + (to - from));
 		removeHighlight(editorView, from, to);
-		highlightSelection(editorView, from, to);
+		highlightSelection(editorView, index, index + (to - from));
 
 		updateBacklinkHover({
 			dataString,
@@ -316,8 +321,18 @@ export async function startReferenceEffect(
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = newLeaf.view.editor.getScrollInfo();
 
+		const index =
+			newLeaf.view.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		removeHighlight(editorView, index, index + (to - from));
 		removeHighlight(editorView, from, to);
-		highlightSelection(editorView, from, to);
+
+		highlightSelection(editorView, index, index + (to - from));
+
+		// removeHighlight(editorView, from, to);
+		// highlightSelection(editorView, from, to);
 
 		let textFragment: TextFragment = {
 			text,
@@ -360,15 +375,27 @@ export async function endReferenceHoverEffect() {
 	resetHover();
 
 	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
+	let targetLeaf: WorkspaceLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid);
 
 	let editorView: EditorView | null = getEditorView(targetLeaf);
 
 	if (!editorView) return;
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	const targetLeafMarkdownView: MarkdownView = targetLeaf.view as MarkdownView;
+	const index =
+		targetLeafMarkdownView.data.indexOf(
+			prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+		) + prefix.slice(0, -1).length;
+
+	removeHighlight(editorView, index, index + (to - from));
 	removeHighlight(editorView, from, to);
-	defaultHighlightSelection(editorView, from, to);
+
+	defaultHighlightSelection(editorView, index, index + (to - from));
+
+	// removeHighlight(editorView, from, to);
+	// defaultHighlightSelection(editorView, from, to);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -454,8 +481,19 @@ export async function endBacklinkHoverEffect() {
 
 	let originalEditorView: EditorView | null = getEditorView(originalLeaf);
 	if (originalEditorView) {
+		const originalLeafMarkdownView: MarkdownView =
+			originalLeaf.view as MarkdownView;
+		const index =
+			originalLeafMarkdownView.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		removeHighlight(originalEditorView, index, index + (to - from));
 		removeHighlight(originalEditorView, from, to);
-		defaultHighlightSelection(originalEditorView, from, to);
+		defaultHighlightSelection(originalEditorView, index, index + (to - from));
+
+		// removeHighlight(originalEditorView, from, to);
+		// defaultHighlightSelection(originalEditorView, from, to);
 	}
 
 	let container =
@@ -572,12 +610,7 @@ function controllerIndicator(
 		}
 	});
 
-	console.log(dataStrings);
-	// THE PROBLEM IS DIFFICULT, because I don't have access to the position of the reference not in view.
-	// I can't scroll to it. I also don't know which reference is in view, index-wise
-
 	let startTop = leaf.view.editor.getScrollInfo().top;
-	// this approach is too feeble.
 
 	// pass in the referenceIndex, get that particular match
 	let positions = findTextPositions(

@@ -20,7 +20,8 @@ import {
 import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
-import { defaultHighlightSelection } from "./mark";
+import { defaultHighlightSelection, removeHighlight } from "./mark";
+import { getEditorView } from "./effects";
 
 /**
  * Generate the default highlights for the backlinks that are rendered on the page
@@ -29,23 +30,43 @@ import { defaultHighlightSelection } from "./mark";
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
-	let editorView = getCodeMirrorEditorView(editor);
+	// let editorView = getCodeMirrorEditorView(editor);
 
 	let backlinks = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
 	}
 
+	const originalLeafMarkdownView: MarkdownView = leaf.view as MarkdownView;
+
 	for (let backlink of backlinks) {
 		let reference = backlink.getAttribute("reference")
 			? JSON.parse(backlink.getAttribute("reference")!)
 			: null;
+		let [prefix, text, suffix, file, from, to] = processURI(
+			reference.dataString
+		);
 		if (reference) {
 			// this is where I'd want to do a better hypothesis highlight
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 
-			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+			const index =
+				originalLeafMarkdownView.data.indexOf(
+					prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+				) + prefix.slice(0, -1).length;
+
+			let editorView: EditorView | null = getEditorView(leaf);
+			if (!editorView) return;
+			removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
+			removeHighlight(editorView, referenceFrom, referenceTo);
+			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
+
+			defaultHighlightSelection(
+				editorView,
+				index,
+				index + (referenceTo - referenceFrom)
+			);
 		}
 	}
 }
