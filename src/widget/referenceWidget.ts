@@ -270,8 +270,7 @@ class ReferenceWidget extends WidgetType {
 	constructor(
 		private name: string,
 		private view: EditorView,
-		private serialized: boolean = false,
-		private completedSerialization: boolean = false
+		private serialized: boolean = false
 	) {
 		super();
 	}

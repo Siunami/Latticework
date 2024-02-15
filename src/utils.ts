@@ -76,6 +76,7 @@ type LineData = {
 export function findTextPositions(
 	text: string,
 	textFragment: TextFragment
+	// referenceIndex: number
 ): {
 	rangeStart: EditorPosition;
 	rangeEnd: EditorPosition;

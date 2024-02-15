@@ -19,11 +19,15 @@ import {
 	defaultHighlightSelection,
 	highlightSelection,
 	removeHighlight,
-	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
-import { getContainerElement, getMarkdownView } from "./references";
+import {
+	getContainerElement,
+	getFilename,
+	getMarkdownView,
+} from "./references";
 import { Backlink } from "./types";
+import { json } from "stream/consumers";
 
 export type TextFragment = {
 	text: string;
@@ -102,6 +106,7 @@ export async function startBacklinkEffect(
 
 	const backlink: Backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
+	console.log(backlink);
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
@@ -163,18 +168,38 @@ export async function startBacklinkEffect(
 	if (matches.length == 0) throw new Error("Matches not found");
 	const match = matches[0];
 
+	console.log(matches);
+
 	const textFragment = {
 		text: backlink.referencingLocation.text,
 		prefix: backlink.referencingLocation.prefix,
 		suffix: backlink.referencingLocation.suffix,
 	};
 
-	ControllerIndication(
+	console.log(backlinkLeaf);
+	// backlinkLeaf, get other reference spans.
+	let references = getReferenceSpans(backlinkLeaf, ACTION_TYPE.MOUSE);
+	console.log(references);
+	references = references.filter((el) => {
+		const data = JSON.parse(el.getAttribute("reference") || "{}");
+		return (
+			data.dataString === dataString &&
+			data.referencingLocation.filename.split("/").pop() ===
+				getFilename(newLeaf)
+		);
+	});
+	let referencesData = references.map((el) => el.getAttribute("reference"));
+	let referenceIndex = referencesData.indexOf(referenceData);
+	console.log(referencesData);
+	console.log(referenceIndex);
+
+	controllerIndicator(
 		newLeaf,
 		textFragment,
 		match[1],
 		id === originalLeafId,
-		ACTION_TYPE.BACKLINK
+		ACTION_TYPE.BACKLINK,
+		referenceIndex
 	);
 
 	// this is for getting original position of viewport
@@ -185,7 +210,7 @@ export async function startBacklinkEffect(
 		cursorViewport,
 	});
 
-	// Add backlink highlight effect
+	// Add backlink highlight effect to the visible backlink
 	let newLeafContainer = getContainerElement(newLeaf);
 	let backlinkSpan: HTMLSpanElement | null = newLeafContainer.querySelector(
 		`span[data="${backlink.dataString}"]`
@@ -300,7 +325,7 @@ export async function startReferenceEffect(
 			suffix: suffix.slice(1, suffix.length),
 		};
 
-		ControllerIndication(
+		controllerIndicator(
 			newLeaf,
 			textFragment,
 			dataString,
@@ -461,6 +486,30 @@ export async function endBacklinkHoverEffect() {
 	resetBacklinkHover();
 }
 
+export function getReferenceSpans(
+	leaf: WorkspaceLeaf,
+	user: string
+): HTMLElement[] {
+	let references: HTMLElement[] = [];
+	// get all rendered reference or backlink spans.
+	if (user === ACTION_TYPE.BACKLINK) {
+		// @ts-ignore
+		const editor = getMarkdownView(leaf).editor;
+
+		let container = getContainerElement(editor);
+		if (!container) throw new Error("Container not found");
+		let content = container.querySelector(".cm-content");
+		if (!content) throw new Error("Content not found");
+		references =
+			Array.from(content.querySelectorAll(".reference-data-span")) || [];
+	} else {
+		references = Array.from(
+			getContainerElement(leaf).querySelectorAll(".reference-data-span")
+		);
+	}
+	return references;
+}
+
 // would be worth it to replace this with the hyp.is matcher at some point
 /**
  * This function is used to apply the visual effect to the container of the leaf
@@ -471,32 +520,32 @@ export async function endBacklinkHoverEffect() {
  * @param isSame Whether the leaf is the same as the original leaf
  * @param user The user action that triggered the effect
  */
-function ControllerIndication(
+function controllerIndicator(
 	leaf: any,
 	textFragment: TextFragment,
 	dataString: string,
 	isSame: boolean,
-	user?: string
+	user: string = ACTION_TYPE.MOUSE,
+	referenceIndex: number = 0
 ): void {
-	const editor = getMarkdownView(leaf).editor;
-
+	console.log("CONTROLLER INDICATOR");
 	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
 	const windowHeight = scroller.getBoundingClientRect().height;
 	const scrollTop =
 		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
 	const scrollBottom = scrollTop + windowHeight;
 
-	let references;
+	let references = getReferenceSpans(leaf, user);
 
-	// get all rendered reference or backlink spans.
-	if (user === ACTION_TYPE.BACKLINK) {
-		// @ts-ignore
-		let container = editor.containerEl;
-		let content = container.querySelector(".cm-content");
-		references = content.querySelectorAll(".reference-data-span");
-	} else {
-		references = leaf.containerEl.querySelectorAll(".reference-data-span");
-	}
+	// // get all rendered reference or backlink spans.
+	// if (user === ACTION_TYPE.BACKLINK) {
+	// 	// @ts-ignore
+	// 	let container = editor.containerEl;
+	// 	let content = container.querySelector(".cm-content");
+	// 	references = content.querySelectorAll(".reference-data-span");
+	// } else {
+	// 	references = leaf.containerEl.querySelectorAll(".reference-data-span");
+	// }
 
 	// filter for the visible ones
 	let visibleElements: HTMLElement[] = [];
@@ -523,26 +572,39 @@ function ControllerIndication(
 		}
 	});
 
+	console.log(dataStrings);
+	// THE PROBLEM IS DIFFICULT, because I don't have access to the position of the reference not in view.
+	// I can't scroll to it. I also don't know which reference is in view, index-wise
+
 	let startTop = leaf.view.editor.getScrollInfo().top;
+	// this approach is too feeble.
 
-	// get the range for the current datastring and scroll to it
-	if (!dataStrings.includes(dataString)) {
-		let positions = findTextPositions(leaf.view.data, textFragment);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
-
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
-	}
+	// pass in the referenceIndex, get that particular match
+	let positions = findTextPositions(
+		leaf.view.data,
+		textFragment
+		// referenceIndex
+	);
+	if (!positions) return;
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
+	leaf.view.editor.scrollIntoView({
+		from: Object.assign(rangeStart, { ch: 0 }),
+		to: Object.assign(rangeEnd, { ch: 0 }),
+	});
 
 	setTimeout(() => {
 		let endTop = leaf.view.editor.getScrollInfo().top;
+
+		if (startTop != endTop) {
+			leaf.view.editor.scrollIntoView(
+				{
+					from: Object.assign(rangeStart, { ch: 0 }),
+					to: Object.assign(rangeEnd, { ch: 0 }),
+				},
+				true
+			);
+		}
 
 		// reset container styling
 		let container = leaf.containerEl.querySelector(".view-content");

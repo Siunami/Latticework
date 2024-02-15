@@ -131,6 +131,35 @@ export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 	return line.getBoundingClientRect();
 }
 
+export function createBacklinkMark(backlink: Backlink): HTMLElement {
+	let span = createReferenceIcon(backlink.portalText);
+	span.classList.add("backlink-data-span");
+
+	const portal: HTMLElement | null = span.querySelector(".portal");
+
+	span.style.position = "absolute";
+
+	span.id = getBacklinkID(backlink);
+	span.setAttribute("reference", JSON.stringify(backlink));
+
+	const resizeObserver = new ResizeObserver((entries) => {
+		if (portal && portal.style.display != "none") {
+			// span.style.backgroundColor = "white";
+			span.classList.add("backlink-portal-open");
+		} else {
+			// span.style.backgroundColor = "";
+			span.classList.remove("backlink-portal-open");
+		}
+	});
+
+	// Start observing an element
+	resizeObserver.observe(span);
+
+	span.addEventListener("click", openBacklinkReference);
+
+	return span;
+}
+
 /**
  * Layout the backlinks on the page without overlapping
  * @param leaf
@@ -236,12 +265,14 @@ export function layoutBacklinks(
 
 let debounceTimer: NodeJS.Timeout;
 
-export async function updateBacklinkMarkPositions() {
+export async function updateBacklinkMarkPositions(
+	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
+) {
 	clearTimeout(debounceTimer);
 	debounceTimer = setTimeout(async () => {
-		const leaves = getThat().workspace.getLeavesOfType(
-			"markdown"
-		) as WorkspaceLeaf[];
+		// const leaves = getThat().workspace.getLeavesOfType(
+		// 	"markdown"
+		// ) as WorkspaceLeaf[];
 
 		let allBacklinks: Backlink[] = getBacklinks();
 
@@ -263,41 +294,12 @@ export async function updateBacklinkMarkPositions() {
 	}, 100);
 }
 
-export function createBacklinkMark(backlink: Backlink): HTMLElement {
-	let span = createReferenceIcon(backlink.portalText);
-	span.classList.add("backlink-data-span");
-
-	const portal: HTMLElement | null = span.querySelector(".portal");
-
-	span.style.position = "absolute";
-
-	span.id = getBacklinkID(backlink);
-	span.setAttribute("reference", JSON.stringify(backlink));
-
-	const resizeObserver = new ResizeObserver((entries) => {
-		if (portal && portal.style.display != "none") {
-			// span.style.backgroundColor = "white";
-			span.classList.add("backlink-portal-open");
-		} else {
-			// span.style.backgroundColor = "";
-			span.classList.remove("backlink-portal-open");
-		}
-	});
-
-	// Start observing an element
-	resizeObserver.observe(span);
-
-	span.addEventListener("click", openBacklinkReference);
-
-	return span;
-}
-
 // Keep track of the existing observer and listener
 let existingObserver: ResizeObserver | null = null;
 let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	await updateBacklinkMarkPositions();
+	await updateBacklinkMarkPositions([leaf]);
 
 	// Remove the existing observer before creating a new one
 	if (existingObserver) {
@@ -329,13 +331,20 @@ export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
 	return leaf.view as MarkdownView;
 }
 
-// function getFilename(leaf: WorkspaceLeaf): string {
-// 	const { file } = getMarkdownView(leaf);
-// 	if (!file) {
-// 		throw new Error("Unexpected missing file");
-// 	}
-// 	return file.name;
-// }
+export function getFilename(leaf: WorkspaceLeaf): string {
+	const { file } = getMarkdownView(leaf);
+	if (!file) {
+		throw new Error("Unexpected missing file");
+	}
+	return file.name;
+}
+
+// get all the text from the start of the line to the end of the line
+const getLineText = (text: string, index: number): string => {
+	const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
+	const endOfLine = text.indexOf("\n", index);
+	return text.slice(startOfLine, endOfLine !== -1 ? endOfLine : undefined);
+};
 
 function findMatchPositions(line: string, regex: RegExp) {
 	let match;
@@ -355,6 +364,7 @@ export function createBacklinkData(
 	referencingFile: TFile
 ): Backlink[] {
 	let backlinks: Backlink[] = [];
+	let indexes: number[] = [];
 
 	let matches = [...referencingFileData.matchAll(REFERENCE_REGEX)];
 	matches.forEach((match) => {
@@ -374,7 +384,8 @@ export function createBacklinkData(
 			toggle,
 		};
 
-		let index = referencingFileData.indexOf(match[0]);
+		let index = match.index;
+		if (!index) return;
 
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
@@ -395,16 +406,6 @@ export function createBacklinkData(
 
 		if (portal == "portal") {
 			// OR no-portal
-
-			// get all the text from the start of the line to the end of the line
-			const getLineText = (text: string, index: number): string => {
-				const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
-				const endOfLine = text.indexOf("\n", index);
-				return text.slice(
-					startOfLine,
-					endOfLine !== -1 ? endOfLine : undefined
-				);
-			};
 
 			let line = getLineText(referencingFileData, index);
 			let matchPositions = findMatchPositions(
@@ -486,7 +487,7 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 
 	await Promise.all(
 		markdownFiles.map((file: TFile) => this.app.vault.read(file))
-	).then((files) => {
+	).then((files: string[]) => {
 		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
 			markdownFile: file,
 			fileData: files[index],
@@ -504,6 +505,7 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 
 export async function openBacklinkReference(ev: MouseEvent) {
 	let hover = getBacklinkHover();
+	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
@@ -520,6 +522,7 @@ export async function openBacklinkReference(ev: MouseEvent) {
 
 export async function openReference(ev: MouseEvent) {
 	let hover = getHover();
+	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
