@@ -20,7 +20,11 @@ import {
 import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
-import { defaultHighlightSelection, removeHighlight } from "./mark";
+import {
+	defaultHighlightSelection,
+	getHighlights,
+	removeHighlight,
+} from "./mark";
 import { getEditorView } from "./effects";
 
 /**
@@ -32,9 +36,33 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const backlinkContainer = getBacklinkContainer(editor);
 	// let editorView = getCodeMirrorEditorView(editor);
 
+	let activeHighlight;
+	for (let i = 0; i < backlinkContainer.children.length; i++) {
+		if (backlinkContainer.children.item(i)) {
+			// @ts-ignore
+			let backlinkItem = backlinkContainer.children.item(i);
+			if (!backlinkItem) return;
+			if (backlinkItem.classList.contains("reference-data-span-selected")) {
+				let reference = backlinkItem.getAttribute("reference");
+				let referenceData = JSON.parse(reference!);
+				activeHighlight = referenceData.dataString;
+			}
+		}
+	}
+
+	// reference-data-span-selected
 	let backlinks = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
-		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+		if (backlinkContainer.children.item(i)) {
+			// @ts-ignore
+			let backlinkItem = backlinkContainer.children.item(i);
+			if (!backlinkItem) return;
+			let reference = backlinkItem.getAttribute("reference");
+			let referenceData = JSON.parse(reference!);
+			if (referenceData.dataString != activeHighlight) {
+				backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+			}
+		}
 	}
 
 	const originalLeafMarkdownView: MarkdownView = leaf.view as MarkdownView;
@@ -58,8 +86,10 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 
 			let editorView: EditorView | null = getEditorView(leaf);
 			if (!editorView) return;
-			removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
-			removeHighlight(editorView, referenceFrom, referenceTo);
+
+			// console.log(getHighlights(editorView));
+			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
+			// removeHighlight(editorView, referenceFrom, referenceTo);
 			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
 
 			defaultHighlightSelection(
@@ -317,7 +347,6 @@ export async function updateBacklinkMarkPositions(
 
 // Keep track of the existing observer and listener
 let existingObserver: ResizeObserver | null = null;
-let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	await updateBacklinkMarkPositions([leaf]);
@@ -328,6 +357,7 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	const newObserver = new ResizeObserver(async () => {
+		console.log("resize observer");
 		await updateBacklinkMarkPositions();
 	});
 

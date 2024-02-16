@@ -95,6 +95,7 @@ export async function startBacklinkEffect(
 	} else if (source != null && source.uuid != uuid) {
 		// if hovering a new backlink, end the previous and continue
 		await endBacklinkHoverEffect();
+		await delay(50);
 	}
 	updateBacklinkHover({
 		type: `${ACTION_TYPE.BACKLINK}-start`,
@@ -106,7 +107,6 @@ export async function startBacklinkEffect(
 
 	const backlink: Backlink = JSON.parse(referenceData);
 	const dataString = backlink.dataString;
-	console.log(backlink);
 
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
@@ -167,45 +167,13 @@ export async function startBacklinkEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
-	const matches = [
-		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
-	];
-	if (matches.length == 0) throw new Error("Matches not found");
-	const match = matches[0];
-
-	console.log(matches);
-
 	const textFragment = {
 		text: backlink.referencingLocation.text,
 		prefix: backlink.referencingLocation.prefix,
 		suffix: backlink.referencingLocation.suffix,
 	};
 
-	console.log(backlinkLeaf);
-	// backlinkLeaf, get other reference spans.
-	let references = getReferenceSpans(backlinkLeaf, ACTION_TYPE.MOUSE);
-	console.log(references);
-	references = references.filter((el) => {
-		const data = JSON.parse(el.getAttribute("reference") || "{}");
-		return (
-			data.dataString === dataString &&
-			data.referencingLocation.filename.split("/").pop() ===
-				getFilename(newLeaf)
-		);
-	});
-	let referencesData = references.map((el) => el.getAttribute("reference"));
-	let referenceIndex = referencesData.indexOf(referenceData);
-	console.log(referencesData);
-	console.log(referenceIndex);
-
-	controllerIndicator(
-		newLeaf,
-		textFragment,
-		match[1],
-		id === originalLeafId,
-		ACTION_TYPE.BACKLINK,
-		referenceIndex
-	);
+	controllerIndicator(newLeaf, textFragment, id === originalLeafId);
 
 	// this is for getting original position of viewport
 	// @ts-ignore
@@ -340,12 +308,7 @@ export async function startReferenceEffect(
 			suffix: suffix.slice(1, suffix.length),
 		};
 
-		controllerIndicator(
-			newLeaf,
-			textFragment,
-			dataString,
-			id === originalLeafId
-		);
+		controllerIndicator(newLeaf, textFragment, id === originalLeafId);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -579,12 +542,8 @@ export function getReferenceSpans(
 function controllerIndicator(
 	leaf: any,
 	textFragment: TextFragment,
-	dataString: string,
-	isSame: boolean,
-	user: string = ACTION_TYPE.MOUSE,
-	referenceIndex: number = 0
+	isSame: boolean
 ): void {
-	console.log("CONTROLLER INDICATOR");
 	// const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
 	// const windowHeight = scroller.getBoundingClientRect().height;
 	// const scrollTop =
@@ -647,6 +606,8 @@ function controllerIndicator(
 	setTimeout(() => {
 		let endTop = leaf.view.editor.getScrollInfo().top;
 
+		console.log(endTop);
+		console.log(startTop);
 		if (startTop != endTop) {
 			leaf.view.editor.scrollIntoView(
 				{

@@ -193,7 +193,6 @@ export async function serializeReference(
 }
 
 export function destroyReferenceWidget(name: string) {
-	console.log(name);
 	setTimeout(() => {
 		const regex = /\[↗\]\(urn:([^)]*)\)/g;
 		let content = regex.exec(name);
@@ -224,7 +223,6 @@ export function destroyReferenceWidget(name: string) {
 				leafMarkdownView.data.indexOf(
 					prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
 				) + prefix.slice(0, -1).length;
-			console.log(index);
 
 			removeHighlight(view, from, to);
 			removeHighlight(view, index, index + (to - from));
@@ -275,17 +273,12 @@ function createReferenceSpan(content: string) {
 	// add class
 	referenceSpan.classList.add("reference-span");
 
-	console.log(text);
-
 	// check if selection contained REFERENCE_REGEX, replace with just the text property in REFERENCE_REGEX
 	const matches = [...text.matchAll(REFERENCE_REGEX)];
-	console.log(matches);
 	matches.forEach((match) => {
 		let [prefix2, text2, suffix2, file2, from2, to2] = processURI(match[1]);
 		text = text.replace(match[0], text2 + " ↗");
 	});
-
-	console.log(text);
 
 	referenceSpan.innerHTML = text;
 	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");

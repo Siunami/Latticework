@@ -236,7 +236,6 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	await updateBacklinkMarkPositions();
 	console.log("debounced backlink cache update");
 
-	// await delay(500);
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
