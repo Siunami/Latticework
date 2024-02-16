@@ -177,11 +177,13 @@ async function handleChange(e: ViewUpdate) {
 
 		const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
 		matches.forEach((match) => {
+			console.log(match);
 			if (match.index?.toString()) {
 				const start: number = match.index;
 				const end: number = start + match[0].length;
 
 				let text = deletedText.slice(start, end).toString();
+				console.log(text);
 				destroyReferenceWidget(text);
 			}
 		});

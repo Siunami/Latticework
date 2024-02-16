@@ -454,6 +454,8 @@ export async function endBacklinkHoverEffect() {
 	} = getBacklinkHover();
 	// resetBacklinkHover();
 
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid, backlinkUUID);
@@ -461,6 +463,23 @@ export async function endBacklinkHoverEffect() {
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
+
+		// const targetLeafMarkdownView: MarkdownView =
+		// 	targetLeaf.view as MarkdownView;
+		// const index =
+		// 	targetLeafMarkdownView.data.indexOf(
+		// 		prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+		// 	) + prefix.slice(0, -1).length;
+
+		// let targetEditorView: EditorView | null = getEditorView(targetLeaf);
+		// if (targetEditorView) {
+		// 	removeHighlight(targetEditorView, index, index + (to - from));
+		// 	removeHighlight(targetEditorView, from, to);
+		// 	defaultHighlightSelection(targetEditorView, index, index + (to - from));
+		// }
+		// removeHighlight(targetEditorView, index, index + (to - from));
+		// removeHighlight(targetEditorView, from, to);
+		// defaultHighlightSelection(targetEditorView, index, index + (to - from));
 	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
@@ -471,7 +490,6 @@ export async function endBacklinkHoverEffect() {
 		}, 50);
 	}
 
-	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	// backlink effect
 	const originalLeaf = workspace.getLeafById(backlinkLeafId);
 	if (!originalLeaf) {
@@ -567,13 +585,13 @@ function controllerIndicator(
 	referenceIndex: number = 0
 ): void {
 	console.log("CONTROLLER INDICATOR");
-	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
-	const windowHeight = scroller.getBoundingClientRect().height;
-	const scrollTop =
-		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-	const scrollBottom = scrollTop + windowHeight;
+	// const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+	// const windowHeight = scroller.getBoundingClientRect().height;
+	// const scrollTop =
+	// 	leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+	// const scrollBottom = scrollTop + windowHeight;
 
-	let references = getReferenceSpans(leaf, user);
+	// let references = getReferenceSpans(leaf, user);
 
 	// // get all rendered reference or backlink spans.
 	// if (user === ACTION_TYPE.BACKLINK) {
@@ -585,30 +603,30 @@ function controllerIndicator(
 	// 	references = leaf.containerEl.querySelectorAll(".reference-data-span");
 	// }
 
-	// filter for the visible ones
-	let visibleElements: HTMLElement[] = [];
-	for (let i = 0; i < references.length; i++) {
-		let bbox = references[i].getBoundingClientRect();
+	// // filter for the visible ones
+	// let visibleElements: HTMLElement[] = [];
+	// for (let i = 0; i < references.length; i++) {
+	// 	let bbox = references[i].getBoundingClientRect();
 
-		if (
-			bbox.top + scroller.scrollTop >= scrollTop &&
-			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
-		) {
-			visibleElements.push(references[i]);
-		}
-	}
+	// 	if (
+	// 		bbox.top + scroller.scrollTop >= scrollTop &&
+	// 		bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+	// 	) {
+	// 		visibleElements.push(references[i]);
+	// 	}
+	// }
 
-	// get the data strings of the visible elements
-	let dataStrings = visibleElements.map((el: HTMLElement) => {
-		if (user === ACTION_TYPE.BACKLINK) {
-			return el.getAttribute("data");
-		} else {
-			let reference = el.getAttribute("reference");
-			if (reference) {
-				return JSON.parse(reference).dataString;
-			}
-		}
-	});
+	// // get the data strings of the visible elements
+	// let dataStrings = visibleElements.map((el: HTMLElement) => {
+	// 	if (user === ACTION_TYPE.BACKLINK) {
+	// 		return el.getAttribute("data");
+	// 	} else {
+	// 		let reference = el.getAttribute("reference");
+	// 		if (reference) {
+	// 			return JSON.parse(reference).dataString;
+	// 		}
+	// 	}
+	// });
 
 	let startTop = leaf.view.editor.getScrollInfo().top;
 
