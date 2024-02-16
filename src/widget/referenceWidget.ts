@@ -29,7 +29,7 @@ import {
 	updateOneBacklink,
 } from "src/state";
 import { MarkdownView, TFile, WorkspaceLeaf } from "obsidian";
-import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
+import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
 /**
  * Get the text on the active line
@@ -260,8 +260,8 @@ export function destroyReferenceWidget(name: string) {
 }
 
 function createReferenceSpan(content: string) {
-	const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-		content.split(":");
+	let [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+		processURI(content);
 
 	const span = createReferenceIcon(
 		portal == "portal" ? "inline reference widget |*|" : null
@@ -275,7 +275,19 @@ function createReferenceSpan(content: string) {
 	// add class
 	referenceSpan.classList.add("reference-span");
 
-	referenceSpan.innerHTML = decodeURIComponentString(text);
+	console.log(text);
+
+	// check if selection contained REFERENCE_REGEX, replace with just the text property in REFERENCE_REGEX
+	const matches = [...text.matchAll(REFERENCE_REGEX)];
+	console.log(matches);
+	matches.forEach((match) => {
+		let [prefix2, text2, suffix2, file2, from2, to2] = processURI(match[1]);
+		text = text.replace(match[0], text2 + " ↗");
+	});
+
+	console.log(text);
+
+	referenceSpan.innerHTML = text;
 	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
 
 	containerSpan.appendChild(referenceSpan);
