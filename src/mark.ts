@@ -65,6 +65,10 @@ export function highlightSelection(view: EditorView, from: number, to: number) {
 	return true;
 }
 
+export function getHighlights(view: EditorView) {
+	return view.state.field(highlightField, false);
+}
+
 // have a function that adds subtle highlights to state
 export function defaultHighlightSelection(
 	view: EditorView,

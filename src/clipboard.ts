@@ -1,5 +1,10 @@
 import { MarkdownView } from "obsidian";
-import { encodeURIComponentString, getPrefixAndSuffix } from "./utils";
+import {
+	encodeURIComponentString,
+	getPrefixAndSuffix,
+	processURI,
+} from "./utils";
+import { REFERENCE_REGEX } from "./constants";
 
 // [↗](urn:Also-: hopefully fix the multi-line reference:-%0A- URNs:11-23 Todo.md)
 // [↗](urn:PREFIX-:TEXT:-SUFFIX:FILE:STARTINDEX:ENDINDEX)
@@ -7,7 +12,8 @@ export async function updateClipboard(toggle: boolean = false) {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	// Make sure the user is editing a Markdown file.
 	if (view) {
-		let selection = view.editor.getSelection();
+		let selection: string = view.editor.getSelection();
+
 		if (view.file) {
 			const text = view.data;
 			const from = view.editor.posToOffset(view.editor.getCursor("from"));

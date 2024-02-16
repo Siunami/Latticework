@@ -16,6 +16,7 @@ import {
 	getCodeMirrorEditorView,
 	createBacklinkData,
 	getContainerElement,
+	updateBacklinkMarkPositions,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -176,11 +177,13 @@ async function handleChange(e: ViewUpdate) {
 
 		const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
 		matches.forEach((match) => {
+			console.log(match);
 			if (match.index?.toString()) {
 				const start: number = match.index;
 				const end: number = start + match[0].length;
 
 				let text = deletedText.slice(start, end).toString();
+				console.log(text);
 				destroyReferenceWidget(text);
 			}
 		});
@@ -230,10 +233,9 @@ async function handleChange(e: ViewUpdate) {
 
 // Debounced keyup event handler
 const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
-	// // await updateBacklinkMarkPositions();
+	await updateBacklinkMarkPositions();
 	console.log("debounced backlink cache update");
 
-	// await delay(500);
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
