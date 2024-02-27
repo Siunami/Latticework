@@ -1,4 +1,11 @@
-import { Plugin, MarkdownView, Notice, WorkspaceLeaf, TFile } from "obsidian";
+import {
+	Plugin,
+	MarkdownView,
+	Notice,
+	WorkspaceLeaf,
+	TFile,
+	Modal,
+} from "obsidian";
 
 import {
 	updateThat,
@@ -17,6 +24,7 @@ import {
 	createBacklinkData,
 	getContainerElement,
 	updateBacklinkMarkPositions,
+	generateDefaultHighlights,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -34,6 +42,7 @@ import {
 } from "./widget/referenceWidget";
 import { collectLeavesByTabHelper } from "./workspace";
 import { debounce } from "lodash";
+import AnnotationModal from "./annotationModal";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -101,6 +110,18 @@ export default class ReferencePlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "write a comment for selected text",
+			name: "write a comment for selected text",
+			hotkeys: [
+				{ modifiers: ["Meta", "Shift"], key: "a" },
+				{ modifiers: ["Ctrl", "Shift"], key: "a" },
+			],
+			callback: () => {
+				new AnnotationModal(this.app).open();
+			},
+		});
+
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) {
 				// Change the cursor style of the body
@@ -157,6 +178,7 @@ async function setupPlugin() {
 				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (activeView?.leaf != null) {
 					await addReferencesToLeaf(activeView.leaf);
+					generateDefaultHighlights(activeView.leaf);
 				}
 			} catch (e) {
 				console.log(e);
