@@ -199,7 +199,6 @@ async function handleChange(e: ViewUpdate) {
 
 		const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
 		matches.forEach((match) => {
-			console.log(match);
 			if (match.index?.toString()) {
 				const start: number = match.index;
 				const end: number = start + match[0].length;
@@ -259,6 +258,7 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	console.log("debounced backlink cache update");
 
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	console.log("markdownFile", markdownFile);
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
