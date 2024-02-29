@@ -65,6 +65,10 @@ export function highlightSelection(view: EditorView, from: number, to: number) {
 	return true;
 }
 
+export function getHighlights(view: EditorView) {
+	return view.state.field(highlightField, false);
+}
+
 // have a function that adds subtle highlights to state
 export function defaultHighlightSelection(
 	view: EditorView,
@@ -82,6 +86,37 @@ export function defaultHighlightSelection(
 
 	return true;
 }
+
+// export function defaultHighlightSelection(
+// 	view: EditorView,
+// 	from: number,
+// 	to: number
+// ) {
+// 	let effects: StateEffect<unknown>[] = [];
+
+// 	// Get the current highlights
+// 	let currentHighlights: DecorationSet | undefined = view.state.field(highlightField, false);
+
+// 	// Check if a default highlight already exists for the given span
+// 	if (
+// 		!currentHighlights ||
+// 		!currentHighlights.some(
+// 			(highlight) => highlight.from === from && highlight.to === to
+// 		)
+// 	) {
+// 		// If not, add a default highlight
+// 		effects.push(addDefaultHighlight.of({ from, to }));
+// 	}
+
+// 	if (!effects.length) return false;
+
+// 	if (!view.state.field(highlightField, false))
+// 		effects.push(StateEffect.appendConfig.of([highlightField, theme]));
+
+// 	view.dispatch({ effects });
+
+// 	return true;
+// }
 
 export function removeHighlight(view: EditorView, from: number, to: number) {
 	let effects: StateEffect<unknown>[] = [resetHighlight.of({ from, to })];

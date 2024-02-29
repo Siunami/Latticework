@@ -20,7 +20,12 @@ import {
 import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
 import { v4 as uuidv4 } from "uuid";
-import { defaultHighlightSelection } from "./mark";
+import {
+	defaultHighlightSelection,
+	getHighlights,
+	removeHighlight,
+} from "./mark";
+import { getEditorView } from "./effects";
 
 /**
  * Generate the default highlights for the backlinks that are rendered on the page
@@ -29,23 +34,71 @@ import { defaultHighlightSelection } from "./mark";
 export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
-	let editorView = getCodeMirrorEditorView(editor);
+	// let editorView = getCodeMirrorEditorView(editor);
 
+	let activeHighlight;
+	for (let i = 0; i < backlinkContainer.children.length; i++) {
+		if (backlinkContainer.children.item(i)) {
+			// @ts-ignore
+			let backlinkItem = backlinkContainer.children.item(i);
+			if (!backlinkItem) return;
+			if (backlinkItem.classList.contains("reference-data-span-selected")) {
+				let reference = backlinkItem.getAttribute("reference");
+				let referenceData = JSON.parse(reference!);
+				activeHighlight = referenceData.dataString;
+			}
+		}
+	}
+
+	// reference-data-span-selected
 	let backlinks = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
-		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+		if (backlinkContainer.children.item(i)) {
+			// @ts-ignore
+			let backlinkItem = backlinkContainer.children.item(i);
+			if (!backlinkItem) return;
+			let reference = backlinkItem.getAttribute("reference");
+			let referenceData = JSON.parse(reference!);
+			if (referenceData.dataString != activeHighlight) {
+				backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
+			}
+		}
 	}
+
+	const originalLeafMarkdownView: MarkdownView = leaf.view as MarkdownView;
 
 	for (let backlink of backlinks) {
 		let reference = backlink.getAttribute("reference")
 			? JSON.parse(backlink.getAttribute("reference")!)
 			: null;
+		let [prefix, text, suffix, file, from, to] = processURI(
+			reference.dataString
+		);
 		if (reference) {
 			// this is where I'd want to do a better hypothesis highlight
 			let referenceFrom = reference.referencedLocation.from;
 			let referenceTo = reference.referencedLocation.to;
 
-			defaultHighlightSelection(editorView, referenceFrom, referenceTo);
+			const index =
+				originalLeafMarkdownView.data.indexOf(
+					prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+				) + prefix.slice(0, -1).length;
+
+			let editorView: EditorView | null = getEditorView(leaf);
+			if (!editorView) return;
+
+			console.log("generate default highlights");
+
+			// console.log(getHighlights(editorView));
+			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
+			// removeHighlight(editorView, referenceFrom, referenceTo);
+			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
+
+			defaultHighlightSelection(
+				editorView,
+				index,
+				index + (referenceTo - referenceFrom)
+			);
 		}
 	}
 }
@@ -129,6 +182,35 @@ export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 		throw new Error("Document has no lines");
 	}
 	return line.getBoundingClientRect();
+}
+
+export function createBacklinkMark(backlink: Backlink): HTMLElement {
+	let span = createReferenceIcon(backlink.portalText);
+	span.classList.add("backlink-data-span");
+
+	const portal: HTMLElement | null = span.querySelector(".portal");
+
+	span.style.position = "absolute";
+
+	span.id = getBacklinkID(backlink);
+	span.setAttribute("reference", JSON.stringify(backlink));
+
+	const resizeObserver = new ResizeObserver((entries) => {
+		if (portal && portal.style.display != "none") {
+			// span.style.backgroundColor = "white";
+			span.classList.add("backlink-portal-open");
+		} else {
+			// span.style.backgroundColor = "";
+			span.classList.remove("backlink-portal-open");
+		}
+	});
+
+	// Start observing an element
+	resizeObserver.observe(span);
+
+	span.addEventListener("click", openBacklinkReference);
+
+	return span;
 }
 
 /**
@@ -236,68 +318,66 @@ export function layoutBacklinks(
 
 let debounceTimer: NodeJS.Timeout;
 
-export async function updateBacklinkMarkPositions() {
+export function updateBacklinkMarkPositions(
+	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
+) {
 	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(async () => {
-		const leaves = getThat().workspace.getLeavesOfType(
-			"markdown"
-		) as WorkspaceLeaf[];
 
-		let allBacklinks: Backlink[] = getBacklinks();
+	return new Promise((resolve) => {
+		debounceTimer = setTimeout(async () => {
+			let allBacklinks: Backlink[] = getBacklinks();
 
-		const promises = leaves.map(async (leaf) => {
-			let file = getMarkdownView(leaf)?.file;
-			if (file) {
-				const backlinksToLeaf = allBacklinks.filter(
-					// @ts-ignore
-					(b) => b.referencedLocation.filename == file.path
-				);
-				// width 900, show the reference
-				const showPortals = getContainerElement(leaf).innerWidth > 900;
-				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-				generateDefaultHighlights(leaf);
-			}
-		});
+			const promises = leaves.map(async (leaf) => {
+				let file = getMarkdownView(leaf)?.file;
+				if (file) {
+					const backlinksToLeaf = allBacklinks.filter(
+						// @ts-ignore
+						(b) => b.referencedLocation.filename == file.path
+					);
+					const showPortals = getContainerElement(leaf).innerWidth > 900;
+					layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+				}
+			});
 
-		await Promise.all(promises);
-	}, 100);
-}
-
-export function createBacklinkMark(backlink: Backlink): HTMLElement {
-	let span = createReferenceIcon(backlink.portalText);
-	span.classList.add("backlink-data-span");
-
-	const portal: HTMLElement | null = span.querySelector(".portal");
-
-	span.style.position = "absolute";
-
-	span.id = getBacklinkID(backlink);
-	span.setAttribute("reference", JSON.stringify(backlink));
-
-	const resizeObserver = new ResizeObserver((entries) => {
-		if (portal && portal.style.display != "none") {
-			// span.style.backgroundColor = "white";
-			span.classList.add("backlink-portal-open");
-		} else {
-			// span.style.backgroundColor = "";
-			span.classList.remove("backlink-portal-open");
-		}
+			await Promise.all(promises);
+			resolve(debounceTimer);
+		}, 100);
 	});
-
-	// Start observing an element
-	resizeObserver.observe(span);
-
-	span.addEventListener("click", openBacklinkReference);
-
-	return span;
 }
+// export async function updateBacklinkMarkPositions(
+// 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
+// ) {
+// 	clearTimeout(debounceTimer);
+// 	debounceTimer = setTimeout(async () => {
+// 		// const leaves = getThat().workspace.getLeavesOfType(
+// 		// 	"markdown"
+// 		// ) as WorkspaceLeaf[];
+
+// 		let allBacklinks: Backlink[] = getBacklinks();
+
+// 		const promises = leaves.map(async (leaf) => {
+// 			let file = getMarkdownView(leaf)?.file;
+// 			if (file) {
+// 				const backlinksToLeaf = allBacklinks.filter(
+// 					// @ts-ignore
+// 					(b) => b.referencedLocation.filename == file.path
+// 				);
+// 				// width 900, show the reference
+// 				const showPortals = getContainerElement(leaf).innerWidth > 900;
+// 				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+// 			}
+// 		});
+
+// 		return await Promise.all(promises);
+// 	}, 100);
+// }
 
 // Keep track of the existing observer and listener
 let existingObserver: ResizeObserver | null = null;
-let existingListener: ((ev: Event) => any) | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	await updateBacklinkMarkPositions();
+	await updateBacklinkMarkPositions([leaf]);
+	generateDefaultHighlights(leaf);
 
 	// Remove the existing observer before creating a new one
 	if (existingObserver) {
@@ -305,6 +385,7 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	const newObserver = new ResizeObserver(async () => {
+		console.log("resize observer");
 		await updateBacklinkMarkPositions();
 	});
 
@@ -329,13 +410,20 @@ export function getMarkdownView(leaf: WorkspaceLeaf): MarkdownView {
 	return leaf.view as MarkdownView;
 }
 
-// function getFilename(leaf: WorkspaceLeaf): string {
-// 	const { file } = getMarkdownView(leaf);
-// 	if (!file) {
-// 		throw new Error("Unexpected missing file");
-// 	}
-// 	return file.name;
-// }
+export function getFilename(leaf: WorkspaceLeaf): string {
+	const { file } = getMarkdownView(leaf);
+	if (!file) {
+		throw new Error("Unexpected missing file");
+	}
+	return file.name;
+}
+
+// get all the text from the start of the line to the end of the line
+const getLineText = (text: string, index: number): string => {
+	const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
+	const endOfLine = text.indexOf("\n", index);
+	return text.slice(startOfLine, endOfLine !== -1 ? endOfLine : undefined);
+};
 
 function findMatchPositions(line: string, regex: RegExp) {
 	let match;
@@ -355,6 +443,7 @@ export function createBacklinkData(
 	referencingFile: TFile
 ): Backlink[] {
 	let backlinks: Backlink[] = [];
+	let indexes: number[] = [];
 
 	let matches = [...referencingFileData.matchAll(REFERENCE_REGEX)];
 	matches.forEach((match) => {
@@ -374,7 +463,8 @@ export function createBacklinkData(
 			toggle,
 		};
 
-		let index = referencingFileData.indexOf(match[0]);
+		let index = match.index;
+		if (!index) return;
 
 		const referencingSurroundingStrings = getPrefixAndSuffix(
 			referencingFileData,
@@ -395,16 +485,6 @@ export function createBacklinkData(
 
 		if (portal == "portal") {
 			// OR no-portal
-
-			// get all the text from the start of the line to the end of the line
-			const getLineText = (text: string, index: number): string => {
-				const startOfLine = text.lastIndexOf("\n", index - 1) + 1;
-				const endOfLine = text.indexOf("\n", index);
-				return text.slice(
-					startOfLine,
-					endOfLine !== -1 ? endOfLine : undefined
-				);
-			};
 
 			let line = getLineText(referencingFileData, index);
 			let matchPositions = findMatchPositions(
@@ -486,7 +566,7 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 
 	await Promise.all(
 		markdownFiles.map((file: TFile) => this.app.vault.read(file))
-	).then((files) => {
+	).then((files: string[]) => {
 		const zippedArray = markdownFiles.map((file: TFile, index: number) => ({
 			markdownFile: file,
 			fileData: files[index],
@@ -504,6 +584,7 @@ export async function generateBacklinks(): Promise<Backlink[]> {
 
 export async function openBacklinkReference(ev: MouseEvent) {
 	let hover = getBacklinkHover();
+	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
@@ -520,6 +601,7 @@ export async function openBacklinkReference(ev: MouseEvent) {
 
 export async function openReference(ev: MouseEvent) {
 	let hover = getHover();
+	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore

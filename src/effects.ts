@@ -19,10 +19,13 @@ import {
 	defaultHighlightSelection,
 	highlightSelection,
 	removeHighlight,
-	removeHighlights,
 } from "./mark";
 import { EditorView } from "@codemirror/view";
-import { getContainerElement, getMarkdownView } from "./references";
+import {
+	getContainerElement,
+	getFilename,
+	getMarkdownView,
+} from "./references";
 import { Backlink } from "./types";
 
 export type TextFragment = {
@@ -91,6 +94,7 @@ export async function startBacklinkEffect(
 	} else if (source != null && source.uuid != uuid) {
 		// if hovering a new backlink, end the previous and continue
 		await endBacklinkHoverEffect();
+		await delay(50);
 	}
 	updateBacklinkHover({
 		type: `${ACTION_TYPE.BACKLINK}-start`,
@@ -123,10 +127,15 @@ export async function startBacklinkEffect(
 	if (backlinkLeaf && backlinkLeaf.view instanceof MarkdownView) {
 		const editorView: EditorView | null = getEditorView(backlinkLeaf);
 		if (!editorView) throw new Error("Editor view not found");
-		// const viewport = backlinkLeaf.view.editor.getScrollInfo();
 
+		const index =
+			backlinkLeaf.view.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		removeHighlight(editorView, index, index + (to - from));
 		removeHighlight(editorView, from, to);
-		highlightSelection(editorView, from, to);
+		highlightSelection(editorView, index, index + (to - from));
 
 		updateBacklinkHover({
 			dataString,
@@ -157,25 +166,13 @@ export async function startBacklinkEffect(
 	// @ts-ignore
 	const originalLeafId = originalLeaf.id;
 
-	const matches = [
-		...backlink.referencingLocation.text.matchAll(REFERENCE_REGEX),
-	];
-	if (matches.length == 0) throw new Error("Matches not found");
-	const match = matches[0];
-
 	const textFragment = {
 		text: backlink.referencingLocation.text,
 		prefix: backlink.referencingLocation.prefix,
 		suffix: backlink.referencingLocation.suffix,
 	};
 
-	ControllerIndication(
-		newLeaf,
-		textFragment,
-		match[1],
-		id === originalLeafId,
-		ACTION_TYPE.BACKLINK
-	);
+	controllerIndicator(newLeaf, textFragment, id === originalLeafId);
 
 	// this is for getting original position of viewport
 	// @ts-ignore
@@ -185,7 +182,7 @@ export async function startBacklinkEffect(
 		cursorViewport,
 	});
 
-	// Add backlink highlight effect
+	// Add backlink highlight effect to the visible backlink
 	let newLeafContainer = getContainerElement(newLeaf);
 	let backlinkSpan: HTMLSpanElement | null = newLeafContainer.querySelector(
 		`span[data="${backlink.dataString}"]`
@@ -291,8 +288,18 @@ export async function startReferenceEffect(
 		if (!editorView) throw new Error("Editor view not found");
 		const viewport = newLeaf.view.editor.getScrollInfo();
 
+		const index =
+			newLeaf.view.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		removeHighlight(editorView, index, index + (to - from));
 		removeHighlight(editorView, from, to);
-		highlightSelection(editorView, from, to);
+
+		highlightSelection(editorView, index, index + (to - from));
+
+		// removeHighlight(editorView, from, to);
+		// highlightSelection(editorView, from, to);
 
 		let textFragment: TextFragment = {
 			text,
@@ -300,12 +307,7 @@ export async function startReferenceEffect(
 			suffix: suffix.slice(1, suffix.length),
 		};
 
-		ControllerIndication(
-			newLeaf,
-			textFragment,
-			dataString,
-			id === originalLeafId
-		);
+		controllerIndicator(newLeaf, textFragment, id === originalLeafId);
 
 		const cursorViewport = newLeaf.view.editor.getScrollInfo();
 
@@ -335,15 +337,28 @@ export async function endReferenceHoverEffect() {
 	resetHover();
 
 	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
+	let targetLeaf: WorkspaceLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid);
 
 	let editorView: EditorView | null = getEditorView(targetLeaf);
 
 	if (!editorView) return;
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
+	const targetLeafMarkdownView: MarkdownView = targetLeaf.view as MarkdownView;
+	const index =
+		targetLeafMarkdownView.data.indexOf(
+			prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+		) + prefix.slice(0, -1).length;
+
+	console.log("end reference effect default highlight");
+	removeHighlight(editorView, index, index + (to - from));
 	removeHighlight(editorView, from, to);
-	defaultHighlightSelection(editorView, from, to);
+
+	defaultHighlightSelection(editorView, index, index + (to - from));
+
+	// removeHighlight(editorView, from, to);
+	// defaultHighlightSelection(editorView, from, to);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
@@ -402,6 +417,8 @@ export async function endBacklinkHoverEffect() {
 	} = getBacklinkHover();
 	// resetBacklinkHover();
 
+	let [prefix, text, suffix, file, from, to] = processURI(dataString);
+
 	const { workspace } = getThat();
 	let targetLeaf = workspace.getLeafById(leafId);
 	endEffectRemoveHighlights(workspace, leafId, uuid, backlinkUUID);
@@ -409,6 +426,23 @@ export async function endBacklinkHoverEffect() {
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
 		const view: MarkdownView = targetLeaf.view;
 		view.editor.scrollTo(0, cursorViewport.top);
+
+		// const targetLeafMarkdownView: MarkdownView =
+		// 	targetLeaf.view as MarkdownView;
+		// const index =
+		// 	targetLeafMarkdownView.data.indexOf(
+		// 		prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+		// 	) + prefix.slice(0, -1).length;
+
+		// let targetEditorView: EditorView | null = getEditorView(targetLeaf);
+		// if (targetEditorView) {
+		// 	removeHighlight(targetEditorView, index, index + (to - from));
+		// 	removeHighlight(targetEditorView, from, to);
+		// 	defaultHighlightSelection(targetEditorView, index, index + (to - from));
+		// }
+		// removeHighlight(targetEditorView, index, index + (to - from));
+		// removeHighlight(targetEditorView, from, to);
+		// defaultHighlightSelection(targetEditorView, index, index + (to - from));
 	}
 
 	let containerEl: HTMLElement = getContainerElement(targetLeaf);
@@ -419,7 +453,6 @@ export async function endBacklinkHoverEffect() {
 		}, 50);
 	}
 
-	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 	// backlink effect
 	const originalLeaf = workspace.getLeafById(backlinkLeafId);
 	if (!originalLeaf) {
@@ -429,8 +462,21 @@ export async function endBacklinkHoverEffect() {
 
 	let originalEditorView: EditorView | null = getEditorView(originalLeaf);
 	if (originalEditorView) {
+		const originalLeafMarkdownView: MarkdownView =
+			originalLeaf.view as MarkdownView;
+		const index =
+			originalLeafMarkdownView.data.indexOf(
+				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+			) + prefix.slice(0, -1).length;
+
+		console.log("end backlink effect default highlight");
+
+		removeHighlight(originalEditorView, index, index + (to - from));
 		removeHighlight(originalEditorView, from, to);
-		defaultHighlightSelection(originalEditorView, from, to);
+		defaultHighlightSelection(originalEditorView, index, index + (to - from));
+
+		// removeHighlight(originalEditorView, from, to);
+		// defaultHighlightSelection(originalEditorView, from, to);
 	}
 
 	let container =
@@ -461,6 +507,30 @@ export async function endBacklinkHoverEffect() {
 	resetBacklinkHover();
 }
 
+export function getReferenceSpans(
+	leaf: WorkspaceLeaf,
+	user: string
+): HTMLElement[] {
+	let references: HTMLElement[] = [];
+	// get all rendered reference or backlink spans.
+	if (user === ACTION_TYPE.BACKLINK) {
+		// @ts-ignore
+		const editor = getMarkdownView(leaf).editor;
+
+		let container = getContainerElement(editor);
+		if (!container) throw new Error("Container not found");
+		let content = container.querySelector(".cm-content");
+		if (!content) throw new Error("Content not found");
+		references =
+			Array.from(content.querySelectorAll(".reference-data-span")) || [];
+	} else {
+		references = Array.from(
+			getContainerElement(leaf).querySelectorAll(".reference-data-span")
+		);
+	}
+	return references;
+}
+
 // would be worth it to replace this with the hyp.is matcher at some point
 /**
  * This function is used to apply the visual effect to the container of the leaf
@@ -471,78 +541,81 @@ export async function endBacklinkHoverEffect() {
  * @param isSame Whether the leaf is the same as the original leaf
  * @param user The user action that triggered the effect
  */
-function ControllerIndication(
+function controllerIndicator(
 	leaf: any,
 	textFragment: TextFragment,
-	dataString: string,
-	isSame: boolean,
-	user?: string
+	isSame: boolean
 ): void {
-	const editor = getMarkdownView(leaf).editor;
+	// const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
+	// const windowHeight = scroller.getBoundingClientRect().height;
+	// const scrollTop =
+	// 	leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
+	// const scrollBottom = scrollTop + windowHeight;
 
-	const scroller = leaf.view.containerEl.querySelector(".cm-scroller");
-	const windowHeight = scroller.getBoundingClientRect().height;
-	const scrollTop =
-		leaf.view.containerEl.querySelector(".cm-scroller").scrollTop;
-	const scrollBottom = scrollTop + windowHeight;
+	// let references = getReferenceSpans(leaf, user);
 
-	let references;
+	// // get all rendered reference or backlink spans.
+	// if (user === ACTION_TYPE.BACKLINK) {
+	// 	// @ts-ignore
+	// 	let container = editor.containerEl;
+	// 	let content = container.querySelector(".cm-content");
+	// 	references = content.querySelectorAll(".reference-data-span");
+	// } else {
+	// 	references = leaf.containerEl.querySelectorAll(".reference-data-span");
+	// }
 
-	// get all rendered reference or backlink spans.
-	if (user === ACTION_TYPE.BACKLINK) {
-		// @ts-ignore
-		let container = editor.containerEl;
-		let content = container.querySelector(".cm-content");
-		references = content.querySelectorAll(".reference-data-span");
-	} else {
-		references = leaf.containerEl.querySelectorAll(".reference-data-span");
-	}
+	// // filter for the visible ones
+	// let visibleElements: HTMLElement[] = [];
+	// for (let i = 0; i < references.length; i++) {
+	// 	let bbox = references[i].getBoundingClientRect();
 
-	// filter for the visible ones
-	let visibleElements: HTMLElement[] = [];
-	for (let i = 0; i < references.length; i++) {
-		let bbox = references[i].getBoundingClientRect();
+	// 	if (
+	// 		bbox.top + scroller.scrollTop >= scrollTop &&
+	// 		bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
+	// 	) {
+	// 		visibleElements.push(references[i]);
+	// 	}
+	// }
 
-		if (
-			bbox.top + scroller.scrollTop >= scrollTop &&
-			bbox.top + bbox.height + scroller.scrollTop <= scrollBottom
-		) {
-			visibleElements.push(references[i]);
-		}
-	}
-
-	// get the data strings of the visible elements
-	let dataStrings = visibleElements.map((el: HTMLElement) => {
-		if (user === ACTION_TYPE.BACKLINK) {
-			return el.getAttribute("data");
-		} else {
-			let reference = el.getAttribute("reference");
-			if (reference) {
-				return JSON.parse(reference).dataString;
-			}
-		}
-	});
+	// // get the data strings of the visible elements
+	// let dataStrings = visibleElements.map((el: HTMLElement) => {
+	// 	if (user === ACTION_TYPE.BACKLINK) {
+	// 		return el.getAttribute("data");
+	// 	} else {
+	// 		let reference = el.getAttribute("reference");
+	// 		if (reference) {
+	// 			return JSON.parse(reference).dataString;
+	// 		}
+	// 	}
+	// });
 
 	let startTop = leaf.view.editor.getScrollInfo().top;
 
-	// get the range for the current datastring and scroll to it
-	if (!dataStrings.includes(dataString)) {
-		let positions = findTextPositions(leaf.view.data, textFragment);
-		if (!positions) throw new Error("Positions not found");
-		let rangeStart = positions.rangeStart;
-		let rangeEnd = positions.rangeEnd;
-
-		leaf.view.editor.scrollIntoView(
-			{
-				from: Object.assign(rangeStart, { ch: 0 }),
-				to: Object.assign(rangeEnd, { ch: 0 }),
-			},
-			true
-		);
-	}
+	// pass in the referenceIndex, get that particular match
+	let positions = findTextPositions(
+		leaf.view.data,
+		textFragment
+		// referenceIndex
+	);
+	if (!positions) return;
+	let rangeStart = positions.rangeStart;
+	let rangeEnd = positions.rangeEnd;
+	leaf.view.editor.scrollIntoView({
+		from: Object.assign(rangeStart, { ch: 0 }),
+		to: Object.assign(rangeEnd, { ch: 0 }),
+	});
 
 	setTimeout(() => {
 		let endTop = leaf.view.editor.getScrollInfo().top;
+		if (startTop != endTop) {
+			leaf.view.editor.scrollIntoView(
+				{
+					from: Object.assign(rangeStart, { ch: 0 }),
+					to: Object.assign(rangeEnd, { ch: 0 }),
+				},
+				true
+			);
+		}
 
 		// reset container styling
 		let container = leaf.containerEl.querySelector(".view-content");

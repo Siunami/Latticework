@@ -14,8 +14,9 @@ import {
 	getMarkdownView,
 	getBacklinkContainer,
 	generateBacklinks,
+	getContainerElement,
 } from "../references";
-import { decodeURIComponentString } from "src/utils";
+import { decodeURIComponentString, processURI } from "src/utils";
 import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
 import { getEditorView } from "src/effects";
@@ -27,8 +28,14 @@ import {
 	updateBacklinks,
 	updateOneBacklink,
 } from "src/state";
-import { TFile } from "obsidian";
-import { ZERO_WIDTH_SPACE_CODE } from "src/constants";
+import {
+	MarkdownView,
+	TFile,
+	WorkspaceLeaf,
+	MarkdownRenderer,
+	Component,
+} from "obsidian";
+import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
 /**
  * Get the text on the active line
@@ -101,12 +108,12 @@ export async function getReferencePosition(
 
 	// set range to replace with new reference serialization
 	let from = prevLineCharCount + startText.length;
-	// let from = prevLineCharCount + startText.length - lineAcc;
 	let to = from + reference.length;
 	return { from, to };
 }
 
 /**
+ * Create new reference, find old reference position, and replace
  *
  * @param content
  * @param referenceSpan
@@ -199,17 +206,32 @@ export function destroyReferenceWidget(name: string) {
 
 		let dataString = content[1];
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-			dataString.split(":");
+			processURI(dataString);
 
-		let decodedFile = decodeURIComponentString(file);
 		let leavesByTab = collectLeavesByTabHelper();
-		let leaf = leavesByTab.flat().filter((leaf) => {
-			return leaf.getViewState().state.file == decodedFile;
-		})[0];
+		let leaf = leavesByTab
+			.filter((tab: WorkspaceLeaf[]) => {
+				return !tab
+					.map((leaf) =>
+						getContainerElement(leaf).classList.contains("mod-active")
+					)
+					.reduce((acc, curr) => acc || curr, false);
+			})
+			.flat()
+			.filter((leaf) => {
+				return leaf.getViewState().state.file == file;
+			})[0];
 
 		let view: EditorView | null = getEditorView(leaf);
 		if (view) {
-			removeHighlight(view, parseInt(from), parseInt(to));
+			const leafMarkdownView: MarkdownView = leaf.view as MarkdownView;
+			const index =
+				leafMarkdownView.data.indexOf(
+					prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
+				) + prefix.slice(0, -1).length;
+
+			removeHighlight(view, from, to);
+			removeHighlight(view, index, index + (to - from));
 		}
 		const markdownView = getMarkdownView(leaf);
 		if (!markdownView) return;
@@ -218,11 +240,13 @@ export function destroyReferenceWidget(name: string) {
 		const backlinks = Array.from(
 			backlinkContainer.querySelectorAll(".reference-data-span")
 		);
+
 		const backlinkData = backlinks.map((backlink: HTMLElement) => {
 			let reference = backlink.getAttribute("reference");
 			if (!reference) return {};
 			return JSON.parse(reference);
 		});
+
 		const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
 			return (
 				backlink.dataString === dataString &&
@@ -242,8 +266,8 @@ export function destroyReferenceWidget(name: string) {
 }
 
 function createReferenceSpan(content: string) {
-	const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-		content.split(":");
+	let [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
+		processURI(content);
 
 	const span = createReferenceIcon(
 		portal == "portal" ? "inline reference widget |*|" : null
@@ -257,7 +281,28 @@ function createReferenceSpan(content: string) {
 	// add class
 	referenceSpan.classList.add("reference-span");
 
-	referenceSpan.innerHTML = decodeURIComponentString(text);
+	// check if selection contained REFERENCE_REGEX, replace with just the text property in REFERENCE_REGEX
+	const matches = [...text.matchAll(REFERENCE_REGEX)];
+	matches.forEach((match) => {
+		let [prefix2, text2, suffix2, file2, from2, to2] = processURI(match[1]);
+		text = text.replace(match[0], text2 + " ↗");
+	});
+
+	// // render content as markdown in a hidden div
+	const div = document.createElement("div");
+	MarkdownRenderer.render(this.app, text, div, file, new Component());
+
+	if (Array.from(div.children).length > 1) {
+		referenceSpan.innerText = text;
+	} else {
+		[...Array.from(div.children)].forEach((child) => {
+			referenceSpan.innerHTML += child.innerHTML;
+		});
+	}
+
+	// referenceSpan.innerHTML = div.children[0].innerHTML;
+	// referenceSpan.innerText = text;
+
 	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
 
 	containerSpan.appendChild(referenceSpan);
@@ -270,8 +315,7 @@ class ReferenceWidget extends WidgetType {
 	constructor(
 		private name: string,
 		private view: EditorView,
-		private serialized: boolean = false,
-		private completedSerialization: boolean = false
+		private serialized: boolean = false
 	) {
 		super();
 	}
@@ -301,9 +345,9 @@ class ReferenceWidget extends WidgetType {
 
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-			content[1].split(":");
+			processURI(content[1]);
 
-		containerSpan.title = decodeURIComponentString(file);
+		containerSpan.title = file;
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
