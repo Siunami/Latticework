@@ -28,7 +28,13 @@ import {
 	updateBacklinks,
 	updateOneBacklink,
 } from "src/state";
-import { MarkdownView, TFile, WorkspaceLeaf } from "obsidian";
+import {
+	MarkdownView,
+	TFile,
+	WorkspaceLeaf,
+	MarkdownRenderer,
+	Component,
+} from "obsidian";
 import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
 
 /**
@@ -102,12 +108,12 @@ export async function getReferencePosition(
 
 	// set range to replace with new reference serialization
 	let from = prevLineCharCount + startText.length;
-	// let from = prevLineCharCount + startText.length - lineAcc;
 	let to = from + reference.length;
 	return { from, to };
 }
 
 /**
+ * Create new reference, find old reference position, and replace
  *
  * @param content
  * @param referenceSpan
@@ -234,11 +240,13 @@ export function destroyReferenceWidget(name: string) {
 		const backlinks = Array.from(
 			backlinkContainer.querySelectorAll(".reference-data-span")
 		);
+
 		const backlinkData = backlinks.map((backlink: HTMLElement) => {
 			let reference = backlink.getAttribute("reference");
 			if (!reference) return {};
 			return JSON.parse(reference);
 		});
+
 		const backlinkIndex = backlinkData.findIndex((backlink: Backlink) => {
 			return (
 				backlink.dataString === dataString &&
@@ -280,7 +288,21 @@ function createReferenceSpan(content: string) {
 		text = text.replace(match[0], text2 + " ↗");
 	});
 
-	referenceSpan.innerHTML = text;
+	// // render content as markdown in a hidden div
+	const div = document.createElement("div");
+	MarkdownRenderer.render(this.app, text, div, file, new Component());
+
+	if (Array.from(div.children).length > 1) {
+		referenceSpan.innerText = text;
+	} else {
+		[...Array.from(div.children)].forEach((child) => {
+			referenceSpan.innerHTML += child.innerHTML;
+		});
+	}
+
+	// referenceSpan.innerHTML = div.children[0].innerHTML;
+	// referenceSpan.innerText = text;
+
 	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
 
 	containerSpan.appendChild(referenceSpan);
@@ -323,9 +345,9 @@ class ReferenceWidget extends WidgetType {
 
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-			content[1].split(":");
+			processURI(content[1]);
 
-		containerSpan.title = decodeURIComponentString(file);
+		containerSpan.title = file;
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {

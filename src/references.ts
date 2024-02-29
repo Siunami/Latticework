@@ -87,6 +87,8 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let editorView: EditorView | null = getEditorView(leaf);
 			if (!editorView) return;
 
+			console.log("generate default highlights");
+
 			// console.log(getHighlights(editorView));
 			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
 			// removeHighlight(editorView, referenceFrom, referenceTo);
@@ -316,40 +318,66 @@ export function layoutBacklinks(
 
 let debounceTimer: NodeJS.Timeout;
 
-export async function updateBacklinkMarkPositions(
+export function updateBacklinkMarkPositions(
 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
 ) {
 	clearTimeout(debounceTimer);
-	debounceTimer = setTimeout(async () => {
-		// const leaves = getThat().workspace.getLeavesOfType(
-		// 	"markdown"
-		// ) as WorkspaceLeaf[];
 
-		let allBacklinks: Backlink[] = getBacklinks();
+	return new Promise((resolve) => {
+		debounceTimer = setTimeout(async () => {
+			let allBacklinks: Backlink[] = getBacklinks();
 
-		const promises = leaves.map(async (leaf) => {
-			let file = getMarkdownView(leaf)?.file;
-			if (file) {
-				const backlinksToLeaf = allBacklinks.filter(
-					// @ts-ignore
-					(b) => b.referencedLocation.filename == file.path
-				);
-				// width 900, show the reference
-				const showPortals = getContainerElement(leaf).innerWidth > 900;
-				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-				generateDefaultHighlights(leaf);
-			}
-		});
+			const promises = leaves.map(async (leaf) => {
+				let file = getMarkdownView(leaf)?.file;
+				if (file) {
+					const backlinksToLeaf = allBacklinks.filter(
+						// @ts-ignore
+						(b) => b.referencedLocation.filename == file.path
+					);
+					const showPortals = getContainerElement(leaf).innerWidth > 900;
+					layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+				}
+			});
 
-		await Promise.all(promises);
-	}, 100);
+			await Promise.all(promises);
+			resolve(debounceTimer);
+		}, 100);
+	});
 }
+// export async function updateBacklinkMarkPositions(
+// 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
+// ) {
+// 	clearTimeout(debounceTimer);
+// 	debounceTimer = setTimeout(async () => {
+// 		// const leaves = getThat().workspace.getLeavesOfType(
+// 		// 	"markdown"
+// 		// ) as WorkspaceLeaf[];
+
+// 		let allBacklinks: Backlink[] = getBacklinks();
+
+// 		const promises = leaves.map(async (leaf) => {
+// 			let file = getMarkdownView(leaf)?.file;
+// 			if (file) {
+// 				const backlinksToLeaf = allBacklinks.filter(
+// 					// @ts-ignore
+// 					(b) => b.referencedLocation.filename == file.path
+// 				);
+// 				// width 900, show the reference
+// 				const showPortals = getContainerElement(leaf).innerWidth > 900;
+// 				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
+// 			}
+// 		});
+
+// 		return await Promise.all(promises);
+// 	}, 100);
+// }
 
 // Keep track of the existing observer and listener
 let existingObserver: ResizeObserver | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	await updateBacklinkMarkPositions([leaf]);
+	generateDefaultHighlights(leaf);
 
 	// Remove the existing observer before creating a new one
 	if (existingObserver) {

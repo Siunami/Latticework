@@ -27,7 +27,6 @@ import {
 	getMarkdownView,
 } from "./references";
 import { Backlink } from "./types";
-import { json } from "stream/consumers";
 
 export type TextFragment = {
 	text: string;
@@ -352,6 +351,7 @@ export async function endReferenceHoverEffect() {
 			prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
 		) + prefix.slice(0, -1).length;
 
+	console.log("end reference effect default highlight");
 	removeHighlight(editorView, index, index + (to - from));
 	removeHighlight(editorView, from, to);
 
@@ -468,6 +468,8 @@ export async function endBacklinkHoverEffect() {
 			originalLeafMarkdownView.data.indexOf(
 				prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
 			) + prefix.slice(0, -1).length;
+
+		console.log("end backlink effect default highlight");
 
 		removeHighlight(originalEditorView, index, index + (to - from));
 		removeHighlight(originalEditorView, from, to);
@@ -605,9 +607,6 @@ function controllerIndicator(
 
 	setTimeout(() => {
 		let endTop = leaf.view.editor.getScrollInfo().top;
-
-		console.log(endTop);
-		console.log(startTop);
 		if (startTop != endTop) {
 			leaf.view.editor.scrollIntoView(
 				{

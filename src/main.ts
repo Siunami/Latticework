@@ -1,4 +1,11 @@
-import { Plugin, MarkdownView, Notice, WorkspaceLeaf, TFile } from "obsidian";
+import {
+	Plugin,
+	MarkdownView,
+	Notice,
+	WorkspaceLeaf,
+	TFile,
+	Modal,
+} from "obsidian";
 
 import {
 	updateThat,
@@ -17,6 +24,7 @@ import {
 	createBacklinkData,
 	getContainerElement,
 	updateBacklinkMarkPositions,
+	generateDefaultHighlights,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -34,6 +42,7 @@ import {
 } from "./widget/referenceWidget";
 import { collectLeavesByTabHelper } from "./workspace";
 import { debounce } from "lodash";
+import AnnotationModal from "./annotationModal";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -101,6 +110,18 @@ export default class ReferencePlugin extends Plugin {
 			},
 		});
 
+		this.addCommand({
+			id: "write a comment for selected text",
+			name: "write a comment for selected text",
+			hotkeys: [
+				{ modifiers: ["Meta", "Shift"], key: "a" },
+				{ modifiers: ["Ctrl", "Shift"], key: "a" },
+			],
+			callback: () => {
+				new AnnotationModal(this.app).open();
+			},
+		});
+
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			if (evt.metaKey || evt.ctrlKey) {
 				// Change the cursor style of the body
@@ -157,6 +178,7 @@ async function setupPlugin() {
 				const activeView = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (activeView?.leaf != null) {
 					await addReferencesToLeaf(activeView.leaf);
+					generateDefaultHighlights(activeView.leaf);
 				}
 			} catch (e) {
 				console.log(e);
@@ -177,13 +199,11 @@ async function handleChange(e: ViewUpdate) {
 
 		const matches = [...deletedText.toString().matchAll(REFERENCE_REGEX)];
 		matches.forEach((match) => {
-			console.log(match);
 			if (match.index?.toString()) {
 				const start: number = match.index;
 				const end: number = start + match[0].length;
 
 				let text = deletedText.slice(start, end).toString();
-				console.log(text);
 				destroyReferenceWidget(text);
 			}
 		});
@@ -237,6 +257,7 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	console.log("debounced backlink cache update");
 
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
+	// console.log("markdownFile", markdownFile);
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
@@ -351,14 +372,14 @@ export async function handleMovementEffects(
 			span instanceof HTMLSpanElement &&
 			span.getAttribute("reference")
 		) {
-			console.log("start hover backlink effect");
+			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null && !span?.classList.contains("cm-line")) {
-			console.log("end reference hover effect");
+			// console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
-			console.log("end backlink hover effect");
+			// console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
 	} else {
@@ -368,7 +389,7 @@ export async function handleMovementEffects(
 			span?.parentElement &&
 			span?.parentElement.classList.contains("reference-container-span")
 		) {
-			console.log("start hover reference effect");
+			// console.log("start hover reference effect");
 			// if (getHover() != null) return;
 			if (!span.getAttribute("data")) {
 				span = span.parentElement;
@@ -382,11 +403,11 @@ export async function handleMovementEffects(
 			span instanceof HTMLSpanElement &&
 			span.getAttribute("reference")
 		) {
-			console.log("start hover backlink effect");
+			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
-			console.log("end hover reference effect");
+			// console.log("end hover reference effect");
 			// Define the keys you're waiting for
 			const requiredKeys = [
 				"dataString",
@@ -407,7 +428,7 @@ export async function handleMovementEffects(
 			}
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
-			console.log("end hover backlink effect");
+			// console.log("end hover backlink effect");
 			// Define the keys you're waiting for
 			const requiredKeys = [
 				"dataString",
