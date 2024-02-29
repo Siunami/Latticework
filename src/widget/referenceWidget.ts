@@ -292,7 +292,15 @@ function createReferenceSpan(content: string) {
 	const div = document.createElement("div");
 	MarkdownRenderer.render(this.app, text, div, file, new Component());
 
-	referenceSpan.innerHTML = div.children[0].innerHTML;
+	if (Array.from(div.children).length > 1) {
+		referenceSpan.innerText = text;
+	} else {
+		[...Array.from(div.children)].forEach((child) => {
+			referenceSpan.innerHTML += child.innerHTML;
+		});
+	}
+
+	// referenceSpan.innerHTML = div.children[0].innerHTML;
 	// referenceSpan.innerText = text;
 
 	referenceSpan.classList.toggle("reference-span-hidden", toggle === "f");
@@ -337,9 +345,9 @@ class ReferenceWidget extends WidgetType {
 
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
-			content[1].split(":");
+			processURI(content[1]);
 
-		containerSpan.title = decodeURIComponentString(file);
+		containerSpan.title = file;
 
 		containerSpan.addEventListener("click", async (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {

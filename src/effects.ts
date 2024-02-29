@@ -607,9 +607,6 @@ function controllerIndicator(
 
 	setTimeout(() => {
 		let endTop = leaf.view.editor.getScrollInfo().top;
-
-		console.log(endTop);
-		console.log(startTop);
 		if (startTop != endTop) {
 			leaf.view.editor.scrollIntoView(
 				{

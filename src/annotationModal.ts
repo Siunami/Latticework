@@ -2,7 +2,6 @@ import {
 	App,
 	MarkdownView,
 	Modal,
-	TAbstractFile,
 	TFile,
 	WorkspaceLeaf,
 	MarkdownRenderer,
@@ -15,13 +14,11 @@ import {
 } from "./workspace";
 import { createClipboardText } from "./clipboard";
 import {
-	addReferencesToLeaf,
 	generateBacklinks,
 	getContainerElement,
 	getFilename,
 	updateBacklinkMarkPositions,
 } from "./references";
-import { delay } from "./effects";
 
 function createSelection(view: MarkdownView): HTMLSelectElement {
 	// get backlink leaf
@@ -43,7 +40,6 @@ function createSelection(view: MarkdownView): HTMLSelectElement {
 	});
 
 	let leftFiles = leftAdjacentTab.map((leaf) => {
-		console.log(getContainerElement(leaf));
 		return [
 			getFilename(leaf),
 			getContainerElement(leaf).style.display != "none",
@@ -123,25 +119,21 @@ export default class AnnotationModal extends Modal {
 		input.addEventListener("keydown", async (evt) => {
 			if (evt.key === "Enter") {
 				evt.preventDefault();
+				console.log(selection);
 				let reference = createClipboardText(view, selection);
-
-				console.log(reference);
 
 				let allFiles = this.app.vault.getAllLoadedFiles();
 				let filePath: TFile = allFiles.filter(
-					(file) => file.path === fileSelection.value
+					(file) =>
+						file.path === fileSelection.value ||
+						file.path.split("/")[file.path.split("/").length - 1] ===
+							fileSelection.value
 				)[0] as TFile;
-				console.log(filePath);
-				console.log(allFiles);
 
-				// @ts-ignore
-				console.log(view.file.path);
-
-				// let fileTFile: TFile = this.app.vault.getAbstractFileByPath(
-				// 	// @ts-ignore
-				// 	view.file.path
-				// ) as TFile;
-				if (!filePath) return;
+				if (!filePath) {
+					console.error("file not found");
+					return;
+				}
 				let fileData = await this.app.vault.read(filePath);
 
 				let results = await this.app.vault.modify(
@@ -149,16 +141,7 @@ export default class AnnotationModal extends Modal {
 					fileData + "\n" + reference + " " + input.value
 				);
 
-				// console.log(results);
-				console.log(this.app.workspace.getLeaf());
-
 				this.close();
-
-				// const transaction = view.state.update({
-				// 	changes: { from: results.from, to: results.to, insert: reference },
-				// });
-
-				// view.dispatch(transaction);
 			}
 		});
 	}
@@ -166,7 +149,6 @@ export default class AnnotationModal extends Modal {
 	onClose() {
 		let { contentEl } = this;
 		setTimeout(async () => {
-			console.log("process again");
 			await generateBacklinks();
 			await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
 		}, 400);

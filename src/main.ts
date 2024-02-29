@@ -204,7 +204,6 @@ async function handleChange(e: ViewUpdate) {
 				const end: number = start + match[0].length;
 
 				let text = deletedText.slice(start, end).toString();
-				console.log(text);
 				destroyReferenceWidget(text);
 			}
 		});
@@ -258,7 +257,7 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	console.log("debounced backlink cache update");
 
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	console.log("markdownFile", markdownFile);
+	// console.log("markdownFile", markdownFile);
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
@@ -373,14 +372,14 @@ export async function handleMovementEffects(
 			span instanceof HTMLSpanElement &&
 			span.getAttribute("reference")
 		) {
-			console.log("start hover backlink effect");
+			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null && !span?.classList.contains("cm-line")) {
-			console.log("end reference hover effect");
+			// console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
-			console.log("end backlink hover effect");
+			// console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
 	} else {
@@ -390,7 +389,7 @@ export async function handleMovementEffects(
 			span?.parentElement &&
 			span?.parentElement.classList.contains("reference-container-span")
 		) {
-			console.log("start hover reference effect");
+			// console.log("start hover reference effect");
 			// if (getHover() != null) return;
 			if (!span.getAttribute("data")) {
 				span = span.parentElement;
@@ -404,11 +403,11 @@ export async function handleMovementEffects(
 			span instanceof HTMLSpanElement &&
 			span.getAttribute("reference")
 		) {
-			console.log("start hover backlink effect");
+			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
-			console.log("end hover reference effect");
+			// console.log("end hover reference effect");
 			// Define the keys you're waiting for
 			const requiredKeys = [
 				"dataString",
@@ -429,7 +428,7 @@ export async function handleMovementEffects(
 			}
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
-			console.log("end hover backlink effect");
+			// console.log("end hover backlink effect");
 			// Define the keys you're waiting for
 			const requiredKeys = [
 				"dataString",
