@@ -145,6 +145,10 @@ export default class ReferencePlugin extends Plugin {
 	onunload() {}
 }
 
+/*
+	Generate a cache of all the backlinks contained in markdown files in the vault.
+	Setup the plugin to listen for changes in the workspace and update the backlink cache accordingly.
+*/
 async function setupPlugin() {
 	await generateBacklinks();
 	const leaves = this.app.workspace.getLeavesOfType("markdown");
@@ -190,6 +194,7 @@ async function setupPlugin() {
 async function handleChange(e: ViewUpdate) {
 	// @ts-ignore -> changedRanges
 	let ranges = e.changedRanges;
+
 	if (ranges.length > 0) {
 		let fromA = ranges[0].fromA;
 		let toA = ranges[0].toA;
@@ -230,7 +235,7 @@ async function handleChange(e: ViewUpdate) {
 		});
 		if (!referencedFile) return;
 
-		await delay(2000);
+		await delay(2000); // delay to allow for the file to be written to
 		let markdownFile: TFile | null = getThat().workspace.getActiveFile();
 		if (markdownFile instanceof TFile) {
 			let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.

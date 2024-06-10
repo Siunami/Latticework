@@ -135,6 +135,41 @@ export function createReferenceIcon(
 	return span;
 }
 
+export function createBacklinkIcon(portalText: string | null = null) {
+	const span = document.createElement("span");
+	span.style.cursor = "pointer";
+	span.classList.add("backlink-span");
+	span.classList.add("uuid-" + uuidv4());
+
+	const textAccent = document.createElement("span");
+	textAccent.classList.add("text-accent");
+	textAccent.innerHTML = "↗";
+	span.appendChild(textAccent);
+
+	if (portalText != null) {
+		textAccent.style.display = "none";
+
+		let portal = document.createElement("div");
+		portal.classList.add("portal");
+
+		console.log("portal text", portalText);
+
+		portalText.split(":").forEach((text, index) => {
+			if (index === 0 || index === 2)
+				portal.innerHTML += decodeURIComponentString(text);
+			else if (index === 1) {
+				portal.innerHTML += `<span class="text-accent";>${text}</span>`;
+			}
+		});
+
+		portal.style.userSelect = "none";
+		portal.style.pointerEvents = "none";
+		span.appendChild(portal);
+	}
+
+	return { span, textAccent };
+}
+
 export function getCodeMirrorEditorView(editor: Editor): EditorView {
 	// @ts-ignore this type is missing... but the Obsidian docs tell us to do it this way??
 	return editor.cm as EditorView;
@@ -185,7 +220,7 @@ export function getLeafLineBBox(leaf: WorkspaceLeaf) {
 }
 
 export function createBacklinkMark(backlink: Backlink): HTMLElement {
-	let span = createReferenceIcon(backlink.portalText);
+	let { span, textAccent } = createBacklinkIcon(backlink.portalText);
 	span.classList.add("backlink-data-span");
 
 	const portal: HTMLElement | null = span.querySelector(".portal");
@@ -197,11 +232,9 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
 
 	const resizeObserver = new ResizeObserver((entries) => {
 		if (portal && portal.style.display != "none") {
-			// span.style.backgroundColor = "white";
-			span.classList.add("backlink-portal-open");
+			textAccent.style.display = "none";
 		} else {
-			// span.style.backgroundColor = "";
-			span.classList.remove("backlink-portal-open");
+			textAccent.style.display = "inline";
 		}
 	});
 
@@ -219,6 +252,8 @@ export function createBacklinkMark(backlink: Backlink): HTMLElement {
  * @param backlinksToLeaf all backlinks that are referencing the leaf
  * @param showPortals whether the portals should be shown or not
  */
+const BACKLINK_LEFT_MARGIN = 42;
+
 export function layoutBacklinks(
 	leaf: WorkspaceLeaf,
 	backlinksToLeaf: Backlink[],
@@ -227,7 +262,7 @@ export function layoutBacklinks(
 	const editor = getMarkdownView(leaf).editor;
 	const backlinkContainer = getBacklinkContainer(editor);
 
-	// Get all existing
+	// Get all existing backlinks
 	let backlinks = [];
 	for (let i = 0; i < backlinkContainer.children.length; i++) {
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
@@ -244,8 +279,6 @@ export function layoutBacklinks(
 		});
 
 	const lineBbox = getLeafLineBBox(leaf);
-
-	const BACKLINK_LEFT_MARGIN = 42;
 
 	// Create the initial backlink mark if necessary and position it in the correct vertical position
 	let referenceMarkers = backlinksToLeaf.map((backlink) => {
@@ -267,7 +300,7 @@ export function layoutBacklinks(
 		if (bbox) {
 			referenceMarker.style.position = "absolute";
 
-			const scrollerBbox = editorView.scrollDOM.getBoundingClientRect();
+			const scrollerBbox = editorView.scrollDOM.getBoundingClientRect(); // the view window
 			const absoluteY =
 				bbox.top - scrollerBbox.top + editorView.scrollDOM.scrollTop;
 			referenceMarker.setAttribute("top", absoluteY.toString());
@@ -281,7 +314,7 @@ export function layoutBacklinks(
 	// Now account for possible position overlaps and shift downwards
 	// also consider whether the portals should be shown or not.
 	let lastYBottom = -Infinity; // for large documents 😁
-	// let margin = 4;
+
 	referenceMarkers
 		.sort(
 			(a, b) =>
@@ -292,25 +325,30 @@ export function layoutBacklinks(
 			// toggle portals
 			const portal: HTMLElement | null = marker.querySelector(".portal");
 
-			if (showPortals) {
-				if (portal) {
-					portal.style.display = "inline";
-					marker.classList.add("backlink-span");
-				}
-			} else {
-				if (portal) {
-					portal.style.display = "none";
-				}
-				marker.classList.remove("backlink-span");
+			marker.classList.add("backlink-span");
+			if (showPortals && portal) {
+				portal.style.display = "inline";
+			} else if (portal) {
+				portal.style.display = "none";
 			}
+
+			// if (showPortals) {
+			// 	if (portal) {
+			// 		portal.style.display = "inline";
+			// 		marker.classList.add("backlink-span");
+			// 	}
+			// } else {
+			// 	if (portal) {
+			// 		portal.style.display = "none";
+			// 	}
+			// 	marker.classList.remove("backlink-span");
+			// }
 
 			// get positioning
 			let top = parseInt(marker!.getAttribute("top")!);
-			// top = Math.max(top, lastYBottom + margin);
 			top = Math.max(top, lastYBottom);
-			// lastYBottom = top + marker.getBoundingClientRect().height + margin;
 			lastYBottom = top + marker.getBoundingClientRect().height;
-			marker.setAttribute("top", top.toString());
+			// marker.setAttribute("top", top.toString());
 			marker.style.top = top + "px";
 			marker.style.left = lineBbox.width + BACKLINK_LEFT_MARGIN + "px";
 		});
@@ -344,33 +382,6 @@ export function updateBacklinkMarkPositions(
 		}, 100);
 	});
 }
-// export async function updateBacklinkMarkPositions(
-// 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
-// ) {
-// 	clearTimeout(debounceTimer);
-// 	debounceTimer = setTimeout(async () => {
-// 		// const leaves = getThat().workspace.getLeavesOfType(
-// 		// 	"markdown"
-// 		// ) as WorkspaceLeaf[];
-
-// 		let allBacklinks: Backlink[] = getBacklinks();
-
-// 		const promises = leaves.map(async (leaf) => {
-// 			let file = getMarkdownView(leaf)?.file;
-// 			if (file) {
-// 				const backlinksToLeaf = allBacklinks.filter(
-// 					// @ts-ignore
-// 					(b) => b.referencedLocation.filename == file.path
-// 				);
-// 				// width 900, show the reference
-// 				const showPortals = getContainerElement(leaf).innerWidth > 900;
-// 				layoutBacklinks(leaf, backlinksToLeaf, showPortals);
-// 			}
-// 		});
-
-// 		return await Promise.all(promises);
-// 	}, 100);
-// }
 
 // Keep track of the existing observer and listener
 let existingObserver: ResizeObserver | null = null;

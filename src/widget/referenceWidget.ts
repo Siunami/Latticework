@@ -343,6 +343,7 @@ class ReferenceWidget extends WidgetType {
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
 
+		console.log("reference span", content[1]);
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			processURI(content[1]);
