@@ -42,7 +42,7 @@ import {
 } from "./widget/referenceWidget";
 import { collectLeavesByTabHelper } from "./workspace";
 import { debounce } from "lodash";
-import AnnotationModal from "./annotationModal";
+import AnnotationModal, { createAnnotation } from "./annotationModal";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -119,6 +119,26 @@ export default class ReferencePlugin extends Plugin {
 			],
 			callback: () => {
 				new AnnotationModal(this.app).open();
+			},
+		});
+
+		this.addCommand({
+			id: "highlight selected text",
+			name: "highlight selected text",
+			hotkeys: [
+				{ modifiers: ["Meta", "Shift"], key: "h" },
+				{ modifiers: ["Ctrl", "Shift"], key: "h" },
+			],
+			callback: () => {
+				console.log("highlight selected text");
+				// new AnnotationModal(this.app).open();
+				console.log(this.app.workspace);
+				console.log(this.app.workspace.getActiveViewOfType(MarkdownView));
+				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+				if (!view) return;
+				let selection: string = view.editor.getSelection();
+
+				createAnnotation(selection, "");
 			},
 		});
 

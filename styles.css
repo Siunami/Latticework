@@ -47,6 +47,7 @@ If your plugin does not need CSS, delete this file.
 .text-accent {
 	color: var(--text-accent);
 	user-select: none;
+	pointer-events: none;
 }
 
 .reference-span-selected {

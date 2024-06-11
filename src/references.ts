@@ -145,9 +145,12 @@ export function createBacklinkIcon(portalText: string | null = null) {
 	textAccent.classList.add("text-accent");
 	textAccent.innerHTML = "↗";
 	span.appendChild(textAccent);
+	// textFragment.appendChild(textAccent);
 
+	// span.innerHTML = "↗";
 	if (portalText != null) {
 		textAccent.style.display = "none";
+		// span.innerHTML = "";
 
 		let portal = document.createElement("div");
 		portal.classList.add("portal");

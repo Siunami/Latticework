@@ -337,7 +337,9 @@ export async function endReferenceHoverEffect() {
 	resetHover();
 
 	const { workspace } = getThat();
-	let targetLeaf: WorkspaceLeaf = workspace.getLeafById(leafId);
+	let targetLeaf: WorkspaceLeaf = workspace.getLeafById(
+		leafId
+	) as WorkspaceLeaf;
 	endEffectRemoveHighlights(workspace, leafId, uuid);
 
 	let editorView: EditorView | null = getEditorView(targetLeaf);
@@ -420,7 +422,9 @@ export async function endBacklinkHoverEffect() {
 	let [prefix, text, suffix, file, from, to] = processURI(dataString);
 
 	const { workspace } = getThat();
-	let targetLeaf = workspace.getLeafById(leafId);
+	let targetLeaf: WorkspaceLeaf = workspace.getLeafById(
+		leafId
+	) as WorkspaceLeaf;
 	endEffectRemoveHighlights(workspace, leafId, uuid, backlinkUUID);
 
 	if (cursorViewport && targetLeaf && targetLeaf.view instanceof MarkdownView) {
