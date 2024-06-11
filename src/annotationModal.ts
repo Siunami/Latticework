@@ -109,6 +109,7 @@ export default class AnnotationModal extends Modal {
 
 		let settings = document.createElement("div");
 		let fileSelection: HTMLSelectElement = createSelection(view);
+
 		fileSelection.style.width = "fit-content";
 
 		settings.appendChild(fileSelection);
@@ -117,6 +118,8 @@ export default class AnnotationModal extends Modal {
 		this.contentEl.appendChild(settings);
 
 		input.addEventListener("keydown", async (evt) => {
+			let currentFilePath: TFile = this.app.workspace.getActiveFile() as TFile;
+
 			if (evt.key === "Enter") {
 				evt.preventDefault();
 				console.log(selection);
@@ -135,10 +138,15 @@ export default class AnnotationModal extends Modal {
 					return;
 				}
 				let fileData = await this.app.vault.read(filePath);
-
 				let results = await this.app.vault.modify(
 					filePath,
 					fileData + "\n" + reference + " " + input.value
+				);
+
+				let currentFileData = await this.app.vault.read(currentFilePath);
+				let currentResults = await this.app.vault.modify(
+					currentFilePath,
+					currentFileData + "\n" + reference + " " + input.value
 				);
 
 				this.close();

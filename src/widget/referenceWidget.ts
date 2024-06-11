@@ -230,6 +230,7 @@ export function destroyReferenceWidget(name: string) {
 					prefix.slice(0, -1) + text + suffix.slice(1, suffix.length)
 				) + prefix.slice(0, -1).length;
 
+			// could of been selected forward or backward
 			removeHighlight(view, from, to);
 			removeHighlight(view, index, index + (to - from));
 		}
@@ -343,7 +344,6 @@ class ReferenceWidget extends WidgetType {
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
 
-		console.log("reference span", content[1]);
 		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			processURI(content[1]);
@@ -361,6 +361,10 @@ class ReferenceWidget extends WidgetType {
 					this.view
 				);
 				referenceSpan.classList.toggle("reference-span-hidden");
+
+				// // IMPROVEMENT: If clicked rapidly, serialization of toggled state sometimes fails
+				// // This I believe is due to the async file write of the previous command
+
 				// if (!completed && !this.completedSerialization) {
 				// 	this.completedSerialization = true;
 				// 	setTimeout(async () => {

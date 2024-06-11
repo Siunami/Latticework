@@ -133,6 +133,7 @@ export async function openFileInAdjacentTab(
 	let leftAdjacentTabNames = leftAdjacentTab.map(
 		(x: WorkspaceLeaf) => x.getViewState().state.file
 	);
+
 	const { workspace } = getThat();
 	if (
 		allTabNames
