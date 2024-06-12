@@ -96,8 +96,6 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let editorView: EditorView | null = getEditorView(leaf);
 			if (!editorView) return;
 
-			console.log("generate default highlights");
-
 			// console.log(getHighlights(editorView));
 			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
 			// removeHighlight(editorView, referenceFrom, referenceTo);
@@ -163,8 +161,6 @@ export function createBacklinkIcon(portalText: string | null = null) {
 
 		let portal = document.createElement("div");
 		portal.classList.add("portal");
-
-		console.log("portal text", portalText);
 
 		portalText.split(":").forEach((text, index) => {
 			if (index === 0 || index === 2)
@@ -280,8 +276,6 @@ export function layoutBacklinks(
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
 	}
 	let backlinkIds: string[] = backlinksToLeaf.map((x) => getBacklinkID(x));
-
-	console.log(backlinks);
 
 	let input: TextAreaComponent | null = null;
 
@@ -533,7 +527,6 @@ export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
 	}
 
 	const newObserver = new ResizeObserver(async () => {
-		console.log("resize observer");
 		await updateBacklinkMarkPositions();
 	});
 

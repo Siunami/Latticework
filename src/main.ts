@@ -81,9 +81,17 @@ export default class ReferencePlugin extends Plugin {
 			await handleMovementEffects(evt);
 		});
 
-		this.registerDomEvent(document, "keyup", async (evt) => {
+		this.registerDomEvent(document, "keydown", async (evt) => {
 			// backspace is to prevent the backlink from being created when it's deleted
-			if (evt.metaKey || evt.ctrlKey || evt.key == "Backspace") return;
+			console.log(evt.metaKey, evt.ctrlKey, evt.key);
+			console.log(evt);
+			if (
+				evt.metaKey ||
+				evt.ctrlKey ||
+				evt.key == "Backspace" ||
+				(evt.key == "x" && evt.metaKey)
+			)
+				return;
 			await handleMovementEffects(evt);
 
 			console.log("keyup");
@@ -240,6 +248,8 @@ async function setupPlugin() {
 }
 
 async function handleChange(e: ViewUpdate) {
+	console.log("handleChange");
+
 	// @ts-ignore -> changedRanges
 	let ranges = e.changedRanges;
 
@@ -283,7 +293,7 @@ async function handleChange(e: ViewUpdate) {
 		});
 		if (!referencedFile) return;
 
-		await delay(2000); // delay to allow for the file to be written to
+		// await delay(2000); // delay to allow for the file to be written to
 		let markdownFile: TFile | null = getThat().workspace.getActiveFile();
 		if (markdownFile instanceof TFile) {
 			let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
@@ -292,6 +302,21 @@ async function handleChange(e: ViewUpdate) {
 			updateBacklinks(fileBacklinks);
 
 			setTimeout(() => {
+				let leavesByTab = collectLeavesByTabHelper();
+				let leaf = leavesByTab.flat().filter((leaf) => {
+					return leaf.getViewState().state.file == referencedFile;
+				})[0];
+				if (leaf) {
+					addReferencesToLeaf(leaf);
+				}
+			}, 0); /// this timeout is to make sure the changes have finished writing to file.
+
+			setTimeout(async () => {
+				let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
+
+				let fileBacklinks = createBacklinkData(fileData, markdownFile);
+				updateBacklinks(fileBacklinks);
+
 				let leavesByTab = collectLeavesByTabHelper();
 				let leaf = leavesByTab.flat().filter((leaf) => {
 					return leaf.getViewState().state.file == referencedFile;
@@ -321,7 +346,7 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 			addReferencesToLeaf(leaf);
 		}
 	}
-}, 500); // 500ms debounce time
+}, 50); // 500ms debounce time
 
 const toggleSelectedReferences = async (
 	evt: KeyboardEvent,
