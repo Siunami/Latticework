@@ -1,4 +1,12 @@
-import { Editor, TFile, WorkspaceLeaf, MarkdownView } from "obsidian";
+import {
+	Editor,
+	TFile,
+	WorkspaceLeaf,
+	MarkdownView,
+	TextAreaComponent,
+	TAbstractFile,
+	Notice,
+} from "obsidian";
 import { EditorView } from "@codemirror/view";
 import { v5 as uuidv5 } from "uuid";
 
@@ -16,6 +24,7 @@ import {
 	getPrefixAndSuffix,
 	encodeURIComponentString,
 	decodeURIComponentString,
+	interlaceStringArrays,
 } from "./utils";
 import { REFERENCE_REGEX } from "./constants";
 import { DocumentLocation, Backlink } from "./types";
@@ -271,6 +280,131 @@ export function layoutBacklinks(
 		backlinks.push(backlinkContainer.children.item(i) as HTMLElement);
 	}
 	let backlinkIds: string[] = backlinksToLeaf.map((x) => getBacklinkID(x));
+
+	console.log(backlinks);
+
+	let input: TextAreaComponent | null = null;
+
+	backlinks.forEach((element: HTMLSpanElement) => {
+		element.addEventListener("click", (ev) => {
+			if (ev.metaKey || ev.ctrlKey) {
+				return;
+			}
+
+			if (input) {
+				return;
+			}
+
+			let textArea = new TextAreaComponent(element);
+			input = textArea;
+			textArea.inputEl.innerHTML = element.innerText;
+			if (element.innerText == "↗") {
+				textArea.inputEl.innerHTML += " ";
+			}
+			textArea.inputEl.classList.add("backlink-comment");
+			textArea.inputEl.focus();
+			textArea.inputEl.setSelectionRange(
+				textArea.inputEl.value.length,
+				textArea.inputEl.value.length
+			);
+
+			textArea.inputEl.placeholder = "Add a comment...";
+
+			// Function to adjust the height of the textarea
+			function adjustTextareaHeight() {
+				textArea.inputEl.style.height = "auto";
+				// 30 px is a single line height
+				textArea.inputEl.style.height = 30 + "px";
+				textArea.inputEl.style.height = textArea.inputEl.scrollHeight + "px";
+			}
+
+			// Adjust the height initially and on input
+			adjustTextareaHeight();
+			textArea.inputEl.addEventListener("input", adjustTextareaHeight);
+
+			textArea.inputEl.addEventListener("blur", (ev) => {
+				ev.preventDefault();
+				textArea.inputEl.remove();
+				input = null;
+			});
+
+			input.inputEl.addEventListener("keydown", async (ev) => {
+				// if backspace is hit and will delete an ↗, don't delete the textarea
+				if (ev.key === "Backspace" || ev.key === "Delete") {
+					let start = textArea.inputEl.selectionStart;
+					let end = textArea.inputEl.selectionEnd;
+					let text = textArea.inputEl.value;
+
+					if (text.slice(start, end).includes("↗")) {
+						new Notice("Can't delete a reference icon (↗).");
+						ev.preventDefault();
+					} else if (
+						ev.key === "Backspace" &&
+						start > 0 &&
+						text[start - 1] === "↗"
+					) {
+						new Notice("Can't delete a reference icon (↗).");
+						ev.preventDefault();
+					}
+				}
+
+				// if enter is pressed without the shift key
+				if (ev.key === "Enter") {
+					ev.preventDefault();
+					let text = textArea.inputEl.value;
+					let filename = getFilename(leaf);
+					let reference = element.getAttribute("reference");
+					if (reference) {
+						let referenceData = JSON.parse(reference);
+						let from = referenceData.referencingLocation.from;
+						let to = referenceData.referencingLocation.to;
+
+						let activeFile = referenceData.referencingLocation.filename;
+						let allFiles = this.app.vault.getAllLoadedFiles();
+						let filePath: TFile = allFiles.filter(
+							(file: TAbstractFile) =>
+								file.path === activeFile ||
+								file.path.split("/")[file.path.split("/").length - 1] ===
+									activeFile
+						)[0] as TFile;
+						let fileData = await this.app.vault.read(filePath);
+
+						let prefix = fileData.slice(0, from);
+						let suffix = fileData.slice(to);
+
+						let leadingText = prefix.split("\n")[prefix.split("\n").length - 1];
+						let followingText = suffix.split("\n")[0];
+
+						let previousText = fileData.slice(
+							from - leadingText.length,
+							to + followingText.length
+						);
+
+						const matches = [...previousText.matchAll(REFERENCE_REGEX)].map(
+							(x: any) => x[0]
+						);
+						const textParts = text.split("↗");
+
+						const newText = interlaceStringArrays(textParts, matches);
+
+						// Use slice to replace previousText with newText in the file data
+						let updatedFileData =
+							fileData.slice(0, from - leadingText.length) +
+							newText +
+							fileData.slice(to + followingText.length);
+						let results = await this.app.vault.modify(
+							filePath,
+							updatedFileData
+						);
+						await generateBacklinks();
+						await updateBacklinkMarkPositions([leaf]);
+					}
+
+					textArea.inputEl.blur();
+				}
+			});
+		});
+	});
 
 	backlinks
 		.map((x: HTMLSpanElement) => x.id)

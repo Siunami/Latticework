@@ -95,6 +95,22 @@ If your plugin does not need CSS, delete this file.
 	padding-right: 1px;
 }
 
+.backlink-comment {
+	position: absolute;
+	top: 0px;
+	left: 0px;
+	overflow-y: hidden;
+	resize: none;
+	max-width: 300px;
+	min-width: 300px;
+	height:auto;
+	/* padding: 4px 8px; */
+
+	color: var(--text-muted);
+    line-height: var(--line-height-tight);
+    font-size: var(--font-normal);
+}
+
 .reference-span-hidden+.reference-data-span::after {
 	border-top-left-radius: 3px;
 	border-bottom-left-radius: 3px;

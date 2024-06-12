@@ -137,12 +137,6 @@ export async function createAnnotation(
 			console.error("file not found");
 			return;
 		}
-
-		let fileData = await this.app.vault.read(filePath);
-		let results = await this.app.vault.modify(
-			filePath,
-			fileData + "\n" + reference + " " + input
-		);
 	} else {
 		let currentFilePath: TFile = this.app.workspace.getActiveFile() as TFile;
 

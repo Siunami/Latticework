@@ -27,6 +27,7 @@ import {
 	updateBacklinkMarkPositions,
 	generateDefaultHighlights,
 	getFilename,
+	getBacklinkContainer,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -35,7 +36,7 @@ import {
 	endBacklinkHoverEffect,
 	delay,
 } from "./effects";
-import { decodeURIComponentString } from "./utils";
+import { decodeURIComponentString, createHighlight, commentBox } from "./utils";
 import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import {
@@ -123,8 +124,35 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Meta", "Shift"], key: "a" },
 				{ modifiers: ["Ctrl", "Shift"], key: "a" },
 			],
-			callback: () => {
-				new AnnotationModal(this.app).open();
+			callback: async () => {
+				// new AnnotationModal(this.app).open();
+				const reference = await createHighlight();
+				if (!reference) return;
+
+				// get the backlink for the newly created reference and start a comment workflow
+				setTimeout(() => {
+					const editor = getMarkdownView(this.app.workspace.getLeaf()).editor;
+					const backlinkContainer = getBacklinkContainer(editor);
+					for (let i = 0; i < backlinkContainer.children.length; i++) {
+						if (backlinkContainer.children.item(i)) {
+							// @ts-ignore
+							let backlinkItem = backlinkContainer.children.item(
+								i
+							) as HTMLElement;
+							if (!backlinkItem) return;
+							// console.log(backlinkItem);
+							const backlinkReference = backlinkItem.getAttribute("reference");
+							if (!backlinkReference) return;
+							const referenceData = JSON.parse(backlinkReference);
+
+							if (referenceData.referencingLocation.text == reference) {
+								console.log(backlinkItem);
+								const leaf = this.app.workspace.getLeaf();
+								commentBox(backlinkItem, leaf);
+							}
+						}
+					}
+				}, 400);
 			},
 		});
 
@@ -136,79 +164,7 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "h" },
 			],
 			callback: async () => {
-				// new AnnotationModal(this.app).open();
-				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
-				if (!view) return;
-				let selection: string = view.editor.getSelection();
-
-				// get backlink leaf
-				let leavesByTab: [WorkspaceLeaf[]] | [] = collectLeavesByTabHelper();
-
-				let currTabIdx = getCurrentTabIndex(leavesByTab, view.containerEl);
-
-				const { rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
-					leavesByTab,
-					currTabIdx,
-					""
-				);
-
-				let rightFiles = rightAdjacentTab
-					.filter((leaf) => {
-						// console.log(leaf);
-						return leaf.view instanceof MarkdownView;
-					})
-					.map((leaf) => {
-						return [
-							getFilename(leaf),
-							getContainerElement(leaf).style.display != "none",
-						];
-					});
-
-				let leftFiles = leftAdjacentTab
-					.filter((leaf) => {
-						// console.log(leaf);
-						return leaf.view instanceof MarkdownView;
-					})
-					.map((leaf) => {
-						return [
-							getFilename(leaf),
-							getContainerElement(leaf).style.display != "none",
-						];
-					});
-
-				let activeFile: string;
-				if (rightFiles.length > 0) {
-					activeFile = rightFiles.filter(
-						(file) => file[1] === true
-					)[0][0] as string;
-				} else if (leftFiles.length > 0) {
-					activeFile = leftFiles.filter(
-						(file) => file[1] === true
-					)[0][0] as string;
-				} else {
-					// @ts-ignore
-					activeFile = view.file.path;
-				}
-
-				let allFiles = this.app.vault.getAllLoadedFiles();
-				let filePath: TFile = allFiles.filter(
-					(file: TAbstractFile) =>
-						file.path === activeFile ||
-						file.path.split("/")[file.path.split("/").length - 1] === activeFile
-				)[0] as TFile;
-
-				let reference = createClipboardText(view, selection);
-
-				let fileData = await this.app.vault.read(filePath);
-				let results = await this.app.vault.modify(
-					filePath,
-					fileData + "\n" + reference
-				);
-
-				setTimeout(async () => {
-					await generateBacklinks();
-					await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
-				}, 400);
+				await createHighlight();
 			},
 		});
 

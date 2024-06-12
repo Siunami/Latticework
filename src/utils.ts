@@ -1,8 +1,28 @@
-import { EditorPosition, MarkdownView } from "obsidian";
+import {
+	EditorPosition,
+	MarkdownView,
+	WorkspaceLeaf,
+	TFile,
+	TAbstractFile,
+	Notice,
+	TextAreaComponent,
+} from "obsidian";
 import { REFERENCE_REGEX } from "./constants";
 import { match } from "assert";
 import { Backlink } from "./types";
 import { TextFragment } from "./effects";
+import { createClipboardText } from "./clipboard";
+import {
+	collectLeavesByTabHelper,
+	getCurrentTabIndex,
+	getAdjacentTabs,
+} from "./workspace";
+import {
+	getFilename,
+	getContainerElement,
+	updateBacklinkMarkPositions,
+	generateBacklinks,
+} from "./references";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -218,4 +238,201 @@ export function debounce(func: Function, delay: number) {
 			func.apply(this, args);
 		}, delay);
 	};
+}
+
+export function interlaceStringArrays(
+	firstArray: string[],
+	secondArray: string[]
+) {
+	let interlaced = [];
+	let maxLength = Math.max(firstArray.length, secondArray.length);
+
+	for (let i = 0; i < maxLength; i++) {
+		if (i < firstArray.length) {
+			interlaced.push(firstArray[i]);
+		}
+		if (i < secondArray.length) {
+			interlaced.push(secondArray[i]);
+		}
+	}
+
+	// Join the interlaced array into a single string (optional)
+	let interlacedText = interlaced.join("");
+	return interlacedText;
+}
+
+export async function createHighlight() {
+	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
+	if (!view) return;
+	let selection: string = view.editor.getSelection();
+
+	// get backlink leaf
+	let leavesByTab: [WorkspaceLeaf[]] | [] = collectLeavesByTabHelper();
+
+	let currTabIdx = getCurrentTabIndex(leavesByTab, view.containerEl);
+
+	const { rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
+		leavesByTab,
+		currTabIdx,
+		""
+	);
+
+	let rightFiles = rightAdjacentTab
+		.filter((leaf) => {
+			// console.log(leaf);
+			return leaf.view instanceof MarkdownView;
+		})
+		.map((leaf) => {
+			return [
+				getFilename(leaf),
+				getContainerElement(leaf).style.display != "none",
+			];
+		});
+
+	let leftFiles = leftAdjacentTab
+		.filter((leaf) => {
+			// console.log(leaf);
+			return leaf.view instanceof MarkdownView;
+		})
+		.map((leaf) => {
+			return [
+				getFilename(leaf),
+				getContainerElement(leaf).style.display != "none",
+			];
+		});
+
+	let activeFile: string;
+	if (rightFiles.length > 0) {
+		activeFile = rightFiles.filter((file) => file[1] === true)[0][0] as string;
+	} else if (leftFiles.length > 0) {
+		activeFile = leftFiles.filter((file) => file[1] === true)[0][0] as string;
+	} else {
+		// @ts-ignore
+		activeFile = view.file.path;
+	}
+
+	let allFiles = this.app.vault.getAllLoadedFiles();
+	let filePath: TFile = allFiles.filter(
+		(file: TAbstractFile) =>
+			file.path === activeFile ||
+			file.path.split("/")[file.path.split("/").length - 1] === activeFile
+	)[0] as TFile;
+
+	let reference = createClipboardText(view, selection);
+	console.log("reference: ", reference);
+
+	let fileData = await this.app.vault.read(filePath);
+	let results = await this.app.vault.modify(
+		filePath,
+		fileData + "\n" + reference
+	);
+
+	await generateBacklinks();
+	await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
+	return reference;
+}
+
+// This is the same as the flow in the layoutBacklinks function, except it doesn't maintain last input state.
+export function commentBox(element: HTMLSpanElement, leaf: WorkspaceLeaf) {
+	let textArea = new TextAreaComponent(element);
+	textArea.inputEl.innerHTML = element.innerText;
+	if (element.innerText == "↗") {
+		textArea.inputEl.innerHTML += " ";
+	}
+	textArea.inputEl.classList.add("backlink-comment");
+	textArea.inputEl.focus();
+	textArea.inputEl.setSelectionRange(
+		textArea.inputEl.value.length,
+		textArea.inputEl.value.length
+	);
+
+	textArea.inputEl.placeholder = "Add a comment...";
+
+	// Function to adjust the height of the textarea
+	function adjustTextareaHeight() {
+		textArea.inputEl.style.height = "auto";
+		// 30 px is a single line height
+		textArea.inputEl.style.height = 30 + "px";
+		textArea.inputEl.style.height = textArea.inputEl.scrollHeight + "px";
+	}
+
+	// Adjust the height initially and on input
+	adjustTextareaHeight();
+	textArea.inputEl.addEventListener("input", adjustTextareaHeight);
+
+	textArea.inputEl.addEventListener("blur", (ev: MouseEvent) => {
+		ev.preventDefault();
+		textArea.inputEl.remove();
+	});
+
+	textArea.inputEl.addEventListener("keydown", async (ev: KeyboardEvent) => {
+		// if backspace is hit and will delete an ↗, don't delete the textarea
+		if (ev.key === "Backspace" || ev.key === "Delete") {
+			let start = textArea.inputEl.selectionStart;
+			let end = textArea.inputEl.selectionEnd;
+			let text = textArea.inputEl.value;
+
+			if (text.slice(start, end).includes("↗")) {
+				new Notice("Can't delete a reference icon (↗).");
+				ev.preventDefault();
+			} else if (
+				ev.key === "Backspace" &&
+				start > 0 &&
+				text[start - 1] === "↗"
+			) {
+				new Notice("Can't delete a reference icon (↗).");
+				ev.preventDefault();
+			}
+		}
+
+		// if enter is pressed without the shift key
+		if (ev.key === "Enter") {
+			ev.preventDefault();
+			let text = textArea.inputEl.value;
+			let filename = getFilename(leaf);
+			let reference = element.getAttribute("reference");
+			if (reference) {
+				let referenceData = JSON.parse(reference);
+				let from = referenceData.referencingLocation.from;
+				let to = referenceData.referencingLocation.to;
+
+				let activeFile = referenceData.referencingLocation.filename;
+				let allFiles = this.app.vault.getAllLoadedFiles();
+				let filePath: TFile = allFiles.filter(
+					(file: TAbstractFile) =>
+						file.path === activeFile ||
+						file.path.split("/")[file.path.split("/").length - 1] === activeFile
+				)[0] as TFile;
+				let fileData = await this.app.vault.read(filePath);
+
+				let prefix = fileData.slice(0, from);
+				let suffix = fileData.slice(to);
+
+				let leadingText = prefix.split("\n")[prefix.split("\n").length - 1];
+				let followingText = suffix.split("\n")[0];
+
+				let previousText = fileData.slice(
+					from - leadingText.length,
+					to + followingText.length
+				);
+
+				const matches = [...previousText.matchAll(REFERENCE_REGEX)].map(
+					(x: any) => x[0]
+				);
+				const textParts = text.split("↗");
+
+				const newText = interlaceStringArrays(textParts, matches);
+
+				// Use slice to replace previousText with newText in the file data
+				let updatedFileData =
+					fileData.slice(0, from - leadingText.length) +
+					newText +
+					fileData.slice(to + followingText.length);
+				let results = await this.app.vault.modify(filePath, updatedFileData);
+				await generateBacklinks();
+				await updateBacklinkMarkPositions([leaf]);
+			}
+			textArea.inputEl.blur();
+		}
+	});
 }
