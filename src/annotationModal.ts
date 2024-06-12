@@ -71,7 +71,10 @@ function createSelection(view: MarkdownView): HTMLSelectElement {
 		let allFilenames: string[] = [...rightFiles, ...leftFiles].map(
 			(file) => file[0] as string
 		);
-		let uniqueFilenames = Array.from(new Set(allFilenames));
+		let uniqueFilenames = Array.from(
+			// @ts-ignore
+			new Set([...allFilenames, view.file.path])
+		);
 
 		// Create a select element
 		let select: HTMLSelectElement = document.createElement("select");
@@ -195,7 +198,6 @@ export default class AnnotationModal extends Modal {
 		this.contentEl.appendChild(settings);
 
 		input.addEventListener("keydown", async (evt) => {
-			console.log(evt.key);
 			if (evt.key === "Enter") {
 				evt.preventDefault();
 				await createAnnotation(selection, fileSelection.value, input.value);

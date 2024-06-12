@@ -130,10 +130,7 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "h" },
 			],
 			callback: () => {
-				console.log("highlight selected text");
 				// new AnnotationModal(this.app).open();
-				console.log(this.app.workspace);
-				console.log(this.app.workspace.getActiveViewOfType(MarkdownView));
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (!view) return;
 				let selection: string = view.editor.getSelection();
@@ -189,6 +186,8 @@ async function setupPlugin() {
 			scroller.removeEventListener("scroll", debouncedFunction);
 			scroller.addEventListener("scroll", debouncedFunction);
 		}
+
+		generateDefaultHighlights(leaf);
 
 		return addReferencesToLeaf(leaf);
 	});
@@ -368,6 +367,7 @@ const toggleSelectedReferences = async (
 };
 
 let lastMouse: MouseEvent | null = null;
+let backlinkSpan: HTMLSpanElement | null = null;
 export async function handleMovementEffects(
 	evt: MouseEvent | KeyboardEvent
 ): Promise<void> {
@@ -390,23 +390,18 @@ export async function handleMovementEffects(
 		span = document.elementFromPoint(mouseX, mouseY);
 	}
 
+	// console.log(span);
+
 	// if key not pressed, mouse movement should end hover effect immediately
 	if (!evt.metaKey && !evt.ctrlKey) {
-		if (
-			span &&
-			span instanceof HTMLSpanElement &&
-			span.getAttribute("reference")
-		) {
-			// console.log("start hover backlink effect");
-			// if (getBacklinkHover() != null) return;
-			await startBacklinkEffect(span);
-		} else if (getHover() != null && !span?.classList.contains("cm-line")) {
+		if (getHover() != null && !span?.classList.contains("cm-line")) {
 			// console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
 			// console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
+		backlinkSpan?.classList.remove("backlink-span-hover");
 	} else {
 		if (
 			span &&
@@ -430,6 +425,9 @@ export async function handleMovementEffects(
 		) {
 			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
+			console.log(span);
+			span.classList.add("backlink-span-hover");
+			backlinkSpan = span;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
 			// console.log("end hover reference effect");
@@ -473,6 +471,7 @@ export async function handleMovementEffects(
 			if (!allKeysPresent()) {
 				await new Promise((resolve) => setTimeout(resolve, 50));
 			}
+			backlinkSpan?.classList.remove("backlink-span-hover");
 			await endBacklinkHoverEffect();
 		}
 	}

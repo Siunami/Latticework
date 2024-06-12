@@ -16,8 +16,6 @@ export function createClipboardText(
 	const to = view.editor.posToOffset(view.editor.getCursor("to"));
 	const { prefix, suffix } = getPrefixAndSuffix(text, from, to);
 
-	console.log(encodeURIComponentString(selection));
-
 	let reference = `[↗](urn:${encodeURIComponentString(
 		prefix
 	)}-:${encodeURIComponentString(selection)}:-${encodeURIComponentString(

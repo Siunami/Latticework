@@ -82,7 +82,7 @@ If your plugin does not need CSS, delete this file.
 	max-width: 300px;
 }
 
-.backlink-span:hover {
+.backlink-span-hover {
 	background-color: var(--background-modifier-hover);
 }
 
@@ -119,7 +119,8 @@ If your plugin does not need CSS, delete this file.
 }
 
 .default-highlight {
-	background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43));
+	/* background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43)); */
+	background-color: hsl(54, 100%, 60%);
 	color: black;
 }
 

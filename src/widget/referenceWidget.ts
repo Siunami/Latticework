@@ -136,7 +136,6 @@ export async function serializeReference(
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
 	if (!currLine) {
-		console.log(referenceSpan);
 		console.log("currLine not found");
 		return false;
 	}
