@@ -5,6 +5,7 @@ import {
 	WorkspaceLeaf,
 	TFile,
 	Modal,
+	TAbstractFile,
 } from "obsidian";
 
 import {
@@ -15,7 +16,7 @@ import {
 	updateBacklinks,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
-import { updateClipboard } from "./clipboard";
+import { updateClipboard, createClipboardText } from "./clipboard";
 import {
 	generateBacklinks,
 	addReferencesToLeaf,
@@ -25,6 +26,7 @@ import {
 	getContainerElement,
 	updateBacklinkMarkPositions,
 	generateDefaultHighlights,
+	getFilename,
 } from "./references";
 import {
 	startReferenceEffect,
@@ -40,7 +42,11 @@ import {
 	destroyReferenceWidget,
 	serializeReference,
 } from "./widget/referenceWidget";
-import { collectLeavesByTabHelper } from "./workspace";
+import {
+	getCurrentTabIndex,
+	collectLeavesByTabHelper,
+	getAdjacentTabs,
+} from "./workspace";
 import { debounce } from "lodash";
 import AnnotationModal, { createAnnotation } from "./annotationModal";
 
@@ -129,13 +135,80 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Meta", "Shift"], key: "h" },
 				{ modifiers: ["Ctrl", "Shift"], key: "h" },
 			],
-			callback: () => {
+			callback: async () => {
 				// new AnnotationModal(this.app).open();
 				const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 				if (!view) return;
 				let selection: string = view.editor.getSelection();
 
-				createAnnotation(selection, "");
+				// get backlink leaf
+				let leavesByTab: [WorkspaceLeaf[]] | [] = collectLeavesByTabHelper();
+
+				let currTabIdx = getCurrentTabIndex(leavesByTab, view.containerEl);
+
+				const { rightAdjacentTab, leftAdjacentTab } = getAdjacentTabs(
+					leavesByTab,
+					currTabIdx,
+					""
+				);
+
+				let rightFiles = rightAdjacentTab
+					.filter((leaf) => {
+						// console.log(leaf);
+						return leaf.view instanceof MarkdownView;
+					})
+					.map((leaf) => {
+						return [
+							getFilename(leaf),
+							getContainerElement(leaf).style.display != "none",
+						];
+					});
+
+				let leftFiles = leftAdjacentTab
+					.filter((leaf) => {
+						// console.log(leaf);
+						return leaf.view instanceof MarkdownView;
+					})
+					.map((leaf) => {
+						return [
+							getFilename(leaf),
+							getContainerElement(leaf).style.display != "none",
+						];
+					});
+
+				let activeFile: string;
+				if (rightFiles.length > 0) {
+					activeFile = rightFiles.filter(
+						(file) => file[1] === true
+					)[0][0] as string;
+				} else if (leftFiles.length > 0) {
+					activeFile = leftFiles.filter(
+						(file) => file[1] === true
+					)[0][0] as string;
+				} else {
+					// @ts-ignore
+					activeFile = view.file.path;
+				}
+
+				let allFiles = this.app.vault.getAllLoadedFiles();
+				let filePath: TFile = allFiles.filter(
+					(file: TAbstractFile) =>
+						file.path === activeFile ||
+						file.path.split("/")[file.path.split("/").length - 1] === activeFile
+				)[0] as TFile;
+
+				let reference = createClipboardText(view, selection);
+
+				let fileData = await this.app.vault.read(filePath);
+				let results = await this.app.vault.modify(
+					filePath,
+					fileData + "\n" + reference
+				);
+
+				setTimeout(async () => {
+					await generateBacklinks();
+					await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
+				}, 400);
 			},
 		});
 
@@ -390,8 +463,6 @@ export async function handleMovementEffects(
 		span = document.elementFromPoint(mouseX, mouseY);
 	}
 
-	// console.log(span);
-
 	// if key not pressed, mouse movement should end hover effect immediately
 	if (!evt.metaKey && !evt.ctrlKey) {
 		if (getHover() != null && !span?.classList.contains("cm-line")) {
@@ -425,7 +496,6 @@ export async function handleMovementEffects(
 		) {
 			// console.log("start hover backlink effect");
 			// if (getBacklinkHover() != null) return;
-			console.log(span);
 			span.classList.add("backlink-span-hover");
 			backlinkSpan = span;
 			await startBacklinkEffect(span);
