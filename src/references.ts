@@ -740,8 +740,9 @@ export async function openBacklinkReference(ev: MouseEvent) {
 	});
 }
 
-export async function openReference(ev: MouseEvent) {
+export async function openReference() {
 	let hover = getHover();
+	console.log(hover);
 	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 

@@ -19,7 +19,7 @@ import {
 import { decodeURIComponentString, processURI } from "src/utils";
 import { removeHighlight } from "src/mark";
 import { collectLeavesByTabHelper } from "src/workspace";
-import { getEditorView } from "src/effects";
+import { getEditorView, startReferenceEffect } from "src/effects";
 import { Backlink } from "src/types";
 import {
 	getBacklinks,
@@ -35,7 +35,11 @@ import {
 	MarkdownRenderer,
 	Component,
 } from "obsidian";
-import { REFERENCE_REGEX, ZERO_WIDTH_SPACE_CODE } from "src/constants";
+import {
+	ACTION_TYPE,
+	REFERENCE_REGEX,
+	ZERO_WIDTH_SPACE_CODE,
+} from "src/constants";
 
 /**
  * Get the text on the active line
@@ -308,7 +312,7 @@ function createReferenceSpan(content: string) {
 
 	containerSpan.appendChild(referenceSpan);
 	containerSpan.appendChild(span);
-	return { containerSpan, referenceSpan };
+	return { containerSpan, referenceSpan, referenceDataSpan: span };
 }
 
 /* new placeholder */
@@ -344,16 +348,16 @@ class ReferenceWidget extends WidgetType {
 		let content = regex.exec(this.name);
 		if (!content) throw new Error("Invalid reference");
 
-		let { containerSpan, referenceSpan } = createReferenceSpan(content[1]);
+		let { containerSpan, referenceSpan, referenceDataSpan } =
+			createReferenceSpan(content[1]);
 		const [prefix, text, suffix, file, from, to, portal, toggle = "f"] =
 			processURI(content[1]);
 
 		containerSpan.title = file;
 
 		containerSpan.addEventListener("click", async (ev) => {
-			if (ev.metaKey || ev.ctrlKey) {
-				openReference(ev);
-			} else {
+			console.log(ev);
+			if (ev.shiftKey) {
 				this.serialized = true;
 				const completed = await serializeReference(
 					content,
@@ -361,47 +365,69 @@ class ReferenceWidget extends WidgetType {
 					this.view
 				);
 				referenceSpan.classList.toggle("reference-span-hidden");
-
-				// // IMPROVEMENT: If clicked rapidly, serialization of toggled state sometimes fails
-				// // This I believe is due to the async file write of the previous command
-
-				// if (!completed && !this.completedSerialization) {
-				// 	this.completedSerialization = true;
-				// 	setTimeout(async () => {
-				// 		console.log("second serialization attempt");
-
-				// 		if (content) {
-				// 			console.log(content[1]);
-				// 			let referenceDataSpan = document.body.querySelector(
-				// 				"[data='" + content[1] + "']"
-				// 			);
-				// 			if (!referenceDataSpan) {
-				// 				referenceDataSpan = document.body.querySelector(
-				// 					"[data='" +
-				// 						content[1].slice(0, -1) +
-				// 						(content[1].slice(-1) === "t" ? "f" : "t") +
-				// 						"']"
-				// 				);
-				// 			}
-
-				// 			console.log(referenceDataSpan);
-				// 			if (referenceDataSpan && referenceDataSpan.parentElement) {
-				// 				console.log("referenceDataSpan");
-				// 				let referenceSpan =
-				// 					referenceDataSpan.parentElement?.querySelector(
-				// 						".reference-span"
-				// 					);
-				// 				console.log(referenceSpan);
-				// 				await serializeReference(
-				// 					content[1],
-				// 					referenceSpan as HTMLElement,
-				// 					this.view
-				// 				);
-				// 			}
-				// 		}
-				// 	}, 2000);
-				// }
+			} else {
+				console.log(containerSpan);
+				console.log(referenceSpan);
+				console.log(referenceDataSpan);
+				let reference = referenceDataSpan.getAttribute("data");
+				if (!reference) return;
+				let data = await startReferenceEffect(
+					referenceDataSpan,
+					ACTION_TYPE.MOUSE
+				);
+				// reference may not be open yet so you need to open it first on click.
+				openReference();
 			}
+			// if (ev.metaKey || ev.ctrlKey) {
+			// 	openReference(ev);
+			// } else {
+			// 	this.serialized = true;
+			// 	const completed = await serializeReference(
+			// 		content,
+			// 		referenceSpan,
+			// 		this.view
+			// 	);
+			// 	referenceSpan.classList.toggle("reference-span-hidden");
+			// 	// // IMPROVEMENT: If clicked rapidly, serialization of toggled state sometimes fails
+			// 	// // This I believe is due to the async file write of the previous command
+
+			// 	// if (!completed && !this.completedSerialization) {
+			// 	// 	this.completedSerialization = true;
+			// 	// 	setTimeout(async () => {
+			// 	// 		console.log("second serialization attempt");
+
+			// 	// 		if (content) {
+			// 	// 			console.log(content[1]);
+			// 	// 			let referenceDataSpan = document.body.querySelector(
+			// 	// 				"[data='" + content[1] + "']"
+			// 	// 			);
+			// 	// 			if (!referenceDataSpan) {
+			// 	// 				referenceDataSpan = document.body.querySelector(
+			// 	// 					"[data='" +
+			// 	// 						content[1].slice(0, -1) +
+			// 	// 						(content[1].slice(-1) === "t" ? "f" : "t") +
+			// 	// 						"']"
+			// 	// 				);
+			// 	// 			}
+
+			// 	// 			console.log(referenceDataSpan);
+			// 	// 			if (referenceDataSpan && referenceDataSpan.parentElement) {
+			// 	// 				console.log("referenceDataSpan");
+			// 	// 				let referenceSpan =
+			// 	// 					referenceDataSpan.parentElement?.querySelector(
+			// 	// 						".reference-span"
+			// 	// 					);
+			// 	// 				console.log(referenceSpan);
+			// 	// 				await serializeReference(
+			// 	// 					content[1],
+			// 	// 					referenceSpan as HTMLElement,
+			// 	// 					this.view
+			// 	// 				);
+			// 	// 			}
+			// 	// 		}
+			// 	// 	}, 2000);
+			// 	// }
+			// }
 		});
 
 		return containerSpan;

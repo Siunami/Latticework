@@ -49,7 +49,6 @@ import {
 	getAdjacentTabs,
 } from "./workspace";
 import { debounce } from "lodash";
-import AnnotationModal, { createAnnotation } from "./annotationModal";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -98,6 +97,14 @@ export default class ReferencePlugin extends Plugin {
 			await debouncedBacklinkCacheUpdate(evt);
 		});
 
+		this.registerDomEvent(document, "keyup", async (evt) => {
+			await handleMovementEffects(evt);
+		});
+
+		// this.registerDomEvent(document, "click", async (evt) => {
+		// 	await handleMovementEffects(evt);
+		// });
+
 		// ------- REGISTERING KEY COMMANDS -------- //
 		this.addCommand({
 			id: "copy reference",
@@ -133,7 +140,6 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "a" },
 			],
 			callback: async () => {
-				// new AnnotationModal(this.app).open();
 				const reference = await createHighlight();
 				if (!reference) return;
 
@@ -248,8 +254,6 @@ async function setupPlugin() {
 }
 
 async function handleChange(e: ViewUpdate) {
-	console.log("handleChange");
-
 	// @ts-ignore -> changedRanges
 	let ranges = e.changedRanges;
 

@@ -1,3 +1,9 @@
+/*
+
+RETIRED: Saved here in case variations of it are useful later.
+
+*/
+
 import {
 	App,
 	MarkdownView,
