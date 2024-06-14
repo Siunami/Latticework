@@ -96,8 +96,8 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let editorView: EditorView | null = getEditorView(leaf);
 			if (!editorView) return;
 
-			// console.log(getHighlights(editorView));
-			removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
+			console.log(getHighlights(editorView));
+			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
 			// removeHighlight(editorView, referenceFrom, referenceTo);
 			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
 
@@ -284,21 +284,26 @@ export function layoutBacklinks(
 	// Code for adding inline comments
 	backlinks.forEach((element: HTMLSpanElement) => {
 		element.addEventListener("click", (ev) => {
+			console.log(element);
 			if (ev.metaKey || ev.ctrlKey) {
 				return;
 			}
 
+			let textArea: any;
+
 			if (input) {
-				return;
+				textArea = input;
+			} else {
+				textArea = new TextAreaComponent(element);
 			}
 
-			let textArea = new TextAreaComponent(element);
 			input = textArea;
 			textArea.inputEl.innerHTML = element.innerText;
 			if (element.innerText == "↗") {
 				textArea.inputEl.innerHTML += " ";
 			}
 			textArea.inputEl.classList.add("backlink-comment");
+
 			textArea.inputEl.focus();
 			textArea.inputEl.setSelectionRange(
 				textArea.inputEl.value.length,
@@ -306,6 +311,8 @@ export function layoutBacklinks(
 			);
 
 			textArea.inputEl.placeholder = "Add a comment...";
+
+			element.classList.add("backlink-comment-shadow");
 
 			// Function to adjust the height of the textarea
 			function adjustTextareaHeight() {
@@ -319,87 +326,91 @@ export function layoutBacklinks(
 			adjustTextareaHeight();
 			textArea.inputEl.addEventListener("input", adjustTextareaHeight);
 
-			textArea.inputEl.addEventListener("blur", (ev) => {
+			textArea.inputEl.addEventListener("blur", (ev: any) => {
 				ev.preventDefault();
+				console.log("BLUR!");
 				textArea.inputEl.remove();
+				element.classList.remove("backlink-comment-shadow");
 				input = null;
 			});
 
-			input.inputEl.addEventListener("keydown", async (ev) => {
-				// if backspace is hit and will delete an ↗, don't delete the textarea
-				if (ev.key === "Backspace" || ev.key === "Delete") {
-					let start = textArea.inputEl.selectionStart;
-					let end = textArea.inputEl.selectionEnd;
-					let text = textArea.inputEl.value;
+			textArea.inputEl.addEventListener(
+				"keydown",
+				async (ev: KeyboardEvent) => {
+					// if backspace is hit and will delete an ↗, don't delete the textarea
+					if (ev.key === "Backspace" || ev.key === "Delete") {
+						let start = textArea.inputEl.selectionStart;
+						let end = textArea.inputEl.selectionEnd;
+						let text = textArea.inputEl.value;
 
-					if (text.slice(start, end).includes("↗")) {
-						new Notice("Can't delete a reference icon (↗).");
-						ev.preventDefault();
-					} else if (
-						ev.key === "Backspace" &&
-						start > 0 &&
-						text[start - 1] === "↗"
-					) {
-						new Notice("Can't delete a reference icon (↗).");
-						ev.preventDefault();
-					}
-				}
-
-				// if enter is pressed without the shift key
-				if (ev.key === "Enter") {
-					ev.preventDefault();
-					let text = textArea.inputEl.value;
-					let filename = getFilename(leaf);
-					let reference = element.getAttribute("reference");
-					if (reference) {
-						let referenceData = JSON.parse(reference);
-						let from = referenceData.referencingLocation.from;
-						let to = referenceData.referencingLocation.to;
-
-						let activeFile = referenceData.referencingLocation.filename;
-						let allFiles = this.app.vault.getAllLoadedFiles();
-						let filePath: TFile = allFiles.filter(
-							(file: TAbstractFile) =>
-								file.path === activeFile ||
-								file.path.split("/")[file.path.split("/").length - 1] ===
-									activeFile
-						)[0] as TFile;
-						let fileData = await this.app.vault.read(filePath);
-
-						let prefix = fileData.slice(0, from);
-						let suffix = fileData.slice(to);
-
-						let leadingText = prefix.split("\n")[prefix.split("\n").length - 1];
-						let followingText = suffix.split("\n")[0];
-
-						let previousText = fileData.slice(
-							from - leadingText.length,
-							to + followingText.length
-						);
-
-						const matches = [...previousText.matchAll(REFERENCE_REGEX)].map(
-							(x: any) => x[0]
-						);
-						const textParts = text.split("↗");
-
-						const newText = interlaceStringArrays(textParts, matches);
-
-						// Use slice to replace previousText with newText in the file data
-						let updatedFileData =
-							fileData.slice(0, from - leadingText.length) +
-							newText +
-							fileData.slice(to + followingText.length);
-						let results = await this.app.vault.modify(
-							filePath,
-							updatedFileData
-						);
-						await generateBacklinks();
-						await updateBacklinkMarkPositions([leaf]);
+						if (text.slice(start, end).includes("↗")) {
+							new Notice("Can't delete a reference icon (↗).");
+							ev.preventDefault();
+						} else if (
+							ev.key === "Backspace" &&
+							start > 0 &&
+							text[start - 1] === "↗"
+						) {
+							new Notice("Can't delete a reference icon (↗).");
+							ev.preventDefault();
+						}
 					}
 
-					textArea.inputEl.blur();
+					// if enter is pressed without the shift key
+					if (ev.key === "Enter") {
+						ev.preventDefault();
+						let text = textArea.inputEl.value;
+						let reference = element.getAttribute("reference");
+						if (reference) {
+							let referenceData = JSON.parse(reference);
+							let from = referenceData.referencingLocation.from;
+							let to = referenceData.referencingLocation.to;
+
+							let activeFile = referenceData.referencingLocation.filename;
+							let allFiles = this.app.vault.getAllLoadedFiles();
+							let filePath: TFile = allFiles.filter(
+								(file: TAbstractFile) =>
+									file.path === activeFile ||
+									file.path.split("/")[file.path.split("/").length - 1] ===
+										activeFile
+							)[0] as TFile;
+							let fileData = await this.app.vault.read(filePath);
+
+							let prefix = fileData.slice(0, from);
+							let suffix = fileData.slice(to);
+
+							let leadingText =
+								prefix.split("\n")[prefix.split("\n").length - 1];
+							let followingText = suffix.split("\n")[0];
+
+							let previousText = fileData.slice(
+								from - leadingText.length,
+								to + followingText.length
+							);
+
+							const matches = [...previousText.matchAll(REFERENCE_REGEX)].map(
+								(x: any) => x[0]
+							);
+							const textParts = text.split("↗");
+
+							const newText = interlaceStringArrays(textParts, matches);
+
+							// Use slice to replace previousText with newText in the file data
+							let updatedFileData =
+								fileData.slice(0, from - leadingText.length) +
+								newText +
+								fileData.slice(to + followingText.length);
+							let results = await this.app.vault.modify(
+								filePath,
+								updatedFileData
+							);
+							await generateBacklinks();
+							await updateBacklinkMarkPositions([leaf]);
+							textArea.inputEl.blur();
+						}
+					}
 				}
-			});
+			);
 		});
 	});
 
@@ -493,6 +504,8 @@ let debounceTimer: NodeJS.Timeout;
 export function updateBacklinkMarkPositions(
 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
 ) {
+	console.log("UPDATE BACKLINK MARK POSITIONS");
+
 	clearTimeout(debounceTimer);
 
 	return new Promise((resolve) => {
@@ -513,7 +526,7 @@ export function updateBacklinkMarkPositions(
 
 			await Promise.all(promises);
 			resolve(debounceTimer);
-		}, 0);
+		}, 500);
 	});
 }
 
@@ -521,6 +534,7 @@ export function updateBacklinkMarkPositions(
 let existingObserver: ResizeObserver | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
+	console.log("ADD REFERENCES TO LEAF");
 	await updateBacklinkMarkPositions([leaf]);
 	generateDefaultHighlights(leaf);
 
@@ -705,6 +719,7 @@ export function createBacklinkData(
  * @returns a list of all backlinks in the vault
  */
 export async function generateBacklinks(): Promise<Backlink[]> {
+	console.log("GENERATE BACKLINKS");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = await this.app.vault.getMarkdownFiles();
 
@@ -732,9 +747,13 @@ export async function openBacklinkReference(ev: MouseEvent) {
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 
 	// @ts-ignore
-	let container = leaf.containerEl;
+	let container = leaf.containerEl.querySelector(".view-content");
 	if (!container) throw new Error("Container not found");
-	container.querySelector(".view-content").style.boxShadow = "none";
+	// container.querySelector(".view-content").style.boxShadow = "none";
+	container.classList.remove("new-shadow");
+	container.classList.remove("top-shadow");
+	container.classList.remove("bottom-shadow");
+	container.classList.add("no-shadow");
 
 	updateBacklinkHover({
 		temp: false,
@@ -744,18 +763,24 @@ export async function openBacklinkReference(ev: MouseEvent) {
 }
 
 export async function openReference() {
-	let hover = getHover();
-	if (!hover) return;
-	let leaf = getThat().workspace.getLeafById(hover.leafId);
+	setTimeout(() => {
+		let hover = getHover();
+		if (!hover) return;
+		let leaf = getThat().workspace.getLeafById(hover.leafId);
 
-	// @ts-ignore
-	let container = leaf.containerEl;
-	if (!container) throw new Error("Container not found");
-	container.querySelector(".view-content").style.boxShadow = "none";
+		// @ts-ignore
+		let container = leaf.containerEl.querySelector(".view-content");
+		if (!container) throw new Error("Container not found");
+		// container.querySelector(".view-content").style.boxShadow = "none";
+		container.classList.remove("new-shadow");
+		container.classList.remove("top-shadow");
+		container.classList.remove("bottom-shadow");
+		container.classList.add("no-shadow");
 
-	updateHover({
-		temp: false,
-		cursorViewport: null,
-		peek: false,
-	});
+		updateHover({
+			temp: false,
+			cursorViewport: null,
+			peek: false,
+		});
+	}, 26);
 }

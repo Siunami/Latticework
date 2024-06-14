@@ -177,6 +177,7 @@ export function listItemLength(line: string) {
 	return match ? match[0].length : 0;
 }
 
+// This isn't used anymore
 export function checkCursorPositionAtDatastring(evt: Event): {
 	matched: boolean;
 	span: HTMLSpanElement | undefined;
@@ -267,7 +268,8 @@ export function interlaceStringArrays(
 export async function createReference() {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) return;
-	let selection: string = view.editor.getSelection();
+	const editor = view.editor;
+	let selection: string = editor.getSelection();
 
 	// get backlink leaf
 	let leavesByTab: [WorkspaceLeaf[]] | [] = collectLeavesByTabHelper();
@@ -330,10 +332,10 @@ export async function createReference() {
 		fileData + "\n\n" + reference
 	);
 
-	console.log("generateBacklinks");
 	await generateBacklinks();
-	console.log("updateBacklinkMarkPositions");
 	await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
+	editor.setSelection(editor.getCursor());
+
 	return reference;
 }
 
@@ -352,7 +354,7 @@ export function createHighlight() {
 	let end =
 		view.data.split("\n").slice(0, to.line).join("\n").length + to.ch + 1;
 	defaultHighlightSelection(editorView, start, end);
-	editor.setSelection(editor.getCursor());
+	return editor;
 }
 
 // This is the same as the flow in the layoutBacklinks function, except it doesn't maintain last input state.

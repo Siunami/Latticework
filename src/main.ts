@@ -1,12 +1,4 @@
-import {
-	Plugin,
-	MarkdownView,
-	Notice,
-	WorkspaceLeaf,
-	TFile,
-	Modal,
-	TAbstractFile,
-} from "obsidian";
+import { Plugin, MarkdownView, Notice, WorkspaceLeaf, TFile } from "obsidian";
 
 import {
 	updateThat,
@@ -16,7 +8,7 @@ import {
 	updateBacklinks,
 } from "./state";
 import { highlights, referenceResources } from "./widget";
-import { updateClipboard, createClipboardText } from "./clipboard";
+import { updateClipboard } from "./clipboard";
 import {
 	generateBacklinks,
 	addReferencesToLeaf,
@@ -26,7 +18,6 @@ import {
 	getContainerElement,
 	updateBacklinkMarkPositions,
 	generateDefaultHighlights,
-	getFilename,
 	getBacklinkContainer,
 } from "./references";
 import {
@@ -34,8 +25,6 @@ import {
 	endReferenceHoverEffect,
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
-	delay,
-	getEditorView,
 } from "./effects";
 import {
 	decodeURIComponentString,
@@ -49,13 +38,8 @@ import {
 	destroyReferenceWidget,
 	serializeReference,
 } from "./widget/referenceWidget";
-import {
-	getCurrentTabIndex,
-	collectLeavesByTabHelper,
-	getAdjacentTabs,
-} from "./workspace";
+import { collectLeavesByTabHelper } from "./workspace";
 import { debounce } from "lodash";
-import { defaultHighlightSelection, removeHighlight } from "./mark";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -87,6 +71,10 @@ export default class ReferencePlugin extends Plugin {
 			await handleMovementEffects(evt);
 		});
 
+		this.registerDomEvent(document, "keyup", async (evt) => {
+			await handleMovementEffects(evt);
+		});
+
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			// backspace is to prevent the backlink from being created when it's deleted
 			if (
@@ -102,9 +90,51 @@ export default class ReferencePlugin extends Plugin {
 			await debouncedBacklinkCacheUpdate(evt);
 		});
 
-		this.registerDomEvent(document, "keyup", async (evt) => {
-			await handleMovementEffects(evt);
+		this.registerDomEvent(document, "keydown", async (evt) => {
+			if (evt.metaKey || evt.ctrlKey) {
+				// Change the cursor style of the body
+				await handleMovementEffects(evt);
+			}
+			// // Copy with toggle off
+			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
+				let currentLeaf = getThat().workspace.getLeaf();
+				await addReferencesToLeaf(currentLeaf);
+			} else if (
+				(evt.key == "s" || evt.key == "S") &&
+				(evt.metaKey || evt.ctrlKey) &&
+				evt.shiftKey
+			) {
+				const activeLeaf = this.app.workspace.getLeaf();
+				toggleSelectedReferences(evt, activeLeaf);
+			}
 		});
+
+		// this.registerDomEvent(document, "keydown", async (evt) => {
+		// 	// backspace is to prevent the backlink from being created when it's deleted
+		// 	if (evt.key == "Backspace" || (evt.key == "x" && evt.metaKey)) return;
+
+		// 	if (evt.metaKey || evt.ctrlKey) {
+		// 		// Change the cursor style of the body
+		// 		await handleMovementEffects(evt);
+		// 	}
+
+		// 	// await handleMovementEffects(evt);
+
+		// 	console.log("keydown");
+		// 	await debouncedBacklinkCacheUpdate(evt);
+		// 	// // Copy with toggle off
+		// 	if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
+		// 		let currentLeaf = getThat().workspace.getLeaf();
+		// 		await addReferencesToLeaf(currentLeaf);
+		// 	} else if (
+		// 		(evt.key == "s" || evt.key == "S") &&
+		// 		(evt.metaKey || evt.ctrlKey) &&
+		// 		evt.shiftKey
+		// 	) {
+		// 		const activeLeaf = this.app.workspace.getLeaf();
+		// 		toggleSelectedReferences(evt, activeLeaf);
+		// 	}
+		// });
 
 		// this.registerDomEvent(document, "click", async (evt) => {
 		// 	await handleMovementEffects(evt);
@@ -145,8 +175,8 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "a" },
 			],
 			callback: async () => {
-				const reference = await createReference();
 				createHighlight();
+				const reference = await createReference();
 				if (!reference) return;
 
 				// get the backlink for the newly created reference and start a comment workflow
@@ -160,7 +190,6 @@ export default class ReferencePlugin extends Plugin {
 								i
 							) as HTMLElement;
 							if (!backlinkItem) return;
-							// console.log(backlinkItem);
 							const backlinkReference = backlinkItem.getAttribute("reference");
 							if (!backlinkReference) return;
 							const referenceData = JSON.parse(backlinkReference);
@@ -183,29 +212,9 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "h" },
 			],
 			callback: async () => {
-				await createReference();
-				// deselect text
 				createHighlight();
+				await createReference();
 			},
-		});
-
-		this.registerDomEvent(document, "keydown", async (evt) => {
-			if (evt.metaKey || evt.ctrlKey) {
-				// Change the cursor style of the body
-				await handleMovementEffects(evt);
-			}
-			// // Copy with toggle off
-			if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
-				let currentLeaf = getThat().workspace.getLeaf();
-				await addReferencesToLeaf(currentLeaf);
-			} else if (
-				(evt.key == "s" || evt.key == "S") &&
-				(evt.metaKey || evt.ctrlKey) &&
-				evt.shiftKey
-			) {
-				const activeLeaf = this.app.workspace.getLeaf();
-				toggleSelectedReferences(evt, activeLeaf);
-			}
 		});
 	}
 

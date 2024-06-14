@@ -66,6 +66,7 @@ export function highlightSelection(view: EditorView, from: number, to: number) {
 }
 
 export function getHighlights(view: EditorView) {
+	console.log(view.state.field(highlightField, false));
 	return view.state.field(highlightField, false);
 }
 
