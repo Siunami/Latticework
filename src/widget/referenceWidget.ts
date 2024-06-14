@@ -356,8 +356,9 @@ class ReferenceWidget extends WidgetType {
 		containerSpan.title = file;
 
 		containerSpan.addEventListener("click", async (ev) => {
-			console.log(ev);
 			if (ev.shiftKey) {
+				const editor = getMarkdownView(getThat().workspace.getLeaf()).editor;
+				editor.setSelection(editor.getCursor());
 				this.serialized = true;
 				const completed = await serializeReference(
 					content,
@@ -365,10 +366,8 @@ class ReferenceWidget extends WidgetType {
 					this.view
 				);
 				referenceSpan.classList.toggle("reference-span-hidden");
+				// deselect text
 			} else {
-				console.log(containerSpan);
-				console.log(referenceSpan);
-				console.log(referenceDataSpan);
 				let reference = referenceDataSpan.getAttribute("data");
 				if (!reference) return;
 				let data = await startReferenceEffect(

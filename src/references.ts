@@ -97,7 +97,7 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			if (!editorView) return;
 
 			// console.log(getHighlights(editorView));
-			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
+			removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
 			// removeHighlight(editorView, referenceFrom, referenceTo);
 			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
 
@@ -106,6 +106,8 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 				index,
 				index + (referenceTo - referenceFrom)
 			);
+			// console.log("START A HIGHLIGHT PERM");
+			// console.log(index, index + (referenceTo - referenceFrom));
 		}
 	}
 }
@@ -279,6 +281,7 @@ export function layoutBacklinks(
 
 	let input: TextAreaComponent | null = null;
 
+	// Code for adding inline comments
 	backlinks.forEach((element: HTMLSpanElement) => {
 		element.addEventListener("click", (ev) => {
 			if (ev.metaKey || ev.ctrlKey) {
@@ -510,7 +513,7 @@ export function updateBacklinkMarkPositions(
 
 			await Promise.all(promises);
 			resolve(debounceTimer);
-		}, 100);
+		}, 0);
 	});
 }
 
@@ -742,7 +745,6 @@ export async function openBacklinkReference(ev: MouseEvent) {
 
 export async function openReference() {
 	let hover = getHover();
-	console.log(hover);
 	if (!hover) return;
 	let leaf = getThat().workspace.getLeafById(hover.leafId);
 

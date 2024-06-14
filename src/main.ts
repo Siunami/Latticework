@@ -35,8 +35,14 @@ import {
 	startBacklinkEffect,
 	endBacklinkHoverEffect,
 	delay,
+	getEditorView,
 } from "./effects";
-import { decodeURIComponentString, createHighlight, commentBox } from "./utils";
+import {
+	decodeURIComponentString,
+	createReference,
+	commentBox,
+	createHighlight,
+} from "./utils";
 import { ACTION_TYPE, REFERENCE_REGEX } from "./constants";
 import { EditorView, ViewUpdate } from "@codemirror/view";
 import {
@@ -49,6 +55,7 @@ import {
 	getAdjacentTabs,
 } from "./workspace";
 import { debounce } from "lodash";
+import { defaultHighlightSelection, removeHighlight } from "./mark";
 
 export default class ReferencePlugin extends Plugin {
 	onload() {
@@ -82,8 +89,6 @@ export default class ReferencePlugin extends Plugin {
 
 		this.registerDomEvent(document, "keydown", async (evt) => {
 			// backspace is to prevent the backlink from being created when it's deleted
-			console.log(evt.metaKey, evt.ctrlKey, evt.key);
-			console.log(evt);
 			if (
 				evt.metaKey ||
 				evt.ctrlKey ||
@@ -140,7 +145,8 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "a" },
 			],
 			callback: async () => {
-				const reference = await createHighlight();
+				const reference = await createReference();
+				createHighlight();
 				if (!reference) return;
 
 				// get the backlink for the newly created reference and start a comment workflow
@@ -160,7 +166,6 @@ export default class ReferencePlugin extends Plugin {
 							const referenceData = JSON.parse(backlinkReference);
 
 							if (referenceData.referencingLocation.text == reference) {
-								console.log(backlinkItem);
 								const leaf = this.app.workspace.getLeaf();
 								commentBox(backlinkItem, leaf);
 							}
@@ -178,7 +183,9 @@ export default class ReferencePlugin extends Plugin {
 				{ modifiers: ["Ctrl", "Shift"], key: "h" },
 			],
 			callback: async () => {
-				await createHighlight();
+				await createReference();
+				// deselect text
+				createHighlight();
 			},
 		});
 

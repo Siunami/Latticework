@@ -7,6 +7,10 @@ If your plugin does not need CSS, delete this file.
 
 */
 
+* {
+	--text-selection: #B4D5FE;
+}
+
 .markdown-source-view.mod-cm6.is-readable-line-width .cm-sizer {
 	margin-left: 0px !important;
 	max-width: 600px !important;
@@ -17,7 +21,7 @@ If your plugin does not need CSS, delete this file.
 }
 
 .reference-span {
-	background-color: var(--color-base-35);
+	background-color: var(--color-base-25);
 
 	cursor: pointer;
 	color: var(--text-normal);
@@ -29,7 +33,7 @@ If your plugin does not need CSS, delete this file.
 
 .reference-data-span::after {
 	content: "↗";
-	background-color: var(--color-base-35);
+	background-color: var(--color-base-25);
 	color: var(--text-accent);
 	cursor: pointer;
 
@@ -136,7 +140,8 @@ If your plugin does not need CSS, delete this file.
 
 .default-highlight {
 	/* background-color: hsl(calc(var(--accent-h) - 3), calc(var(--accent-s) * 1.02), calc(var(--accent-l) * 1.43)); */
-	background-color: hsl(54, 100%, 60%);
+	/* background-color: hsl(54, 100%, 60%); */
+	background-color: #FFFF00;
 	color: black;
 }
 

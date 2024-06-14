@@ -128,7 +128,7 @@ export function removeHighlight(view: EditorView, from: number, to: number) {
 }
 
 // update remove highlights so that
-export function removeHighlights(view: EditorView) {
+export function removeHighlights(view: EditorView, from: number, to: number) {
 	if (!view) return;
 
 	let effects: StateEffect<unknown>[] = view.state.selection.ranges.map(

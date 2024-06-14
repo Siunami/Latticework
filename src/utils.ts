@@ -10,7 +10,7 @@ import {
 import { REFERENCE_REGEX } from "./constants";
 import { match } from "assert";
 import { Backlink } from "./types";
-import { TextFragment } from "./effects";
+import { TextFragment, getEditorView } from "./effects";
 import { createClipboardText } from "./clipboard";
 import {
 	collectLeavesByTabHelper,
@@ -22,7 +22,10 @@ import {
 	getContainerElement,
 	updateBacklinkMarkPositions,
 	generateBacklinks,
+	getMarkdownView,
 } from "./references";
+import { getThat } from "./state";
+import { defaultHighlightSelection } from "./mark";
 
 export function parseEditorPosition(positionString: string) {
 	let [line, ch] = positionString.split(",");
@@ -261,7 +264,7 @@ export function interlaceStringArrays(
 	return interlacedText;
 }
 
-export async function createHighlight() {
+export async function createReference() {
 	const view = this.app.workspace.getActiveViewOfType(MarkdownView);
 	if (!view) return;
 	let selection: string = view.editor.getSelection();
@@ -324,12 +327,32 @@ export async function createHighlight() {
 	let fileData = await this.app.vault.read(filePath);
 	let results = await this.app.vault.modify(
 		filePath,
-		fileData + "\n" + reference
+		fileData + "\n\n" + reference
 	);
 
+	console.log("generateBacklinks");
 	await generateBacklinks();
+	console.log("updateBacklinkMarkPositions");
 	await updateBacklinkMarkPositions([this.app.workspace.getLeaf()]);
 	return reference;
+}
+
+export function createHighlight() {
+	const activeLeaf = getThat().workspace.getLeaf();
+	const view = getMarkdownView(activeLeaf);
+	const editor = view.editor;
+	const editorView = getEditorView(activeLeaf);
+	if (!editorView) return;
+
+	let from = editor.getCursor("from");
+	let to = editor.getCursor("to");
+
+	let start =
+		view.data.split("\n").slice(0, from.line).join("\n").length + from.ch + 1;
+	let end =
+		view.data.split("\n").slice(0, to.line).join("\n").length + to.ch + 1;
+	defaultHighlightSelection(editorView, start, end);
+	editor.setSelection(editor.getCursor());
 }
 
 // This is the same as the flow in the layoutBacklinks function, except it doesn't maintain last input state.
