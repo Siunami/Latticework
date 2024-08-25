@@ -6,7 +6,7 @@ You can read more about its goals and design in the research report: [https://ww
 
 ## Important Note
 
-This prototype is an experimental implementation that doesn't fully realize all the features described in our research report. We're sharing it primarily as a reference to provide insights into our research process and to illustrate some of the concepts discussed.
+This prototype is an experimental implementation that doesn't fully realize all the features described in our research report. We're sharing it primarily as a reference implementation that provided us insights during the research process.
 
 We recommend against building directly upon this codebase. Instead, we encourage using this prototype as inspiration for future implementations of these ideas.
 
