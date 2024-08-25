@@ -2,7 +2,7 @@
 
 This repository contains a research prototype of Latticework, implemented as an Obsidian plugin. Latticework is a system designed to unify annotation with freeform text editing in the context of personal knowledge management tools.
 
-You can read more about its goals and design the research report: [https://www.matthewsiu.com/Latticework](https://www.matthewsiu.com/Latticework)
+You can read more about its goals and design in the research report: [https://www.matthewsiu.com/Latticework](https://www.matthewsiu.com/Latticework)
 
 ## Important Note
 
