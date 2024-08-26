@@ -140,7 +140,6 @@ export async function serializeReference(
 
 	let currLine = referenceSpan?.parentElement?.parentElement;
 	if (!currLine) {
-		console.log("currLine not found");
 		return false;
 	}
 
@@ -177,21 +176,6 @@ export async function serializeReference(
 		});
 
 		view.dispatch(transaction);
-
-		// console.log(getBacklinks());
-		// console.log(content);
-		// console.log(content.slice(0, -1) + (content.slice(-1) === "t" ? "f" : "t"));
-		// console.log(referenceText);
-		// let backlink = getBacklinks().filter(
-		// 	(backlink) =>
-		// 		backlink.dataString == content ||
-		// 		backlink.dataString ==
-		// 			content.slice(0, -1) + (content.slice(-1) === "t" ? "f" : "t")
-		// )[0];
-		// console.log(backlink);
-		// // backlink.dataString = referenceText;
-		// // backlink.referencingLocation.toggle = referenceText.slice(-1);
-		// updateOneBacklink(backlink, referenceText);
 
 		// // generate all backlinks again? Or just update the one that changed?
 		await generateBacklinks();
@@ -377,56 +361,6 @@ class ReferenceWidget extends WidgetType {
 				// reference may not be open yet so you need to open it first on click.
 				openReference();
 			}
-			// if (ev.metaKey || ev.ctrlKey) {
-			// 	openReference(ev);
-			// } else {
-			// 	this.serialized = true;
-			// 	const completed = await serializeReference(
-			// 		content,
-			// 		referenceSpan,
-			// 		this.view
-			// 	);
-			// 	referenceSpan.classList.toggle("reference-span-hidden");
-			// 	// // IMPROVEMENT: If clicked rapidly, serialization of toggled state sometimes fails
-			// 	// // This I believe is due to the async file write of the previous command
-
-			// 	// if (!completed && !this.completedSerialization) {
-			// 	// 	this.completedSerialization = true;
-			// 	// 	setTimeout(async () => {
-			// 	// 		console.log("second serialization attempt");
-
-			// 	// 		if (content) {
-			// 	// 			console.log(content[1]);
-			// 	// 			let referenceDataSpan = document.body.querySelector(
-			// 	// 				"[data='" + content[1] + "']"
-			// 	// 			);
-			// 	// 			if (!referenceDataSpan) {
-			// 	// 				referenceDataSpan = document.body.querySelector(
-			// 	// 					"[data='" +
-			// 	// 						content[1].slice(0, -1) +
-			// 	// 						(content[1].slice(-1) === "t" ? "f" : "t") +
-			// 	// 						"']"
-			// 	// 				);
-			// 	// 			}
-
-			// 	// 			console.log(referenceDataSpan);
-			// 	// 			if (referenceDataSpan && referenceDataSpan.parentElement) {
-			// 	// 				console.log("referenceDataSpan");
-			// 	// 				let referenceSpan =
-			// 	// 					referenceDataSpan.parentElement?.querySelector(
-			// 	// 						".reference-span"
-			// 	// 					);
-			// 	// 				console.log(referenceSpan);
-			// 	// 				await serializeReference(
-			// 	// 					content[1],
-			// 	// 					referenceSpan as HTMLElement,
-			// 	// 					this.view
-			// 	// 				);
-			// 	// 			}
-			// 	// 		}
-			// 	// 	}, 2000);
-			// 	// }
-			// }
 		});
 
 		return containerSpan;

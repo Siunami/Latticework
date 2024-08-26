@@ -477,9 +477,6 @@ export async function endBacklinkHoverEffect() {
 		removeHighlight(originalEditorView, index, index + (to - from));
 		removeHighlight(originalEditorView, from, to);
 		defaultHighlightSelection(originalEditorView, index, index + (to - from));
-
-		// removeHighlight(originalEditorView, from, to);
-		// defaultHighlightSelection(originalEditorView, from, to);
 	}
 
 	let container =
@@ -627,29 +624,20 @@ function controllerIndicator(
 		container.classList.remove("top-shadow");
 		container.classList.remove("bottom-shadow");
 
-		console.log(startTop);
-		console.log(endTop);
-		console.log(isSame);
-
 		// set container styling based on scroll direction and document
 		if (startTop === endTop && isSame) {
 			container.classList.add("no-shadow");
 		} else if (startTop === endTop && !isSame) {
-			// container.style = "";
-
 			container.classList.add("new-shadow");
 		} else if (startTop < endTop && isSame) {
-			// container.style = "";
 			// show mark above
 			container.classList.add("top-shadow");
 		} else if (startTop > endTop && isSame) {
-			// container.style = "";
 			// show mark below
 			container.classList.add("bottom-shadow");
 		} else {
 			container.classList.add("new-shadow");
 		}
-		console.log(container);
 	}, 25);
 
 	return;

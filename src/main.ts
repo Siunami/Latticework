@@ -109,37 +109,6 @@ export default class ReferencePlugin extends Plugin {
 			}
 		});
 
-		// this.registerDomEvent(document, "keydown", async (evt) => {
-		// 	// backspace is to prevent the backlink from being created when it's deleted
-		// 	if (evt.key == "Backspace" || (evt.key == "x" && evt.metaKey)) return;
-
-		// 	if (evt.metaKey || evt.ctrlKey) {
-		// 		// Change the cursor style of the body
-		// 		await handleMovementEffects(evt);
-		// 	}
-
-		// 	// await handleMovementEffects(evt);
-
-		// 	console.log("keydown");
-		// 	await debouncedBacklinkCacheUpdate(evt);
-		// 	// // Copy with toggle off
-		// 	if (evt.key == "v" && (evt.metaKey || evt.ctrlKey)) {
-		// 		let currentLeaf = getThat().workspace.getLeaf();
-		// 		await addReferencesToLeaf(currentLeaf);
-		// 	} else if (
-		// 		(evt.key == "s" || evt.key == "S") &&
-		// 		(evt.metaKey || evt.ctrlKey) &&
-		// 		evt.shiftKey
-		// 	) {
-		// 		const activeLeaf = this.app.workspace.getLeaf();
-		// 		toggleSelectedReferences(evt, activeLeaf);
-		// 	}
-		// });
-
-		// this.registerDomEvent(document, "click", async (evt) => {
-		// 	await handleMovementEffects(evt);
-		// });
-
 		// ------- REGISTERING KEY COMMANDS -------- //
 		this.addCommand({
 			id: "copy reference",
@@ -355,7 +324,6 @@ const debouncedBacklinkCacheUpdate = debounce(async (evt) => {
 	console.log("debounced backlink cache update");
 
 	let markdownFile: TFile | null = getThat().workspace.getActiveFile();
-	// console.log("markdownFile", markdownFile);
 	if (markdownFile instanceof TFile) {
 		let fileData = await getThat().vault.read(markdownFile); // I'm pretty sure this is the slow line.
 		let fileBacklinks = createBacklinkData(fileData, markdownFile);
@@ -467,10 +435,8 @@ export async function handleMovementEffects(
 	// if key not pressed, mouse movement should end hover effect immediately
 	if (!evt.metaKey && !evt.ctrlKey) {
 		if (getHover() != null && !span?.classList.contains("cm-line")) {
-			// console.log("end reference hover effect");
 			await endReferenceHoverEffect();
 		} else if (getBacklinkHover() != null) {
-			// console.log("end backlink hover effect");
 			await endBacklinkHoverEffect();
 		}
 		backlinkSpan?.classList.remove("backlink-span-hover");
@@ -481,8 +447,6 @@ export async function handleMovementEffects(
 			span?.parentElement &&
 			span?.parentElement.classList.contains("reference-container-span")
 		) {
-			// console.log("start hover reference effect");
-			// if (getHover() != null) return;
 			if (!span.getAttribute("data")) {
 				span = span.parentElement;
 				span = span.querySelector(".reference-data-span") as HTMLSpanElement;
@@ -495,13 +459,10 @@ export async function handleMovementEffects(
 			span instanceof HTMLSpanElement &&
 			span.getAttribute("reference")
 		) {
-			// console.log("start hover backlink effect");
-			// if (getBacklinkHover() != null) return;
 			span.classList.add("backlink-span-hover");
 			backlinkSpan = span;
 			await startBacklinkEffect(span);
 		} else if (getHover() != null) {
-			// console.log("end hover reference effect");
 			// Define the keys you're waiting for
 			const requiredKeys = [
 				"dataString",

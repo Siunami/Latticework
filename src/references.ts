@@ -96,7 +96,6 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 			let editorView: EditorView | null = getEditorView(leaf);
 			if (!editorView) return;
 
-			console.log(getHighlights(editorView));
 			// removeHighlight(editorView, index, index + (referenceTo - referenceFrom));
 			// removeHighlight(editorView, referenceFrom, referenceTo);
 			// defaultHighlightSelection(originalEditorView, index, index + (to - from));
@@ -106,8 +105,6 @@ export function generateDefaultHighlights(leaf: WorkspaceLeaf) {
 				index,
 				index + (referenceTo - referenceFrom)
 			);
-			// console.log("START A HIGHLIGHT PERM");
-			// console.log(index, index + (referenceTo - referenceFrom));
 		}
 	}
 }
@@ -284,7 +281,6 @@ export function layoutBacklinks(
 	// Code for adding inline comments
 	backlinks.forEach((element: HTMLSpanElement) => {
 		element.addEventListener("click", (ev) => {
-			console.log(element);
 			if (ev.metaKey || ev.ctrlKey) {
 				return;
 			}
@@ -328,7 +324,6 @@ export function layoutBacklinks(
 
 			textArea.inputEl.addEventListener("blur", (ev: any) => {
 				ev.preventDefault();
-				console.log("BLUR!");
 				textArea.inputEl.remove();
 				element.classList.remove("backlink-comment-shadow");
 				input = null;
@@ -504,8 +499,6 @@ let debounceTimer: NodeJS.Timeout;
 export function updateBacklinkMarkPositions(
 	leaves = getThat().workspace.getLeavesOfType("markdown") as WorkspaceLeaf[]
 ) {
-	console.log("UPDATE BACKLINK MARK POSITIONS");
-
 	clearTimeout(debounceTimer);
 
 	return new Promise((resolve) => {
@@ -534,7 +527,6 @@ export function updateBacklinkMarkPositions(
 let existingObserver: ResizeObserver | null = null;
 
 export async function addReferencesToLeaf(leaf: WorkspaceLeaf) {
-	console.log("ADD REFERENCES TO LEAF");
 	await updateBacklinkMarkPositions([leaf]);
 	generateDefaultHighlights(leaf);
 
@@ -719,7 +711,6 @@ export function createBacklinkData(
  * @returns a list of all backlinks in the vault
  */
 export async function generateBacklinks(): Promise<Backlink[]> {
-	console.log("GENERATE BACKLINKS");
 	let backlinks: Backlink[] = [];
 	let markdownFiles = await this.app.vault.getMarkdownFiles();
 

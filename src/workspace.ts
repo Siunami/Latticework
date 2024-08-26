@@ -165,7 +165,6 @@ export async function openFileInAdjacentTab(
 		let leaf = currentTab[currentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		// console.log("open file new tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTabNames.includes(file)) {
 		// file exists in right tab
@@ -175,7 +174,6 @@ export async function openFileInAdjacentTab(
 		let leaf = rightAdjacentTab[rightAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		// console.log("open existing file right tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (leftAdjacentTabNames.includes(file)) {
 		// file exists in left tab
@@ -186,7 +184,6 @@ export async function openFileInAdjacentTab(
 		let leaf = leftAdjacentTab[leftAdjacentTabNames.indexOf(file)];
 		workspace.revealLeaf(leaf);
 
-		// console.log("open existing file left tab");
 		return { newLeaf: leaf, temp: false, originalLeaf };
 	} else if (rightAdjacentTab.length > 0) {
 		// there exists a right tab
@@ -201,7 +198,6 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(newLeaf);
 		workspace.setActiveLeaf(currLeaf);
 
-		// console.log("open new file right tab");
 		return { newLeaf, temp: true, originalLeaf };
 	} else if (leftAdjacentTab.length > 0) {
 		// there exists a left tab
@@ -216,7 +212,6 @@ export async function openFileInAdjacentTab(
 		workspace.revealLeaf(newLeaf); // reveal new leaf
 		workspace.setActiveLeaf(currLeaf); // set active leaf back to original
 
-		// console.log("open new file left tab");
 		return { newLeaf, temp: true, originalLeaf };
 	} else {
 		// no adjacent tabs
@@ -224,7 +219,6 @@ export async function openFileInAdjacentTab(
 		let newLeaf = workspace.createLeafBySplit(currLeaf);
 		await openFileInLeaf(newLeaf, file);
 
-		// console.log("open new file left tab");
 		return { newLeaf, temp: true, originalLeaf: currLeaf };
 	}
 }

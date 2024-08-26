@@ -284,7 +284,6 @@ export async function createReference() {
 
 	let rightFiles = rightAdjacentTab
 		.filter((leaf) => {
-			// console.log(leaf);
 			return leaf.view instanceof MarkdownView;
 		})
 		.map((leaf) => {
@@ -296,7 +295,6 @@ export async function createReference() {
 
 	let leftFiles = leftAdjacentTab
 		.filter((leaf) => {
-			// console.log(leaf);
 			return leaf.view instanceof MarkdownView;
 		})
 		.map((leaf) => {
@@ -324,7 +322,6 @@ export async function createReference() {
 	)[0] as TFile;
 
 	let reference = createClipboardText(view, selection);
-	console.log("reference: ", reference);
 
 	let fileData = await this.app.vault.read(filePath);
 	let results = await this.app.vault.modify(

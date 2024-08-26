@@ -105,9 +105,6 @@ export let backlinks = StateField.define<Backlink[]>({
 							backlink.referencingLocation.filename ==
 								updatedBacklink.referencingLocation.filename &&
 							backlink.dataString == updatedBacklink.dataString;
-						// if (foundBacklink) {
-						// 	console.log(backlink);
-						// }
 
 						return !foundBacklink;
 					});
