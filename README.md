@@ -15,10 +15,10 @@ We recommend against building directly upon this codebase. Instead, we encourage
 ![](Brat.png)
 In Obsidian's community plugins menu option, browse and install a the BRAT plugin. We'll use this to install Latticework from this github repo.
 
-![](Add plugin.png)
+![](AddPlugin.png)
 Once installed, activate the plugin, go to the setting for BRAT and click the `add beta plugin` button. We'll then paste the link to this repository [https://github.com/Siunami/Latticework/](https://github.com/Siunami/Latticework/)
 
-![](Community plugins.png)
+![](CommunityPlugins.png)
 Lastly, confirm that the `Latticework (Prototype)` plugin version `0.1.8` is installed and active in the community plugins menu option.
 
 ## Prototype commands
