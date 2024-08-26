@@ -12,22 +12,22 @@ We recommend against building directly upon this codebase. Instead, we encourage
 
 ## To install
 
-In your obsidian vault, open the hidden `plugins` folder.
+In Obsidian's community plugins menu option, browse and install a the [BRAT](obsidian://show-plugin?id=obsidian42-brat) plugin. We'll use this to install Latticework from this github repo.
 
-- You can access this folder via the `Community plugins` tab in the settings menu of Obsidian
-- Then clicking on the folder icon next to the section titled `installed plugins`
+Once installed, activate the plugin, go to the setting for BRAT and click the `add beta plugin` button. We'll then paste the link to this repository [https://github.com/Siunami/Latticework/](https://github.com/Siunami/Latticework/)
 
-Clone this repository into the `plugins` folder
+Lastly, confirm that the `Latticework (Prototype)` plugin version `0.1.8` is installed and active in the community plugins menu option.
 
-Run this plugin in test mode by installing `npm install` and running the plugin `npm run dev`
+## Prototype commands
 
-Then, back in the `Community plugins` tab, make sure that the plugin has been activated
-![](activated.png)
+`CMD + Shift + H` - Creates a highlight + adds a text reference to adjacent document (if it exists, otherwise to the bottom of current document)
 
-## Commands
+`CMD + Shift + C` - Copy command that copies a text reference
 
-CMD+Shift+C -> Copy the selected text with a reference
+`Shift + Click` - Collapse or expand a text reference
 
-Hover over a reference to peek. Click to keep in view.
+`CMD + Shift + S` - Collapse or expand all
 
-CMD+Click on a reference -> Will toggle the text in the reference on and off
+When hovering a text reference or backlink, hold `CMD` to peek it's destination document and location in an adjacent panel. While holding `CMD`, you can click to keep that panel open.
+
+While hovering a backlink, click to add/edit a marginalia note alongside
