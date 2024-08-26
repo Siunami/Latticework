@@ -1,7 +1,7 @@
 {
-	"name": "obsidian-reference-plugin",
+	"name": "latticework",
 	"version": "1.0.0",
-	"description": "Reference plugin",
+	"description": "Latticework (Prototype)",
 	"main": "main.js",
 	"scripts": {
 		"dev": "node esbuild.config.mjs",
