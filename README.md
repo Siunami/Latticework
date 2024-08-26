@@ -12,7 +12,8 @@ We recommend against building directly upon this codebase. Instead, we encourage
 
 ## To install
 
-In Obsidian's community plugins menu option, browse and install a the [BRAT](obsidian://show-plugin?id=obsidian42-brat) plugin. We'll use this to install Latticework from this github repo.
+![](brat.png)
+In Obsidian's community plugins menu option, browse and install a the BRAT plugin. We'll use this to install Latticework from this github repo.
 
 Once installed, activate the plugin, go to the setting for BRAT and click the `add beta plugin` button. We'll then paste the link to this repository [https://github.com/Siunami/Latticework/](https://github.com/Siunami/Latticework/)
 
