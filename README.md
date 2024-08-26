@@ -12,6 +12,8 @@ We recommend against building directly upon this codebase. Instead, we encourage
 
 ## To install
 
+Before trying this prototype, it is best to install this plugin in a fresh obsidian instance as it is may have some conflicts with other plugins.
+
 ![](Brat.png)
 In Obsidian's community plugins menu option, browse and install a the BRAT plugin. We'll use this to install Latticework from this github repo.
 
