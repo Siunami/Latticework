@@ -10,19 +10,6 @@ This prototype is an experimental implementation that doesn't fully realize all 
 
 We recommend against building directly upon this codebase. Instead, we encourage using this prototype as inspiration for future implementations of these ideas.
 
-## To install
-
-Before trying this prototype, it is best to install this plugin in a fresh obsidian instance as it is may have some conflicts with other plugins.
-
-![](Brat.png)
-In Obsidian's community plugins menu option, browse and install a the BRAT plugin. We'll use this to install Latticework from this github repo.
-
-![](AddPlugin.png)
-Once installed, activate the plugin, go to the setting for BRAT and click the `add beta plugin` button. We'll then paste the link to this repository [https://github.com/Siunami/Latticework/](https://github.com/Siunami/Latticework/)
-
-![](CommunityPlugins.png)
-Lastly, confirm that the `Latticework (Prototype)` plugin version `0.1.8` is installed and active in the community plugins menu option.
-
 ## Prototype commands
 
 `CMD + Shift + H` - Creates a highlight + adds a text reference to adjacent document (if it exists, otherwise to the bottom of current document)
@@ -36,3 +23,16 @@ Lastly, confirm that the `Latticework (Prototype)` plugin version `0.1.8` is ins
 When hovering a text reference or backlink, hold `CMD` to peek it's destination document and location in an adjacent panel. While holding `CMD`, you can click to keep that panel open.
 
 While hovering a backlink, click to add/edit a marginalia note alongside
+
+## To install
+
+Before trying this prototype, it is best to install this plugin in a fresh obsidian instance as it is may have some conflicts with other plugins.
+
+![](Brat.png)
+In Obsidian's community plugins menu option, browse and install a the BRAT plugin. We'll use this to install Latticework from this github repo.
+
+![](AddPlugin.png)
+Once installed, activate the plugin, go to the setting for BRAT and click the `add beta plugin` button. We'll then paste the link to this repository [https://github.com/Siunami/Latticework/](https://github.com/Siunami/Latticework/)
+
+![](CommunityPlugins.png)
+Lastly, confirm that the `Latticework (Prototype)` plugin version `0.1.8` is installed and active in the community plugins menu option.
